@@ -78,7 +78,8 @@ class MessageBus:
 
             content = m.content
             # Truncate messages from older rounds to keep context focused
-            if current_round > 0 and m.round_num < current_round:
+            # NEVER truncate SYSTEM messages (e.g. PROJECT GOAL) — agents need the full goal
+            if current_round > 0 and m.round_num < current_round and m.msg_type != MessageType.SYSTEM:
                 if len(content) > max_chars_old:
                     content = content[:max_chars_old] + "\n[... truncated — full output was delivered above ...]"
 

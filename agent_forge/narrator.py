@@ -193,23 +193,42 @@ class Narrator:
             self._play_audio(tmp_path)
 
     def _play_audio(self, path: str) -> None:
-        uri = path.replace("\\", "/")
-        ps_script = f"""
-Add-Type -AssemblyName PresentationCore
-$p = New-Object System.Windows.Media.MediaPlayer
-$p.Open([Uri]::new('{uri}'))
-$p.Play()
-while ($p.NaturalDuration.HasTimeSpan -eq $false) {{ Start-Sleep -Milliseconds 100 }}
-$duration = $p.NaturalDuration.TimeSpan.TotalMilliseconds
-Start-Sleep -Milliseconds ($duration + 150)
-$p.Close()
-"""
+        import sys as _sys
+
         try:
-            subprocess.run(
-                ["powershell", "-NoProfile", "-Command", ps_script],
-                capture_output=True,
-                timeout=120,
-            )
+            if _sys.platform == "darwin":
+                # macOS — afplay is built-in
+                subprocess.run(["afplay", path], capture_output=True, timeout=120)
+            elif _sys.platform == "win32":
+                # Windows — PowerShell MediaPlayer
+                uri = path.replace("\\", "/")
+                ps_script = (
+                    "Add-Type -AssemblyName PresentationCore\n"
+                    "$p = New-Object System.Windows.Media.MediaPlayer\n"
+                    f"$p.Open([Uri]::new('{uri}'))\n"
+                    "$p.Play()\n"
+                    "while ($p.NaturalDuration.HasTimeSpan -eq $false) "
+                    "{ Start-Sleep -Milliseconds 100 }\n"
+                    "$duration = $p.NaturalDuration.TimeSpan.TotalMilliseconds\n"
+                    "Start-Sleep -Milliseconds ($duration + 150)\n"
+                    "$p.Close()"
+                )
+                subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", ps_script],
+                    capture_output=True,
+                    timeout=120,
+                )
+            else:
+                # Linux — try common players in order of likelihood
+                for player_cmd in (
+                    ["mpv", "--no-terminal", path],
+                    ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path],
+                    ["paplay", path],
+                    ["aplay", path],
+                ):
+                    if shutil.which(player_cmd[0]):
+                        subprocess.run(player_cmd, capture_output=True, timeout=120)
+                        break
         except (subprocess.TimeoutExpired, Exception):
             pass
 

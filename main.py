@@ -215,9 +215,22 @@ def main() -> None:
         console.print(f"  [dim]Agents: {agents_str}[/]")
         console.print(f"  [dim]Rounds: {team_config.max_rounds}[/]")
 
-        # Goal input
+        # Goal input (multi-line: blank line or "END" to finish)
         console.print()
-        goal = Prompt.ask(f"  [bold]Goal for {team_config.name}[/]")
+        console.print(
+            f"  [bold]Goal for {team_config.name}[/]"
+            "  [dim](paste or type freely — blank line to submit)[/]"
+        )
+        goal_lines: list[str] = []
+        while True:
+            try:
+                line = input("  > " if not goal_lines else "  . ")
+            except EOFError:
+                break
+            if line.strip().upper() == "END" or (not line.strip() and goal_lines):
+                break
+            goal_lines.append(line)
+        goal = "\n".join(goal_lines)
 
         if not goal.strip():
             console.print("  [red]No goal provided.[/]")

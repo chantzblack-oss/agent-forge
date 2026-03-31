@@ -1,0 +1,13 @@
+Audit and elevate the project at C:/Users/ChantzBlack/projects/agent-forge to production-grade quality. It's a multi-agent orchestration engine that spawns Claude CLI subprocesses, streams their output, and coordinates multi-round collaboration with optional TTS narration. Read every source file before proposing changes.
+
+Architect: Map the full codebase (main.py, engine.py, agent.py, narrator.py, bus.py, teams/), identify architectural weaknesses, and design fixes. Key concerns: CLI subprocess error handling, streaming reliability, narrator thread safety, session export robustness. Define clear acceptance criteria for each agent's deliverables.
+
+Backend: Write ACTUAL CODE for: (1) robust error handling in _call_cli — handle CLI crashes, timeouts, partial output, rate limits, (2) graceful degradation when narration fails (don't block the session), (3) input validation on team configs and goal text, (4) logging with Python's logging module for debugging session issues, (5) session auto-save so work isn't lost on crashes. Deliver complete, drop-in code — not suggestions.
+
+Frontend: This is a Rich CLI app. Write ACTUAL CODE for: (1) a session resume/replay feature — reload an exported markdown session and continue, (2) keyboard shortcuts during sessions (s=skip narration, e=export, q=quit), (3) real-time token/cost estimation display, (4) better progress indicators showing which agent is active and estimated completion.
+
+Tester: Write a COMPLETE pytest test suite. Cover: (1) MessageBus — posting, filtering, context formatting, (2) prompt construction for each role and round combination, (3) team config validation — round_order matches agents, no duplicate names, (4) narrator mode filtering logic, (5) session export format correctness, (6) CLI arg parsing edge cases. Every test must be runnable as-is.
+
+CodeReviewer: Review all proposed changes AND existing code. Flag: security vulnerabilities (subprocess handling, temp file cleanup), race conditions in narrator threading, performance bottlenecks, dead code, violated best practices. For every issue, provide the fixed code.
+
+Deliver production-ready code I can drop into the project. No planning documents, no TODO lists, no descriptions of what you would do. ACTUAL WORKING CODE ONLY.

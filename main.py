@@ -5,6 +5,7 @@ Agent Forge — Multi-agent orchestration engine.
 Assemble AI teams that collaborate, debate, and create.
 """
 
+import argparse
 import sys
 import time
 
@@ -192,17 +193,113 @@ def select_narration_mode() -> str:
     return mode
 
 
+def read_goal(team_name: str) -> str:
+    """Read a goal with multi-line support so long prompts don't truncate.
+
+    Type normally for a short goal (single Enter submits).
+    For longer goals, type multiple lines and press Enter on an empty line to submit.
+    """
+    console.print(f"  [bold]Goal for {team_name}[/]")
+    console.print("  [dim]Type your goal below. Press Enter twice to submit.[/]")
+    console.print()
+
+    lines: list[str] = []
+    while True:
+        try:
+            prefix = "  > " if not lines else "  . "
+            line = console.input(f"  [dim]{prefix.strip()}[/] ")
+        except (EOFError, KeyboardInterrupt):
+            break
+        if line == "" and lines:
+            break
+        if line == "" and not lines:
+            # First line empty — keep waiting
+            continue
+        lines.append(line)
+
+    return " ".join(lines)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Agent Forge — Multi-agent orchestration engine",
+    )
+    parser.add_argument(
+        "--goal", "-g",
+        type=str,
+        help="Goal for the team (skips interactive goal prompt)",
+    )
+    parser.add_argument(
+        "--goal-file", "-gf",
+        type=str,
+        help="Read goal from a text file",
+    )
+    parser.add_argument(
+        "--team", "-t",
+        type=str,
+        help="Team name to select (e.g. 'Code Shop', 'Research Lab')",
+    )
+    parser.add_argument(
+        "--narration", "-n",
+        choices=["off", "highlights", "full"],
+        default=None,
+        help="Voice narration mode",
+    )
+    return parser.parse_args()
+
+
+def find_team_by_name(name: str) -> TeamConfig | None:
+    """Fuzzy-match a team by name (case-insensitive, partial match)."""
+    low = name.lower()
+    for team in TEAMS:
+        if team.name.lower() == low:
+            return team
+    for team in TEAMS:
+        if low in team.name.lower():
+            return team
+    return None
+
+
 def main() -> None:
+    args = parse_args()
+
     print_banner()
 
     time.sleep(0.1)
     console.print()
     console.print("  [dim]\u2713 Claude Code CLI detected[/]")
 
-    narration_mode = select_narration_mode()
+    # Narration mode
+    narration_map = {
+        "off": Narrator.MODE_OFF,
+        "highlights": Narrator.MODE_HIGHLIGHTS,
+        "full": Narrator.MODE_FULL,
+    }
+    if args.narration:
+        narration_mode = narration_map[args.narration]
+        console.print(f"  [dim]\u2713 Narration: {args.narration}[/]")
+    else:
+        narration_mode = select_narration_mode()
+
+    # Pre-selected team from CLI
+    cli_team: TeamConfig | None = None
+    if args.team:
+        cli_team = find_team_by_name(args.team)
+        if not cli_team:
+            console.print(f"  [red]Team '{args.team}' not found.[/]")
+            console.print("  [dim]Available: " + ", ".join(t.name for t in TEAMS) + "[/]")
+            return
+
+    # Pre-loaded goal from CLI
+    cli_goal: str | None = None
+    if args.goal_file:
+        with open(args.goal_file, encoding="utf-8") as f:
+            cli_goal = f.read().strip()
+    elif args.goal:
+        cli_goal = args.goal
 
     while True:
-        team_config = select_team()
+        team_config = cli_team or select_team()
 
         # Confirm selection
         console.print()
@@ -217,7 +314,11 @@ def main() -> None:
 
         # Goal input
         console.print()
-        goal = Prompt.ask(f"  [bold]Goal for {team_config.name}[/]")
+        if cli_goal:
+            goal = cli_goal
+            console.print(f"  [bold]Goal:[/] {goal[:120]}{'...' if len(goal) > 120 else ''}")
+        else:
+            goal = read_goal(team_config.name)
 
         if not goal.strip():
             console.print("  [red]No goal provided.[/]")
@@ -227,7 +328,12 @@ def main() -> None:
         orchestrator = Orchestrator(narrate_mode=narration_mode)
         orchestrator.run(goal=goal, team=team_config)
 
+        # If everything came from CLI, exit after one run
+        if cli_team and cli_goal:
+            break
+
         # Again?
+        cli_goal = None  # clear so next loop prompts interactively
         console.print()
         again = Prompt.ask(
             "  [bold]Run another session?[/] [dim](y/n)[/]",

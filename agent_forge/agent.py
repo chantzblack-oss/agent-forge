@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import os
 import shutil
+import signal
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
 
 from rich.console import Console
@@ -201,8 +203,11 @@ YOUR TASK THIS TURN
         env.pop("ANTHROPIC_API_KEY", None)
         return env
 
+    # Maximum time (seconds) to wait for a single agent turn before killing the process
+    CLI_TIMEOUT: int = 600  # 10 minutes
+
     def _call_cli(self, system: str, user_prompt: str) -> str:
-        """Call Claude CLI with animated spinner, then stream response with colored border."""
+        """Call Claude CLI with animated spinner, timeout protection, and streaming output."""
         args = [
             _CLAUDE_PATH,
             "-p",
@@ -210,7 +215,7 @@ YOUR TASK THIS TURN
             "--model", self.config.model,
             "--effort", "max",
             "--no-session-persistence",
-            "--allowedTools", "WebSearch", "WebFetch",
+            "--allowedTools", "Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch",
         ]
 
         proc = subprocess.Popen(
@@ -227,6 +232,21 @@ YOUR TASK THIS TURN
         proc.stdin.write(user_prompt)
         proc.stdin.close()
 
+        # Watchdog timer — kills the process if no output arrives within CLI_TIMEOUT
+        timed_out = threading.Event()
+
+        def _watchdog():
+            if not timed_out.wait(self.CLI_TIMEOUT):
+                # Timeout fired — kill the subprocess
+                timed_out.set()
+                try:
+                    proc.kill()
+                except OSError:
+                    pass
+
+        timer = threading.Thread(target=_watchdog, daemon=True)
+        timer.start()
+
         # Animated thinking spinner (Rich Status)
         spinner_style = self.color.replace("bold ", "")
         status = self.console.status(
@@ -242,6 +262,12 @@ YOUR TASK THIS TURN
         first_line = True
 
         for line in proc.stdout:
+            # Reset watchdog on every line of output
+            timed_out.set()   # cancel pending watchdog
+            timed_out.clear()  # allow new watchdog if needed
+            timer = threading.Thread(target=_watchdog, daemon=True)
+            timer.start()
+
             if first_line:
                 status.stop()
                 first_line = False
@@ -252,11 +278,20 @@ YOUR TASK THIS TURN
         if first_line:
             status.stop()
 
+        # Cancel watchdog
+        timed_out.set()
+
         proc.wait()
 
         text = "".join(lines).strip()
 
         if not text:
+            if timed_out.is_set() and not lines:
+                return (
+                    "[ERROR] Agent timed out after "
+                    f"{self.CLI_TIMEOUT // 60} minutes with no output. "
+                    "The model may be overloaded — try again."
+                )
             return "[ERROR] No response from Claude CLI. The model may be overloaded — try again."
 
         return text

@@ -1,0 +1,13 @@
+Audit and elevate the project at C:/Users/ChantzBlack/projects/ls-ops-toolkit to production-grade quality. It's a 14-tool Python analytics suite for healthcare operations reporting (pandas, openpyxl, python-docx). Read every source file before proposing changes.
+
+Architect: Map the full codebase, identify architectural weaknesses, and design fixes. The most critical modules are data_loader.py (auto-detection, normalization, aggregation) and practice_intel.py (deepest analysis tool). Define clear acceptance criteria for each agent's deliverables.
+
+Backend: Write ACTUAL CODE for: (1) structured error handling with actionable error messages across all 14 tools, (2) input validation — pre-check DataFrames for min rows, required columns, sensible date ranges, (3) logging with Python's logging module replacing all print() calls, (4) guards against division-by-zero in revenue/utilization calculations, NaN propagation, and empty DataFrames. Deliver complete, drop-in code — not suggestions.
+
+Frontend: This is a CLI tool. Audit the interactive menu UX in run.py and improve it: (1) input validation on file paths and menu choices, (2) progress indicators for long-running tools, (3) clear error recovery so users don't have to restart, (4) summary output after batch runs.
+
+Tester: Write a COMPLETE pytest test suite with fixtures. Cover: (1) data fingerprinting — AMD vs Power BI detection, (2) column normalization and alias resolution, (3) credential parsing and visit cadence calculations (PMHNP=42 days, LMHC=14 days), (4) revenue estimation, (5) edge cases — empty files, missing columns, single-row DataFrames, future dates. Every test must be runnable as-is.
+
+CodeReviewer: Review all proposed changes AND existing code. Flag: security vulnerabilities, performance bottlenecks (especially in batch "Run ALL" mode), dead code, violated best practices. For every issue, provide the fixed code.
+
+Deliver production-ready code I can drop into the project. No planning documents, no TODO lists, no descriptions of what you would do. ACTUAL WORKING CODE ONLY.

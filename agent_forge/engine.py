@@ -14,7 +14,7 @@ from rich.text import Text
 import rich.box
 
 from .agent import Agent, ROLE_STYLES
-from .bus import MessageBus, Message, MessageType
+from .bus import MessageBus, Message, MessageType, extract_requests, extract_mentions
 from .narrator import Narrator
 from .teams import TeamConfig
 
@@ -37,6 +37,8 @@ class Orchestrator:
         self._goal: str = ""
         self._team: TeamConfig | None = None
         self._start_time: float = 0.0
+        self._in_reactive: bool = False  # prevent recursive reactive chains
+        self._reactive_count_this_round: int = 0  # cap reactive turns per round
 
     # ── public ────────────────────────────────────────────
 
@@ -90,6 +92,7 @@ class Orchestrator:
         # Execute rounds
         for round_num in range(1, team.max_rounds + 1):
             self._print_round(round_num, team.max_rounds)
+            self._reactive_count_this_round = 0
 
             if self.narrator:
                 self.narrator.narrate_system(
@@ -135,6 +138,10 @@ class Orchestrator:
                 if msg.content.startswith("[ERROR]"):
                     self.console.print("\n  [bold red]Stopping due to error.[/]")
                     return
+
+                # Reactive turns — direct requests and rebuttals
+                if not self._in_reactive:
+                    self._process_reactive_turns(msg, round_num, is_final)
 
             # Round recap
             self._print_round_recap(round_num)
@@ -308,6 +315,155 @@ class Orchestrator:
             )
 
         return f"{r} Contribute to the team's goal."
+
+    # ── reactive turns (cross-talk) ──────────────────────
+
+    MAX_REACTIVE_PER_ROUND = 4  # prevent runaway chains
+    MAX_REACTIVE_PER_TRIGGER = 2  # max reactive turns from one agent's output
+
+    def _process_reactive_turns(
+        self, trigger_msg: Message, round_num: int, is_final: bool
+    ) -> None:
+        """Detect @mentions, direct requests, and critic challenges — trigger
+        brief reactive responses so agents actually talk to each other."""
+        if trigger_msg.content.startswith("[ERROR]"):
+            return
+        if self._reactive_count_this_round >= self.MAX_REACTIVE_PER_ROUND:
+            return
+
+        text = trigger_msg.content
+        sender = trigger_msg.sender
+        sender_agent = self.agents.get(sender)
+        if not sender_agent:
+            return
+
+        triggered = 0
+        already_triggered: set[str] = set()
+
+        # 1. Explicit [REQUEST @Name: question] — always honored
+        requests = extract_requests(text)
+        for target_name, question in requests:
+            if triggered >= self.MAX_REACTIVE_PER_TRIGGER:
+                break
+            if self._reactive_count_this_round >= self.MAX_REACTIVE_PER_ROUND:
+                break
+            if target_name not in self.agents or target_name == sender:
+                continue
+            if target_name in already_triggered:
+                continue
+
+            self._run_reactive_turn(
+                agent=self.agents[target_name],
+                trigger_sender=sender,
+                trigger_text=question,
+                reason="request",
+                round_num=round_num,
+                is_final=is_final,
+            )
+            already_triggered.add(target_name)
+            triggered += 1
+            self._reactive_count_this_round += 1
+
+        # 2. Critic/Judge → Worker rebuttal — workers who were @mentioned
+        #    by a critic get a brief chance to defend or concede
+        if sender_agent.role in ("critic", "judge"):
+            roster = list(self.agents.keys())
+            mentioned = extract_mentions(text, roster)
+            for target_name in mentioned:
+                if triggered >= self.MAX_REACTIVE_PER_TRIGGER:
+                    break
+                if self._reactive_count_this_round >= self.MAX_REACTIVE_PER_ROUND:
+                    break
+                if target_name == sender or target_name in already_triggered:
+                    continue
+                target_agent = self.agents[target_name]
+                if target_agent.role not in ("worker", "debater"):
+                    continue
+
+                self._run_reactive_turn(
+                    agent=target_agent,
+                    trigger_sender=sender,
+                    trigger_text=text,
+                    reason="rebuttal",
+                    round_num=round_num,
+                    is_final=is_final,
+                )
+                already_triggered.add(target_name)
+                triggered += 1
+                self._reactive_count_this_round += 1
+
+    def _run_reactive_turn(
+        self,
+        agent: Agent,
+        trigger_sender: str,
+        trigger_text: str,
+        reason: str,
+        round_num: int,
+        is_final: bool,
+    ) -> None:
+        """Execute a brief, focused reactive response from an agent."""
+        self._in_reactive = True
+
+        self._print_reactive_header(agent.name, agent.role, trigger_sender, reason)
+
+        if reason == "request":
+            prompt = (
+                f"@{trigger_sender} has asked you a DIRECT QUESTION:\n"
+                f"\"{trigger_text}\"\n\n"
+                f"Respond BRIEFLY and specifically — this is a mid-round cross-talk, not "
+                f"your full turn. Under 150 words. Search the web if you need evidence to "
+                f"answer. Stay focused on exactly what was asked."
+            )
+        elif reason == "rebuttal":
+            excerpt = trigger_text[:1200]
+            prompt = (
+                f"@{trigger_sender} (reviewer) has just critiqued the team's work and "
+                f"specifically mentioned YOU. Here is their review:\n\n"
+                f"{excerpt}\n\n"
+                f"You have a BRIEF rebuttal — this is cross-talk, not your full turn. "
+                f"Under 150 words. Your options:\n"
+                f"- CONCEDE valid points ('Fair point — I'll fix X in my next turn')\n"
+                f"- DEFEND with evidence ('Actually, [source] shows...')\n"
+                f"- CLARIFY misunderstandings ('I think you misread my claim — I said X, not Y')\n"
+                f"Be specific. Don't just say 'I disagree.' Show WHY."
+            )
+        else:
+            prompt = (
+                f"Respond briefly to @{trigger_sender}'s point about you. "
+                f"Under 150 words."
+            )
+
+        msg = agent.respond(prompt, round_num=round_num, is_final_round=is_final)
+
+        label = {"request": "RESPONSE", "rebuttal": "REBUTTAL"}.get(reason, "REACTIVE")
+        self._transcript.append({
+            "round": round_num,
+            "agent": agent.name,
+            "role": agent.role,
+            "content": f"[{label} to @{trigger_sender}]\n\n{msg.content}",
+        })
+
+        self._in_reactive = False
+
+    def _print_reactive_header(
+        self, name: str, role: str, trigger_sender: str, reason: str
+    ) -> None:
+        """Visual indicator for cross-talk / reactive turns."""
+        color = ROLE_STYLES.get(role, {}).get("color", "white")
+        icon = {
+            "request": "\u21b3",   # ↳
+            "rebuttal": "\u2194",  # ↔
+        }.get(reason, "\u21b3")
+
+        label = {
+            "request": f"responding to @{trigger_sender}",
+            "rebuttal": f"rebutting @{trigger_sender}",
+        }.get(reason, f"reacting to @{trigger_sender}")
+
+        self.console.print()
+        self.console.print(
+            f"     {icon} [{color}]{name}[/] [dim italic]{label}[/]"
+        )
 
     # ── human interaction ─────────────────────────────────
 
@@ -523,7 +679,7 @@ class Orchestrator:
     # ── display ───────────────────────────────────────────
 
     def _print_assembly(self, team: TeamConfig) -> None:
-        """Animated team assembly — agents appear one by one."""
+        """Animated team assembly — agents appear one by one with taglines."""
         self.console.print()
         self.console.print(Panel(
             f"  {team.icon} [bold]{team.name}[/]\n  [dim]{team.description}[/]",
@@ -540,10 +696,15 @@ class Orchestrator:
             self.console.print(
                 f"  {icon} [{color}]{ac.name}[/] [dim]({ac.role})[/]"
             )
+            if ac.tagline:
+                _time.sleep(0.06)
+                self.console.print(
+                    f"     [dim italic]\"{ac.tagline}\"[/]"
+                )
 
         _time.sleep(0.15)
         self.console.print()
-        self.console.print("  [bold green]\u2713 Team ready[/]")
+        self.console.print(f"  [bold green]\u2713 Team ready[/]  [dim]{len(team.agents)} agents \u00b7 {team.max_rounds} rounds[/]")
         self.console.print()
 
     def _print_agent_position(
@@ -619,7 +780,7 @@ class Orchestrator:
         return "..."
 
     def _print_session_stats(self) -> None:
-        """Show session stats at the end."""
+        """Show session stats and MVP highlight at the end."""
         elapsed = _time.time() - self._start_time
         mins, secs = divmod(int(elapsed), 60)
 
@@ -635,6 +796,19 @@ class Orchestrator:
 
         self.console.print()
         self.console.print(stats)
+
+        # MVP highlight — longest substantive contribution (proxy for depth)
+        if self._transcript:
+            mvp = max(
+                self._transcript,
+                key=lambda e: len(e["content"]) if not e["content"].startswith("[ERROR]") else 0,
+            )
+            if not mvp["content"].startswith("[ERROR]"):
+                color = ROLE_STYLES.get(mvp["role"], {}).get("color", "white")
+                self.console.print(
+                    f"  [dim]\u2b50 MVP:[/] [{color}]{mvp['agent']}[/] "
+                    f"[dim]({mvp['role']}, round {mvp['round']})[/]"
+                )
 
     def _print_complete(self) -> None:
         self.console.print()

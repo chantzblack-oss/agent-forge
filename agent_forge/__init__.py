@@ -1,6 +1,6 @@
 """Agent Forge — Multi-agent orchestration framework."""
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 from .bus import MessageBus, Message, MessageType
 from .agent import Agent, AgentConfig

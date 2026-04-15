@@ -120,6 +120,66 @@ AGENT_VOICES: dict[str, str] = {
     "Spokesperson":      "en-US-DavisNeural",
     "StakeholderMgr":    "en-US-JennyNeural",
     "LegalReview":       "en-US-AriaNeural",
+    # ── Business: Product Launch ──
+    "ProductLead":       "en-US-GuyNeural",
+    "ContentStrategist": "en-US-JennyNeural",
+    "GrowthHacker":      "en-US-DavisNeural",
+    "PricingAnalyst":    "en-GB-RyanNeural",
+    "CustomerVoice":     "en-US-AriaNeural",
+    # ── Creative: Music Studio ──
+    "Producer":          "en-US-GuyNeural",
+    "Songwriter":        "en-US-SaraNeural",
+    "Arranger":          "en-GB-RyanNeural",
+    "SoundDesigner":     "en-US-DavisNeural",
+    "MusicCritic":       "en-US-AriaNeural",
+    # ── Creative: Game Design Workshop ──
+    "GameDirector":      "en-US-GuyNeural",
+    "MechanicsDesigner": "en-US-DavisNeural",
+    "NarrativeDesigner": "en-US-JennyNeural",
+    "LevelDesigner":     "en-GB-RyanNeural",
+    # "Playtester" already defined above (D&D)
+    # ── Technical: DevOps War Room ──
+    "TechLead":          "en-US-GuyNeural",
+    "CloudArchitect":    "en-GB-RyanNeural",
+    "PipelineEngineer":  "en-US-DavisNeural",
+    "SecurityEngineer":  "en-US-JennyNeural",
+    "OncallEngineer":    "en-AU-WilliamNeural",
+    # ── Education: Study Group ──
+    "Tutor":             "en-US-GuyNeural",
+    "Researcher":        "en-US-DavisNeural",
+    "QuizMaster":        "en-AU-WilliamNeural",
+    "Visualizer":        "en-US-JennyNeural",
+    "PeerReviewer":      "en-US-AriaNeural",
+    # ── Education: Language Lab ──
+    "LanguageCoach":     "en-US-GuyNeural",
+    "NativeSpeaker":     "en-GB-RyanNeural",
+    "GrammarExpert":     "en-US-SaraNeural",
+    "ConversationPartner": "en-US-DavisNeural",
+    "LanguageCritic":    "en-US-AriaNeural",
+    # ── Personal: Life Strategy ──
+    "LifeCoach":         "en-US-GuyNeural",
+    "Psychologist":      "en-US-SaraNeural",
+    "FinancialPlanner":  "en-US-DavisNeural",
+    "WellnessAdvisor":   "en-US-JennyNeural",
+    "AccountabilityPartner": "en-AU-WilliamNeural",
+    # ── Personal: Career Advisory ──
+    "CareerAdvisor":     "en-US-GuyNeural",
+    "ResumeWriter":      "en-US-JennyNeural",
+    "InterviewCoach":    "en-US-DavisNeural",
+    "NetworkingStrategist": "en-GB-RyanNeural",
+    "HiringManager":     "en-US-AriaNeural",
+    # ── Science: Science Lab ──
+    "PrincipalInvestigator": "en-US-GuyNeural",
+    "Theorist":          "en-US-DavisNeural",
+    "Experimentalist":   "en-GB-RyanNeural",
+    "Statistician":      "en-US-JennyNeural",
+    # "PeerReviewer" already defined above (Study Group)
+    # ── Science: Investigative Unit ──
+    "LeadInvestigator":  "en-US-GuyNeural",
+    "OSINTAnalyst":      "en-US-DavisNeural",
+    "FactChecker":       "en-US-JennyNeural",
+    "SourceAnalyst":     "en-GB-RyanNeural",
+    "DevilsAdvocate":    "en-AU-WilliamNeural",
 }
 
 ROLE_VOICES: dict[str, str] = {

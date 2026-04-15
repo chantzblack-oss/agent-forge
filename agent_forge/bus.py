@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -14,6 +15,7 @@ class MessageType(Enum):
     RESULT = "result"
     FEEDBACK = "feedback"
     HUMAN = "human"
+    REBUTTAL = "rebuttal"  # reactive response to a challenge or critique
 
 
 @dataclass
@@ -27,7 +29,24 @@ class Message:
 
     def format(self) -> str:
         target = f" -> {self.recipient}" if self.recipient else ""
-        return f"[{self.sender}{target}] {self.content}"
+        tag = ""
+        if self.msg_type == MessageType.REBUTTAL:
+            tag = " (rebuttal)"
+        return f"[{self.sender}{target}{tag}] {self.content}"
+
+
+def extract_requests(text: str) -> list[tuple[str, str]]:
+    """Find [REQUEST @AgentName: question] patterns in agent output."""
+    return re.findall(r'\[REQUEST\s+@(\w+):\s*(.+?)\]', text)
+
+
+def extract_mentions(text: str, valid_names: list[str]) -> list[str]:
+    """Find @AgentName mentions in text, returning names that exist in roster."""
+    mentioned = []
+    for name in valid_names:
+        if f"@{name}" in text:
+            mentioned.append(name)
+    return mentioned
 
 
 class MessageBus:
@@ -62,7 +81,8 @@ class MessageBus:
 
         Current round messages appear in full. Older round messages are
         truncated to *max_chars_old* so the context window stays focused
-        on the latest work.
+        on the latest work. Messages that @mention this agent are flagged
+        so the agent knows to pay attention.
         """
         msgs = self.get_for(agent_name)
         if not msgs:
@@ -83,7 +103,22 @@ class MessageBus:
                     content = content[:max_chars_old] + "\n[... truncated — full output was delivered above ...]"
 
             target = f" -> {m.recipient}" if m.recipient else ""
-            parts.append(f"[{m.sender}{target}]:\n{content}")
+
+            # Flag messages that directly mention this agent
+            mention_tag = ""
+            if (
+                m.sender != agent_name
+                and f"@{agent_name}" in m.content
+            ):
+                mention_tag = " ⚡ MENTIONS YOU"
+
+            rebuttal_tag = ""
+            if m.msg_type == MessageType.REBUTTAL:
+                rebuttal_tag = " (rebuttal)"
+
+            parts.append(
+                f"[{m.sender}{target}{rebuttal_tag}{mention_tag}]:\n{content}"
+            )
 
         return "\n\n---\n\n".join(parts)
 

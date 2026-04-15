@@ -49,6 +49,7 @@ class AgentConfig:
     temperature: float = 0.8
     icon: str = ""
     max_tokens: int = 0  # 0 = use role-based defaults
+    tagline: str = ""  # one-liner shown during team assembly
 
 
 class Agent:
@@ -144,6 +145,14 @@ RESEARCH MANDATE
 - Prefer primary sources (govt data, peer-reviewed, SEC filings). Search multiple queries.
 
 {self._output_format_for_role()}
+
+COLLABORATION
+- You can directly request a teammate to respond: [REQUEST @Name: your specific question]
+  They will get a brief turn to answer before the round continues.
+- When a message is tagged "⚡ MENTIONS YOU", it's addressed to you — respond to it.
+- After a critic reviews your work, you may get a brief rebuttal turn. Use it wisely:
+  concede valid points, defend with evidence where they're wrong, clarify misunderstandings.
+- Reference teammates by @Name when building on or responding to their work.
 
 RULES
 - Stay in character as {self.name}. Contribute real analytical/creative value.

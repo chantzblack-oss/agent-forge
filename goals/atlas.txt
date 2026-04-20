@@ -1,0 +1,13 @@
+Audit and elevate the project at C:/Users/ChantzBlack/atlas to production-grade quality. It's a personal exploration engine (Python, Click, Rich, Anthropic Claude API) that generates Veritasium/Kurzgesagt-style deep dives with 3 modes (SURPRISE, THREAD, DEEP) plus history/search. ~817 lines across 6 modules. Read every source file before proposing changes.
+
+Architect: Map the full codebase (cli.py, engine.py, prompts.py, display.py, history.py). Key concerns: tight coupling between engine and CLI, fragile metadata parsing from Claude responses, no error handling for malformed responses, hard-coded Claude CLI invocation. Design a clean separation of concerns and define acceptance criteria for each agent.
+
+Backend: Write ACTUAL CODE for: (1) robust error handling — malformed Claude responses, JSON parsing failures, API timeouts, subprocess crashes, (2) retry logic with backoff for failed Claude calls, (3) logging with Python's logging module replacing console-only output, (4) input validation on all CLI commands, (5) configuration file support (YAML/TOML) for model selection, timeout, and display preferences, (6) history management — pagination, archival strategy, deduplication. Deliver complete, drop-in code — not suggestions.
+
+Frontend: This is a Rich CLI app. Write ACTUAL CODE for: (1) exploration export to markdown files for sharing, (2) a visual thread/branch map showing how explorations connect, (3) better progress feedback — show elapsed time, estimated completion, (4) pagination for large history views, (5) a --quick flag for shorter explorations with faster turnaround.
+
+Tester: Write a COMPLETE pytest test suite. Cover: (1) metadata parsing — extract title, tags, next_thread, connections from various response formats, (2) history persistence — save, load, search, tag-based connection detection with Jaccard similarity, (3) CLI command routing and argument validation, (4) engine subprocess handling — timeouts, empty responses, malformed output, (5) edge cases — empty history, special characters in topics, very long responses. Every test must be runnable as-is.
+
+CodeReviewer: Review all proposed changes AND existing code. Flag: magic strings and thresholds that should be constants/config, subprocess security (command injection via topic input), unbounded history growth, tight coupling, dead code, violated best practices. For every issue, provide the fixed code.
+
+Deliver production-ready code I can drop into the project. No planning documents, no TODO lists, no descriptions of what you would do. ACTUAL WORKING CODE ONLY.

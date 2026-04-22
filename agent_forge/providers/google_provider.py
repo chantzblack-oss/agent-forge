@@ -185,22 +185,32 @@ class GoogleProvider(Provider):
     def _config(self, system: str, max_tokens: int):
         types = self._types
         tools: list = []
+
+        # Google Search grounding — model decides when to search.
         if self._enable_search:
             tools.append(types.Tool(google_search=types.GoogleSearch()))
 
-        # Gemini 2.5 Pro enables 'thinking' by default, and thinking tokens
-        # count against max_output_tokens. On short-turn deliberations we were
-        # seeing only ~30 visible tokens before the stream ended because
-        # thinking consumed the whole budget.  Set a modest thinking budget
-        # (~10% of output budget) so quality stays high but visible output
-        # isn't starved.  Falls back gracefully if the SDK version doesn't
-        # expose ThinkingConfig.
+        # URL context — lets Gemini directly fetch and read a specified URL,
+        # parallel to Anthropic's web_fetch. Only available on newer google-genai
+        # SDK versions; gracefully skip if not exposed.
+        try:
+            UrlContext = getattr(types, "UrlContext", None)
+            if UrlContext is not None:
+                tools.append(types.Tool(url_context=UrlContext()))
+        except Exception:
+            pass
+
+        # Extended thinking. Gemini 2.5 Pro enables this by default; thinking
+        # tokens count against max_output_tokens. A modest budget (~25%) gives
+        # the model room to reason without starving output. Higher than our
+        # previous 10% cap — with the token budget also raised (2000+), 25%
+        # is sustainable without the clipping we saw before.
         thinking_cfg = None
         try:
             ThinkingConfig = getattr(types, "ThinkingConfig", None)
             if ThinkingConfig is not None:
                 thinking_cfg = ThinkingConfig(
-                    thinking_budget=max(128, max_tokens // 10),
+                    thinking_budget=max(256, max_tokens // 4),
                     include_thoughts=False,
                 )
         except Exception:

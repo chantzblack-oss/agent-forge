@@ -170,6 +170,9 @@ class Orchestrator:
             # One deliberation per user message
             self._execute_deliberation_round(team, round_num=message_count)
 
+            # Pedagogical wrap-up: Learning Recap panel
+            self._render_learning_recap(team, round_num=message_count)
+
             # After 3+ messages, summarize the earliest one to keep context focused
             if message_count >= 3:
                 oldest_unsum = message_count - 2
@@ -401,9 +404,10 @@ class Orchestrator:
                 is_opening=turns_used == 0,
             )
 
-            # Override the model's max_tokens for this short turn
+            # Leaders need 2x budget for the three-layer pedagogical synthesis;
+            # workers stay at the short-turn budget
             original_max = agent.config.max_tokens
-            agent.config.max_tokens = turn_budget
+            agent.config.max_tokens = turn_budget * 2 if agent.role == "leader" else turn_budget
             try:
                 resp = agent.respond(prompt, round_num=round_num, is_final_round=is_final)
             finally:
@@ -785,6 +789,176 @@ class Orchestrator:
                 if "NONE" in after or "NO REMAINING" in after:
                     return True
         return False
+
+    # ── learning recap (pedagogical wrap-up) ──────────────
+
+    def _render_learning_recap(self, team: TeamConfig, round_num: int) -> None:
+        """After a deliberation, generate a compact 'Learning Recap' panel.
+
+        Uses a fast Haiku call to distill: TL;DR, key concepts with plain
+        definitions, 3 follow-up questions, and 3 real search-URL resources
+        (Google Scholar / YouTube search / general web) the user can click
+        to go deeper.  Search URLs avoid hallucination — actual videos and
+        papers are rendered only if the user actually clicks through.
+        """
+        if not _CLAUDE_PATH:
+            return
+
+        # Grab only the *current* round's messages for the recap scope
+        round_msgs = self.bus.get_round_messages(round_num)
+        if not round_msgs:
+            return
+
+        # The human question is the first HUMAN message in this round
+        question = next(
+            (m.content for m in round_msgs if m.msg_type == MessageType.HUMAN),
+            "",
+        )
+        transcript = "\n\n".join(
+            f"[{m.sender}]: {m.content[:1800]}"
+            for m in round_msgs
+            if m.msg_type != MessageType.HUMAN
+        )[:14000]
+
+        prompt = (
+            "You are generating a Learning Recap panel for someone who just watched a team of "
+            "expert AI agents deliberate on their question. The recap must teach clearly WITHOUT "
+            "dumbing down. Output PLAIN TEXT in EXACTLY this format (no markdown decoration, no "
+            "extra commentary):\n\n"
+            "TLDR: <one sentence answer in plain English, no jargon>\n\n"
+            "KEY_CONCEPTS:\n"
+            "<term 1> :: <one-sentence plain-English definition>\n"
+            "<term 2> :: <one-sentence plain-English definition>\n"
+            "<term 3> :: <one-sentence plain-English definition>\n"
+            "<term 4> :: <one-sentence plain-English definition>  (optional)\n"
+            "<term 5> :: <one-sentence plain-English definition>  (optional)\n\n"
+            "FOLLOWUPS:\n"
+            "- <one-sentence question the user could ask next to go deeper>\n"
+            "- <another good follow-up>\n"
+            "- <another good follow-up>\n\n"
+            "READ:\n"
+            "- <book or paper title> by <author/venue, year>\n"
+            "- <another title> by <author/venue, year>\n\n"
+            "WATCH:\n"
+            "- <channel name>: <specific topic/video title>\n"
+            "- <channel name>: <specific topic/video title>\n\n"
+            "RULES:\n"
+            "- Pull key concepts from what the agents actually discussed.\n"
+            "- For READ: real authors/titles you're confident exist; avoid URLs (we'll build "
+            "search URLs ourselves).\n"
+            "- For WATCH: suggest real, authoritative channels (Veritasium, Kurzgesagt, PBS Eons, "
+            "3Blue1Brown, SciShow, Closer to Truth, etc.) that have relevant content.\n"
+            "- No paragraphs of explanation — just the structured output above.\n\n"
+            f"USER QUESTION: {question}\n\nDELIBERATION:\n{transcript}"
+        )
+
+        env = os.environ.copy()
+        env.pop("ANTHROPIC_API_KEY", None)
+        try:
+            result = subprocess.run(
+                [_CLAUDE_PATH, "-p",
+                 "--model", "haiku",
+                 "--effort", "low",
+                 "--no-session-persistence"],
+                input=prompt,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                timeout=60,
+            )
+            raw = result.stdout.strip() if result.returncode == 0 else ""
+        except Exception:
+            raw = ""
+
+        if not raw:
+            return
+
+        self._render_recap_panel(raw)
+
+    def _render_recap_panel(self, raw: str) -> None:
+        """Parse the Haiku recap output and render it as a styled panel."""
+        import urllib.parse
+
+        tldr = ""
+        concepts: list[tuple[str, str]] = []
+        followups: list[str] = []
+        reads: list[str] = []
+        watches: list[str] = []
+
+        section = None
+        for line in raw.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                continue
+            upper = stripped.split(":", 1)[0].upper()
+            if upper == "TLDR":
+                tldr = stripped.split(":", 1)[1].strip() if ":" in stripped else ""
+                section = "tldr"
+            elif upper == "KEY_CONCEPTS":
+                section = "concepts"
+            elif upper == "FOLLOWUPS":
+                section = "followups"
+            elif upper == "READ":
+                section = "read"
+            elif upper == "WATCH":
+                section = "watch"
+            elif section == "concepts" and "::" in stripped:
+                term, _, defn = stripped.partition("::")
+                concepts.append((term.strip(), defn.strip()))
+            elif section == "followups" and stripped.startswith("-"):
+                followups.append(stripped.lstrip("- ").strip())
+            elif section == "read" and stripped.startswith("-"):
+                reads.append(stripped.lstrip("- ").strip())
+            elif section == "watch" and stripped.startswith("-"):
+                watches.append(stripped.lstrip("- ").strip())
+
+        if not (tldr or concepts or followups):
+            return
+
+        parts: list[str] = []
+
+        if tldr:
+            parts.append(f"[bold bright_white]TL;DR[/]\n{tldr}")
+
+        if concepts:
+            lines = [f"[bold bright_white]Key Concepts[/]"]
+            for term, defn in concepts[:5]:
+                lines.append(f"  [bold cyan]{term}[/] — {defn}")
+            parts.append("\n".join(lines))
+
+        if followups:
+            lines = [f"[bold bright_white]Ask Next[/]"]
+            for q in followups[:3]:
+                lines.append(f"  [dim]›[/] {q}")
+            parts.append("\n".join(lines))
+
+        if reads:
+            lines = [f"[bold bright_white]Read[/]"]
+            for item in reads[:3]:
+                query = urllib.parse.quote_plus(item[:100])
+                url = f"https://scholar.google.com/scholar?q={query}"
+                lines.append(f"  [green]•[/] {item}\n    [dim link={url}]{url}[/]")
+            parts.append("\n".join(lines))
+
+        if watches:
+            lines = [f"[bold bright_white]Watch[/]"]
+            for item in watches[:3]:
+                query = urllib.parse.quote_plus(item[:100])
+                url = f"https://www.youtube.com/results?search_query={query}"
+                lines.append(f"  [red]▶[/] {item}\n    [dim link={url}]{url}[/]")
+            parts.append("\n".join(lines))
+
+        body_markup = "\n\n".join(parts)
+        self.console.print()
+        self.console.print(Panel(
+            Text.from_markup(body_markup),
+            title="[bold]\U0001f4d8 Learning Recap[/]",
+            title_align="left",
+            border_style="bright_blue",
+            padding=(1, 2),
+        ))
 
     # ── round summary ─────────────────────────────────────
 

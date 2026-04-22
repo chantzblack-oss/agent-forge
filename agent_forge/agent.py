@@ -17,6 +17,8 @@ import sys
 from dataclasses import dataclass
 
 from rich.console import Console
+from rich.markdown import Markdown
+from rich.panel import Panel
 
 from .bus import MessageBus, Message, MessageType
 from .narrator import Narrator
@@ -51,6 +53,27 @@ _DIRECT_RE = re.compile(
     r"\[DIRECT\s+@(\w+):\s*(.*?)\]",
     re.DOTALL,
 )
+
+# Protocol tokens that steer the engine but shouldn't be shown to the human.
+_DISPLAY_STRIP_PATTERNS = [
+    re.compile(r"\[DONE\]"),
+    re.compile(r"\[COMPLETE\]"),
+    re.compile(r"\[APPROVED\]"),
+    re.compile(r"\[NEED @Human:[^\]]*\]"),
+    re.compile(r"\[DIRECT @\w+:\s*[^\]]*\]", re.DOTALL),
+    re.compile(r"\[SCRATCHPAD [\w./-]+\].*?\[/SCRATCHPAD\]", re.DOTALL),
+    re.compile(r"UNVERIFIED:\s*", re.IGNORECASE),
+]
+
+
+def _clean_for_display(text: str) -> str:
+    """Strip engine-protocol tokens and collapse extra blank lines for presentation."""
+    cleaned = text
+    for pat in _DISPLAY_STRIP_PATTERNS:
+        cleaned = pat.sub("", cleaned)
+    # Collapse 3+ blank lines to 2
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned
 
 
 @dataclass
@@ -126,28 +149,27 @@ class Agent:
     def respond(
         self, prompt: str, round_num: int = 0, is_final_round: bool = False
     ) -> AgentResponse:
-        """Generate a response with streaming output, narration, and bus posting."""
+        """Generate a response, then render it as a clean markdown panel."""
         system = self._build_system()
         user_prompt = self._build_user_prompt(prompt, round_num)
-        self._print_header()
 
-        printed_error = False
+        text: str
         try:
             text = self._call_cli(system, user_prompt)
         except FileNotFoundError:
             text = "[ERROR] 'claude' CLI not found. Make sure Claude Code is installed and on your PATH."
-            self.console.print(f"  [bold red]{text}[/]")
-            printed_error = True
         except Exception as exc:
             text = f"[ERROR] {exc}"
-            self.console.print(f"  [bold red]{text}[/]")
-            printed_error = True
-        # If the provider returned error text (rather than raising), surface it
-        # to the operator so the failure mode is visible instead of silent.
-        if text.startswith("[ERROR]") and not printed_error:
-            self.console.print(f"  [bold red]{text}[/]")
 
-        self._print_footer()
+        if text.startswith("[ERROR]"):
+            self.console.print()
+            self.console.print(
+                f"  {self.icon} [{self.color}]{self.name}[/] "
+                f"[dim]({self._provider_name}:{self.config.model})[/]"
+            )
+            self.console.print(f"  [bold red]{text}[/]")
+        else:
+            self.display_clean(text)
 
         if self.narrator and not text.startswith("[ERROR]"):
             self.narrator.narrate_agent(text, self.name, self.role, is_final_round)
@@ -175,13 +197,37 @@ class Agent:
         return self._post_process(text, round_num)
 
     def display_buffered(self, text: str) -> None:
-        """Display previously-captured output with the agent's styled header/border."""
-        self._print_header()
-        ansi_color = _ROLE_ANSI.get(self.role, "\033[37m")
-        for line in text.split("\n"):
-            sys.stdout.write(f"  {ansi_color}\u2502{_ANSI_RESET} {line}\n")
-        sys.stdout.flush()
-        self._print_footer()
+        """Display previously-captured output as a clean markdown panel."""
+        if text.startswith("[ERROR]"):
+            self.console.print()
+            self.console.print(
+                f"  {self.icon} [{self.color}]{self.name}[/] "
+                f"[dim]({self._provider_name}:{self.config.model})[/]"
+            )
+            self.console.print(f"  [bold red]{text}[/]")
+            return
+        self.display_clean(text)
+
+    def display_clean(self, text: str) -> None:
+        """Render agent output as a Rich Markdown panel with protocol tokens stripped."""
+        cleaned = _clean_for_display(text)
+        if not cleaned:
+            return
+        border = self.color.replace("bold ", "")
+        title = (
+            f"{self.icon} [{self.color}]{self.name}[/] "
+            f"[dim]\u00b7 {self.role} \u00b7 {self._provider_name}:{self.config.model}[/]"
+        )
+        self.console.print()
+        self.console.print(
+            Panel(
+                Markdown(cleaned),
+                title=title,
+                title_align="left",
+                border_style=border,
+                padding=(0, 2),
+            )
+        )
 
     # ── post-processing ──────────────────────────────────
 
@@ -301,7 +347,11 @@ YOUR TASK THIS TURN
         return self._provider_name
 
     def _call_cli(self, system: str, user_prompt: str) -> str:
-        """Stream response from the configured provider with colored border + spinner."""
+        """Capture response from the configured provider (spinner during generation).
+
+        Display is handled by the caller via display_clean() — this keeps the
+        output pipeline consistent whether the turn was sequential or parallel.
+        """
         try:
             provider = self._get_provider()
         except ProviderError as exc:
@@ -310,42 +360,23 @@ YOUR TASK THIS TURN
         spinner_style = self.color.replace("bold ", "")
         status = self.console.status(
             f"  {self.icon} [{self.color}]{self.name}[/] "
-            f"[dim]({self._provider_name}:{self.config.model}) researching & thinking...[/]",
+            f"[dim]({self._provider_name}:{self.config.model}) thinking...[/]",
             spinner="dots",
             spinner_style=spinner_style,
         )
         status.start()
 
-        ansi_color = _ROLE_ANSI.get(self.role, "\033[37m")
         buf = ""
-        first_chunk = True
-        line_has_prefix = False
-
         try:
             for chunk in provider.stream(
                 system, user_prompt, self.config.model, self.config.max_tokens,
             ):
-                if first_chunk:
-                    status.stop()
-                    first_chunk = False
                 buf += chunk
-                for ch in chunk:
-                    if not line_has_prefix:
-                        sys.stdout.write(f"  {ansi_color}\u2502{_ANSI_RESET} ")
-                        line_has_prefix = True
-                    sys.stdout.write(ch)
-                    if ch == "\n":
-                        line_has_prefix = False
-                sys.stdout.flush()
         except Exception as exc:
             status.stop()
             return f"[ERROR] {type(exc).__name__}: {exc}"
-
-        if first_chunk:
+        finally:
             status.stop()
-        if buf and not buf.endswith("\n"):
-            sys.stdout.write("\n")
-            sys.stdout.flush()
 
         text = buf.strip()
         if not text:

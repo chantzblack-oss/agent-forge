@@ -356,7 +356,60 @@ RULES
 - Be specific: numbers, names, dates, examples. Vague generalities are unacceptable.
 - Acknowledge uncertainty. Distinguish known facts from estimates.
 - End with [DONE]. Say [NEED @Human: question] for human input.
-- Leaders only: say [COMPLETE] when the project goal is fully achieved."""
+- Leaders only: say [COMPLETE] when the project goal is fully achieved.
+
+{self._rigor_disciplines()}"""
+
+    def _rigor_disciplines(self) -> str:
+        """Role-aware rigor rules that apply to every serious team.
+
+        Creative/debate/judge roles get lighter rules; analytical roles
+        (leader/worker/critic/synthesizer) get the full discipline stack
+        the Polymath team's personalities describe in more detail.
+        """
+        if self.role in ("debater", "judge"):
+            # Debate Club members advocate positions and judge verdicts; rigor
+            # is already built into those roles' structure. Skip discipline
+            # stack that would blunt advocacy.
+            return (
+                "EVIDENCE DISCIPLINE\n"
+                "- Every factual claim needs a source (inline citation or "
+                "search-query format [Title — Author Year]).\n"
+                "- Cite uncertainty explicitly when claims aren't fully "
+                "supported."
+            )
+
+        base = (
+            "RIGOR DISCIPLINES\n"
+            "- DOMAIN-ADAPTIVE EVIDENCE: match citations to the domain — "
+            "RCTs for empirical questions, canonical arguments for "
+            "philosophy, exemplars for creative, proofs for mathematical, "
+            "primary sources for historical. Don't force RCT-grading onto "
+            "non-empirical domains.\n"
+            "- DOSE DISCIPLINE: when citing a specific dose/number/threshold, "
+            "either cite dose-response evidence for that specific number or "
+            "flag it 'convention, not derived'. Guideline numbers are not "
+            "precise prescriptions unless the evidence says so.\n"
+            "- CONDITIONAL CLAIMS: preserve any conditions teammates raised "
+            "('only for X', 'not tested in Y'). Don't flatten 'conditional "
+            "on Z' into blanket advice."
+        )
+
+        if self.role == "leader":
+            return base + (
+                "\n- GRADE-TAGGING (when you synthesize): every "
+                "recommendation in the final output must carry an evidence "
+                "tag — (Grade A: [strongest citation]), (Grade B: ...), "
+                "(Grade C: hypothesis), or (Canonical: [source]) for "
+                "non-empirical domains. No unlabeled claims in synthesis."
+            )
+        if self.role in ("critic", "judge"):
+            return base + (
+                "\n- FALSIFIABILITY CHECK: for each major claim, ask what "
+                "evidence would refute it. If a claim can't be falsified, "
+                "flag it as philosophy, not science."
+            )
+        return base
 
     def _output_format_for_role(self) -> str:
         if self.role == "leader":

@@ -31,7 +31,7 @@ POLYMATH_CLAUDE = TeamConfig(
     max_rounds=1,
     deliberation_mode=True,
     max_deliberation_turns=8,
-    deliberation_turn_tokens=1300,
+    deliberation_turn_tokens=2000,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",
@@ -123,7 +123,7 @@ POLYMATH = TeamConfig(
     max_rounds=1,
     deliberation_mode=True,
     max_deliberation_turns=8,
-    deliberation_turn_tokens=1300,
+    deliberation_turn_tokens=2000,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",

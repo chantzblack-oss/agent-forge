@@ -1141,13 +1141,26 @@ class Orchestrator:
     # ── human interaction ─────────────────────────────────
 
     def _handle_human_request(self, msg: Message, round_num: int) -> None:
+        # Extract the question text from the [NEED @Human: ...] block so the
+        # operator can see what was actually asked (display-strip hides the
+        # token from the agent panel, so we re-surface it here).
+        import re as _re
+        match = _re.search(r"\[NEED @Human:\s*(.*?)\]", msg.content, _re.DOTALL)
+        question = match.group(1).strip() if match else ""
+
         self.console.print()
         self.console.print(
             f"  [bold yellow]\U0001f4ac {msg.sender} needs your input[/]"
         )
+        if question:
+            self.console.print(f"  [yellow]›[/] {question}")
+        self.console.print(
+            "  [dim](type anything to redirect, or 'continue' to keep going)[/]"
+        )
         if self.narrator:
             self.narrator.narrate_system(
-                f"{msg.sender} is requesting your input.",
+                f"{msg.sender} is asking: {question}" if question
+                else f"{msg.sender} is requesting your input.",
             )
             self.narrator.wait_until_done()
 

@@ -15,6 +15,12 @@ class TeamConfig:
     agents: list[AgentConfig]
     round_order: list[str]
     max_rounds: int = 3
+    # Optional explicit execution plan: list of groups, where each group runs
+    # in parallel and groups run sequentially. e.g.
+    #   [["Principal"], ["Analyst", "Contrarian"], ["Synthesizer"], ["Reviewer"], ["Principal"]]
+    # If None, the orchestrator auto-derives groups from round_order by
+    # collapsing consecutive workers/debaters into parallel groups.
+    execution_plan: list[list[str]] | None = None
 
 
 @dataclass

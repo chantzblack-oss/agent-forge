@@ -1,9 +1,19 @@
-"""Orchestrator — assembles teams, manages rounds, handles human-in-the-loop."""
+"""Orchestrator — assembles teams, manages rounds, handles human-in-the-loop.
+
+v0.6 adds:
+- Parallel execution of workers/debaters via ThreadPoolExecutor.
+- Dynamic reactive turns when an agent emits [DIRECT @Name: ...].
+- Convergence detection from critic/judge verdicts + leader [COMPLETE].
+- Round summaries generated with a fast Haiku CLI call.
+"""
 
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 import time as _time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from rich.console import Console, Group
@@ -13,10 +23,15 @@ from rich.table import Table
 from rich.text import Text
 import rich.box
 
-from .agent import Agent, ROLE_STYLES
+from .agent import Agent, AgentResponse, ROLE_STYLES
 from .bus import MessageBus, Message, MessageType
 from .narrator import Narrator
 from .teams import TeamConfig
+
+# Roles that can run in parallel within a round when auto-grouping.
+_PARALLEL_ROLES = {"worker", "debater"}
+
+_CLAUDE_PATH: str | None = shutil.which("claude")
 
 
 class Orchestrator:
@@ -87,6 +102,9 @@ class Orchestrator:
             round_num=0,
         ))
 
+        # Build execution plan (either explicit or auto-derived)
+        execution_plan = self._resolve_execution_plan(team)
+
         # Execute rounds
         for round_num in range(1, team.max_rounds + 1):
             self._print_round(round_num, team.max_rounds)
@@ -97,47 +115,33 @@ class Orchestrator:
                 )
                 self.narrator.wait_until_done()
 
-            last_positions: dict[str, int] = {}
-            for i, name in enumerate(team.round_order):
-                last_positions[name] = i
-
-            for pos, agent_name in enumerate(team.round_order):
-                agent = self.agents[agent_name]
-                is_last = pos == last_positions[agent_name]
-
-                # Show agent position in round
-                self._print_agent_position(pos + 1, len(team.round_order), agent_name, agent.role)
-
-                prompt = self._build_prompt(
-                    agent, round_num, team.max_rounds,
-                    position_in_round=pos,
-                    is_last_in_round=is_last,
-                )
-                is_final = round_num == team.max_rounds
-                msg = agent.respond(prompt, round_num=round_num, is_final_round=is_final)
-
-                self._transcript.append({
-                    "round": round_num,
-                    "agent": agent_name,
-                    "role": agent.role,
-                    "content": msg.content,
-                })
-
-                if "[NEED @Human" in msg.content:
-                    self._handle_human_request(msg, round_num)
-
-                if "[COMPLETE]" in msg.content and agent.role == "leader":
-                    self._print_round_recap(round_num)
-                    self._print_complete()
-                    self._end_session(goal, team, round_num)
-                    return
-
-                if msg.content.startswith("[ERROR]"):
-                    self.console.print("\n  [bold red]Stopping due to error.[/]")
-                    return
+            result = self._execute_round(team, execution_plan, round_num)
+            if result == "complete":
+                self._print_round_recap(round_num)
+                self._print_complete()
+                self._end_session(goal, team, round_num)
+                return
+            if result == "error":
+                self.console.print("\n  [bold red]Stopping due to error.[/]")
+                return
 
             # Round recap
             self._print_round_recap(round_num)
+
+            # Convergence detection — stop early if critics approve + leader implicit consensus
+            if round_num < team.max_rounds and self._check_convergence(round_num):
+                self.console.print(
+                    "\n  [bold bright_green]✓ Team converged — stopping early.[/]"
+                )
+                if self.narrator:
+                    self.narrator.narrate_system(
+                        "Team has reached convergence. Stopping early."
+                    )
+                    self.narrator.wait_until_done()
+                break
+
+            # Generate round summary for context compression in future rounds
+            self._generate_and_store_round_summary(round_num)
 
             # Between-round interaction
             if round_num < team.max_rounds:
@@ -173,15 +177,309 @@ class Orchestrator:
                 "No planning, no task assignment, no process talk. "
                 "Reference findings briefly, don't restate them. End with [COMPLETE]."
             )
-            msg = leader.respond(prompt, round_num=team.max_rounds, is_final_round=True)
+            resp = leader.respond(prompt, round_num=team.max_rounds, is_final_round=True)
             self._transcript.append({
                 "round": team.max_rounds,
                 "agent": leader.name,
                 "role": leader.role,
-                "content": msg.content,
+                "content": resp.message.content,
             })
         self._print_complete()
         self._end_session(goal, team, team.max_rounds)
+
+    # ── execution planning ────────────────────────────────
+
+    def _resolve_execution_plan(self, team: TeamConfig) -> list[list[str]]:
+        """Get explicit execution plan, or auto-derive from round_order.
+
+        Auto-rule: consecutive agents whose role is in _PARALLEL_ROLES
+        (worker, debater) form a parallel group. Everything else is sequential.
+        """
+        explicit = getattr(team, "execution_plan", None)
+        if explicit:
+            return explicit
+
+        plan: list[list[str]] = []
+        current_parallel: list[str] = []
+        for name in team.round_order:
+            agent = self.agents.get(name)
+            if agent and agent.role in _PARALLEL_ROLES:
+                current_parallel.append(name)
+            else:
+                if current_parallel:
+                    plan.append(current_parallel)
+                    current_parallel = []
+                plan.append([name])
+        if current_parallel:
+            plan.append(current_parallel)
+        return plan
+
+    # ── round execution ───────────────────────────────────
+
+    def _execute_round(
+        self,
+        team: TeamConfig,
+        execution_plan: list[list[str]],
+        round_num: int,
+    ) -> str:
+        """Run one full round honoring the execution plan. Returns 'ok' | 'complete' | 'error'."""
+        is_final = round_num == team.max_rounds
+
+        # Count how many times each agent appears — last occurrence is "final in round"
+        last_positions: dict[str, int] = {}
+        flat_order = [n for group in execution_plan for n in group]
+        for i, name in enumerate(flat_order):
+            last_positions[name] = i
+
+        flat_idx = 0
+        total = len(flat_order)
+
+        for group in execution_plan:
+            if len(group) == 1:
+                agent_name = group[0]
+                is_last = flat_idx == last_positions[agent_name]
+                self._print_agent_position(flat_idx + 1, total, agent_name, self.agents[agent_name].role)
+                status = self._run_one_agent(
+                    team, agent_name, round_num, is_final,
+                    position_in_round=flat_idx,
+                    is_last_in_round=is_last,
+                )
+                flat_idx += 1
+                if status in ("complete", "error"):
+                    return status
+            else:
+                # Parallel group — all agents see identical context, run concurrently
+                self._print_parallel_header(group)
+                status = self._run_parallel_group(
+                    team, group, round_num, is_final, flat_idx, last_positions,
+                )
+                flat_idx += len(group)
+                if status in ("complete", "error"):
+                    return status
+
+        return "ok"
+
+    def _run_one_agent(
+        self,
+        team: TeamConfig,
+        agent_name: str,
+        round_num: int,
+        is_final: bool,
+        position_in_round: int,
+        is_last_in_round: bool,
+    ) -> str:
+        """Execute one agent sequentially with streaming output."""
+        agent = self.agents[agent_name]
+        prompt = self._build_prompt(
+            agent, round_num, team.max_rounds,
+            position_in_round=position_in_round,
+            is_last_in_round=is_last_in_round,
+        )
+        resp = agent.respond(prompt, round_num=round_num, is_final_round=is_final)
+        return self._post_agent(resp, agent, round_num, is_final)
+
+    def _run_parallel_group(
+        self,
+        team: TeamConfig,
+        group: list[str],
+        round_num: int,
+        is_final: bool,
+        start_idx: int,
+        last_positions: dict[str, int],
+    ) -> str:
+        """Run a group of agents concurrently; display results sequentially."""
+        # Capture a single context snapshot so parallel agents work from identical state
+        prompts: dict[str, str] = {}
+        for i, name in enumerate(group):
+            agent = self.agents[name]
+            prompts[name] = self._build_prompt(
+                agent, round_num, team.max_rounds,
+                position_in_round=start_idx + i,
+                is_last_in_round=(start_idx + i) == last_positions[name],
+            )
+
+        with ThreadPoolExecutor(max_workers=len(group)) as pool:
+            futures = {
+                name: pool.submit(
+                    self.agents[name].respond_silent, prompts[name], round_num,
+                )
+                for name in group
+            }
+            responses: dict[str, AgentResponse] = {
+                name: fut.result() for name, fut in futures.items()
+            }
+
+        # Display and post each result sequentially in group order
+        for name in group:
+            resp = responses[name]
+            self.agents[name].display_buffered(resp.message.content)
+            if self.narrator and not resp.message.content.startswith("[ERROR]"):
+                self.narrator.narrate_agent(
+                    resp.message.content, name, self.agents[name].role, is_final,
+                )
+            status = self._post_agent(resp, self.agents[name], round_num, is_final)
+            if status in ("complete", "error"):
+                return status
+
+        if self.narrator:
+            self.narrator.wait_until_done()
+        return "ok"
+
+    def _post_agent(
+        self,
+        resp: AgentResponse,
+        agent: Agent,
+        round_num: int,
+        is_final: bool,
+    ) -> str:
+        """Record in transcript, handle human requests, trigger reactive turns."""
+        content = resp.message.content
+        self._transcript.append({
+            "round": round_num,
+            "agent": agent.name,
+            "role": agent.role,
+            "content": content,
+        })
+
+        if "[NEED @Human" in content:
+            self._handle_human_request(resp.message, round_num)
+
+        # Surface scratchpad writes to the operator
+        for key, _ in resp.scratchpad_writes:
+            self.console.print(f"  [dim]📌 scratchpad ← {key} (by {agent.name})[/]")
+
+        # Reactive turns for direct requests
+        if resp.direct_requests:
+            self._handle_direct_requests(resp, agent, round_num, is_final)
+
+        if content.startswith("[ERROR]"):
+            return "error"
+        if "[COMPLETE]" in content and agent.role == "leader":
+            return "complete"
+        return "ok"
+
+    # ── dynamic reactive turns ────────────────────────────
+
+    def _handle_direct_requests(
+        self,
+        resp: AgentResponse,
+        sender: Agent,
+        round_num: int,
+        is_final: bool,
+    ) -> None:
+        """When an agent emits [DIRECT @Name: ...], give that teammate an immediate turn."""
+        for target_name, question in resp.direct_requests:
+            target = self.agents.get(target_name)
+            if not target or target_name == sender.name:
+                continue
+
+            self.console.print()
+            self.console.print(
+                f"  [dim]↳ {sender.name} → {target_name}:[/] [italic]{question[:80]}[/]"
+            )
+
+            self.bus.post(Message(
+                sender=sender.name,
+                content=question,
+                msg_type=MessageType.DIRECT,
+                recipient=target_name,
+                round_num=round_num,
+            ))
+
+            reactive_prompt = (
+                f"{sender.name} has just directed this question at you:\n\n"
+                f"  \"{question}\"\n\n"
+                f"Respond directly and specifically. Under 200 words unless depth is required. "
+                f"You may also emit your own [DIRECT @Name: ...] if you need a teammate's "
+                f"input to answer. End with [DONE]."
+            )
+            reactive = target.respond(
+                reactive_prompt, round_num=round_num, is_final_round=is_final,
+            )
+            self._transcript.append({
+                "round": round_num,
+                "agent": target.name,
+                "role": target.role,
+                "content": f"[Reactive reply to {sender.name}]\n\n{reactive.message.content}",
+            })
+
+    # ── convergence detection ─────────────────────────────
+
+    def _check_convergence(self, round_num: int) -> bool:
+        """Detect whether critics/judges signal the work is done.
+
+        Converged if EITHER:
+        - Any critic/judge emits [APPROVED], OR
+        - A critic rates the work "Exceptional" with no flagged remaining gaps.
+        """
+        for m in self.bus.get_round_messages(round_num):
+            agent = self.agents.get(m.sender)
+            if not agent or agent.role not in ("critic", "judge"):
+                continue
+            content = m.content.upper()
+            if "[APPROVED]" in content:
+                return True
+            if "VERDICT: EXCEPTIONAL" in content or "EXCEPTIONAL" in content.split("\n")[0]:
+                gaps = "REMAINING GAPS"
+                if gaps not in content:
+                    return True
+                # Check if the gaps section effectively says "none"
+                after = content.split(gaps, 1)[1][:200]
+                if "NONE" in after or "NO REMAINING" in after:
+                    return True
+        return False
+
+    # ── round summary ─────────────────────────────────────
+
+    def _generate_and_store_round_summary(self, round_num: int) -> None:
+        """Use a fast Haiku CLI call to distill a round; cache in bus for later rounds."""
+        if not _CLAUDE_PATH:
+            return
+
+        round_msgs = self.bus.get_round_messages(round_num)
+        if not round_msgs:
+            return
+
+        transcript = "\n\n".join(
+            f"[{m.sender}]: {m.content[:2500]}" for m in round_msgs
+        )[:15000]
+
+        prompt = (
+            "Summarize this multi-agent discussion round in 150-250 words for future context. "
+            "Capture: key findings, factual claims with sources, disagreements, decisions, "
+            "open questions. Do NOT add commentary. Be dense and specific.\n\n"
+            f"{transcript}"
+        )
+
+        env = os.environ.copy()
+        env.pop("ANTHROPIC_API_KEY", None)
+        try:
+            result = subprocess.run(
+                [_CLAUDE_PATH, "-p",
+                 "--model", "haiku",
+                 "--effort", "low",
+                 "--no-session-persistence"],
+                input=prompt,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                timeout=45,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                self.bus.set_round_summary(round_num, result.stdout.strip())
+        except Exception:
+            pass
+
+    # ── parallel display header ───────────────────────────
+
+    def _print_parallel_header(self, group: list[str]) -> None:
+        names = ", ".join(group)
+        self.console.print()
+        self.console.print(
+            f"  [dim]⚡ Parallel group:[/] [bold]{names}[/] [dim](running concurrently)[/]"
+        )
 
     # ── prompt construction ───────────────────────────────
 
@@ -405,12 +703,12 @@ class Orchestrator:
             f"Answer thoroughly using your expertise. Search the web if needed. "
             f"This is a follow-up, so reference your earlier work where relevant."
         )
-        msg = agent.respond(prompt, round_num=round_num, is_final_round=False)
+        resp = agent.respond(prompt, round_num=round_num, is_final_round=False)
         self._transcript.append({
             "round": round_num,
             "agent": agent_name,
             "role": agent.role,
-            "content": f"[Follow-up Q: {question}]\n\n{msg.content}",
+            "content": f"[Follow-up Q: {question}]\n\n{resp.message.content}",
         })
 
     def _end_session(self, goal: str, team: TeamConfig, round_num: int) -> None:
@@ -457,16 +755,16 @@ class Orchestrator:
                         f"Round {round_num + 1}. The human has provided new direction. "
                         f"Review their input and adapt your contribution accordingly."
                     )
-                    msg = agent.respond(
+                    resp = agent.respond(
                         prompt, round_num=round_num + 1, is_final_round=True
                     )
                     self._transcript.append({
                         "round": round_num + 1,
                         "agent": agent_name,
                         "role": agent.role,
-                        "content": msg.content,
+                        "content": resp.message.content,
                     })
-                    if "[COMPLETE]" in msg.content and agent.role == "leader":
+                    if "[COMPLETE]" in resp.message.content and agent.role == "leader":
                         self._print_complete()
                         break
                 self._end_session(goal, team, round_num + 1)

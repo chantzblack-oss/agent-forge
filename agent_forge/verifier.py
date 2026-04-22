@@ -301,3 +301,142 @@ def audit_deliberation(
     audit.over_extrapolations = [str(x) for x in data.get("over_extrapolations", [])][:3]
     audit.coverage_gaps = [str(x) for x in data.get("coverage_gaps", [])][:3]
     return audit
+
+
+# ── Synthesis brief: structured claim ledger before Scholar closes ──
+
+def generate_synthesis_brief(
+    transcript_entries: list[dict],
+    user_question: str,
+) -> str:
+    """Distill the deliberation into a structured brief for the leader's synthesis.
+
+    Surfaces every graded claim, every condition raised, every challenge and
+    its resolution status. Handed to the leader as structured context right
+    before they close, so the synthesis integrates from a concrete ledger
+    instead of free-form recall — preventing silent promotion of Grade C
+    claims to Grade A parity, flattened conditions, and smuggled claims.
+
+    Returns a markdown-formatted brief (empty string on failure). The caller
+    injects this into the leader's synthesis prompt.
+    """
+    if not _CLAUDE_PATH or not transcript_entries:
+        return ""
+
+    transcript = "\n\n".join(
+        f"[{e.get('agent', '?')} ({e.get('role', '?')})]: "
+        f"{str(e.get('content', ''))[:2200]}"
+        for e in transcript_entries
+    )[:15000]
+
+    prompt = (
+        "You are preparing a structured brief for a leader about to synthesize "
+        "a multi-agent deliberation. Your output is a markdown ledger with "
+        "four sections. The leader will INTEGRATE from this ledger — so be "
+        "faithful, comprehensive, and structured.\n\n"
+        f"USER'S QUESTION:\n{user_question}\n\n"
+        f"DELIBERATION:\n{transcript}\n\n"
+        "Output EXACTLY this markdown (no intro, no outro, no commentary):\n\n"
+        "## GRADED CLAIMS\n"
+        "- **[Claim text]** — Grade A/B/C/D — raised by [Agent] — evidence: [brief].\n"
+        "- ...\n\n"
+        "## CONDITIONS & CAVEATS\n"
+        "- **[Condition]** — applies to [which claim] — raised by [Agent].\n"
+        "- ...\n\n"
+        "## UNRESOLVED DISAGREEMENTS\n"
+        "- **[Issue]** — [Agent A] says X, [Agent B] says Y, status: unresolved.\n"
+        "- ...\n\n"
+        "## SKEPTIC'S STANDING CHALLENGES\n"
+        "- **[Challenge]** — targets [claim/agent] — status: addressed/unaddressed.\n"
+        "- ...\n\n"
+        "RULES:\n"
+        "- Extract from the ACTUAL text — don't invent claims or grades.\n"
+        "- If a claim has no grade, mark 'Grade: unstated'.\n"
+        "- Max 6 items per section; fewer is fine.\n"
+        "- Preserve conditions exactly as phrased. Don't flatten 'only for X' to 'works'.\n"
+        "- Empty section = '(none)'."
+    )
+
+    try:
+        result = subprocess.run(
+            [_CLAUDE_PATH, "-p",
+             "--model", "haiku",
+             "--effort", "medium",
+             "--no-session-persistence"],
+            input=prompt,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            env=_clean_env(),
+            timeout=60,
+        )
+    except Exception:
+        return ""
+    if result.returncode != 0:
+        return ""
+    return (result.stdout or "").strip()
+
+
+# ── Mid-deliberation coverage pulse ────────────────────
+
+def mid_deliberation_pulse(
+    transcript_so_far: list[dict],
+    user_question: str,
+) -> list[str]:
+    """At the deliberation midpoint, check what critical dimension the team is NOT on track to discuss.
+
+    Returns up to 3 missing-dimension hints. Caller injects them as system
+    messages so the remaining turns can redirect. Closes the gap that the
+    end-of-deliberation Audit can only flag retrospectively.
+    """
+    if not _CLAUDE_PATH or not transcript_so_far:
+        return []
+
+    transcript = "\n\n".join(
+        f"[{e.get('agent', '?')}]: {str(e.get('content', ''))[:1500]}"
+        for e in transcript_so_far
+    )[:10000]
+
+    prompt = (
+        "You are a mid-deliberation coverage auditor. The team is halfway "
+        "through; you're checking what critical dimension of the user's "
+        "question they're NOT on track to address.\n\n"
+        f"USER'S QUESTION:\n{user_question}\n\n"
+        f"DELIBERATION SO FAR:\n{transcript}\n\n"
+        "Identify up to 3 dimensions an expert would be SURPRISED the team "
+        "hasn't discussed — not nice-to-haves, but load-bearing aspects. "
+        "Output ONLY this JSON:\n"
+        "{\n"
+        '  "missing_dimensions": [\n'
+        '    "Specific dimension — one-sentence description of what the '
+        'team should add before closing"\n'
+        "  ]\n"
+        "}\n\n"
+        "RULES:\n"
+        "- Be SPECIFIC. 'Discuss more nuance' is not a dimension.\n"
+        "- For resilience: social connection, cognitive reappraisal, "
+        "individual stratification are examples of load-bearing dimensions.\n"
+        "- For philosophical questions: historical positions, key "
+        "counter-arguments, practical implications are examples.\n"
+        "- Empty list [] if the team is covering the territory well."
+    )
+
+    try:
+        result = subprocess.run(
+            [_CLAUDE_PATH, "-p",
+             "--model", "haiku",
+             "--effort", "low",
+             "--no-session-persistence"],
+            input=prompt,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            env=_clean_env(),
+            timeout=40,
+        )
+    except Exception:
+        return []
+    if result.returncode != 0:
+        return []
+    data = _extract_json(result.stdout)
+    if not data:
+        return []
+    return [str(x) for x in data.get("missing_dimensions", [])][:3]

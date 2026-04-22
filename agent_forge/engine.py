@@ -31,6 +31,8 @@ from .verifier import (
     audit_deliberation,
     extract_citations_from_transcript,
     verify_citations_parallel,
+    generate_synthesis_brief,
+    mid_deliberation_pulse,
     DeliberationAudit,
     VerifiedCitation,
 )
@@ -724,10 +726,21 @@ class Orchestrator:
         last_speaker: str | None = None
 
         turn_budget = team.deliberation_turn_tokens
+        midpoint_pulse_fired = False
 
         while turns_used < team.max_deliberation_turns:
             agent = self.agents[next_speaker]
             self._print_turn_header(turns_used + 1, team.max_deliberation_turns, agent)
+
+            # Mid-deliberation coverage pulse — fires once, roughly at the
+            # midpoint, so the remaining turns can redirect if the team is
+            # missing a load-bearing dimension (e.g. social connection on
+            # a resilience question).  Much more effective than end-of-round
+            # coverage flagging in the Audit, which fires too late.
+            if (not midpoint_pulse_fired
+                    and turns_used >= max(3, team.max_deliberation_turns // 2)):
+                midpoint_pulse_fired = True
+                self._fire_midpoint_pulse(round_num)
 
             prompt = self._build_deliberation_prompt(
                 agent, round_num, team.max_rounds,
@@ -735,6 +748,22 @@ class Orchestrator:
                 max_turns=team.max_deliberation_turns,
                 is_opening=turns_used == 0,
             )
+            # Inject the pre-synthesis brief right before the leader closes.
+            # The leader's prompt becomes 'here is the ledger, integrate from it'
+            # instead of 'recall and integrate' — closes the smuggling channel.
+            if (agent.role == "leader"
+                    and turns_used >= team.max_deliberation_turns - 2
+                    and turns_used >= 3):
+                brief = self._get_synthesis_brief(round_num)
+                if brief:
+                    prompt = (
+                        f"{prompt}\n\n"
+                        "══ PRE-SYNTHESIS CLAIM LEDGER ══\n"
+                        "(Integrate from THIS ledger. Preserve every grade and "
+                        "condition exactly. Do NOT silently promote lower-grade "
+                        "claims. Do NOT drop conditions any teammate raised.)\n\n"
+                        f"{brief}"
+                    )
 
             # Leaders need 2x budget for the three-layer pedagogical synthesis;
             # workers stay at the short-turn budget
@@ -779,6 +808,66 @@ class Orchestrator:
         )
         resp = leader.respond(closing, round_num=round_num, is_final_round=is_final)
         return self._post_agent(resp, leader, round_num, is_final)
+
+    def _fire_midpoint_pulse(self, round_num: int) -> None:
+        """Run a coverage pulse at the deliberation midpoint and inject the result."""
+        question = self._current_question(round_num)
+        transcript_so_far = [e for e in self._transcript if e.get("round") == round_num]
+        try:
+            missing = mid_deliberation_pulse(transcript_so_far, question)
+        except Exception:
+            return
+        if not missing:
+            return
+
+        # Visible operator hint
+        self.console.print()
+        self.console.print(
+            "  [bold bright_cyan]🧭 Mid-deliberation pulse:[/] "
+            "[dim]dimensions the team should address before closing[/]"
+        )
+        for m in missing:
+            self.console.print(f"  [cyan]›[/] {m}")
+
+        # Inject into the bus so upcoming agents see it in their context
+        hint_text = (
+            "MID-DELIBERATION COVERAGE HINT: An external auditor flagged "
+            "these dimensions as critical-but-not-yet-addressed for the "
+            "user's question. The remaining turns should incorporate them "
+            "or explicitly justify why they don't apply:\n\n"
+            + "\n".join(f"  • {m}" for m in missing)
+        )
+        self.bus.post(Message(
+            sender="System",
+            content=hint_text,
+            msg_type=MessageType.SYSTEM,
+            round_num=round_num,
+        ))
+
+    def _get_synthesis_brief(self, round_num: int) -> str:
+        """Build the pre-synthesis structured brief; cache per round."""
+        cache_key = f"_synthesis_brief_r{round_num}"
+        cached = getattr(self, cache_key, None)
+        if cached is not None:
+            return cached
+
+        question = self._current_question(round_num)
+        round_entries = [e for e in self._transcript if e.get("round") == round_num]
+        try:
+            brief = generate_synthesis_brief(round_entries, question)
+        except Exception:
+            brief = ""
+        setattr(self, cache_key, brief)
+        return brief
+
+    def _current_question(self, round_num: int) -> str:
+        """The user's question for this round (chat) or the session goal (classic run)."""
+        round_msgs = self.bus.get_round_messages(round_num)
+        human = next(
+            (m.content for m in round_msgs if m.msg_type == MessageType.HUMAN),
+            "",
+        )
+        return human or self._goal or ""
 
     def _run_synthesis_audit(
         self,

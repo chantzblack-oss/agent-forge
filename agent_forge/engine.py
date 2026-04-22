@@ -37,6 +37,7 @@ from .verifier import (
     VerifiedCitation,
 )
 from .memory import SessionMemory, MemoryEntry
+from .claim_ledger import ClaimLedger
 
 # Roles that can run in parallel within a round when auto-grouping.
 _PARALLEL_ROLES = {"worker", "debater"}
@@ -83,6 +84,11 @@ class Orchestrator:
             self._memory: SessionMemory | None = SessionMemory()
         except Exception:
             self._memory = None
+        try:
+            self._ledger: ClaimLedger | None = ClaimLedger()
+        except Exception:
+            self._ledger = None
+        self._ledger_session_id = ClaimLedger.new_session_id() if self._ledger else ""
 
         try:
             self._run_session(goal, team)
@@ -119,6 +125,11 @@ class Orchestrator:
             self._memory: SessionMemory | None = SessionMemory()
         except Exception:
             self._memory = None
+        try:
+            self._ledger: ClaimLedger | None = ClaimLedger()
+        except Exception:
+            self._ledger = None
+        self._ledger_session_id = ClaimLedger.new_session_id() if self._ledger else ""
 
         try:
             self._run_chat(team)
@@ -141,11 +152,16 @@ class Orchestrator:
         for ac in team.agents:
             if not ac.model or ac.model == "default":
                 ac.model = self.default_model
+            # Per-agent prior contributions — this specific agent's own
+            # history across past sessions (so they remember their own
+            # stances, not just the shared bus memory).
+            prior = self._fetch_agent_prior_contributions(ac.name)
             agent = Agent(
                 config=ac,
                 bus=self.bus,
                 narrator=self.narrator,
                 team_roster=roster,
+                prior_contributions=prior,
             )
             self.agents[ac.name] = agent
 
@@ -187,6 +203,9 @@ class Orchestrator:
                 continue
             if low == "/memory":
                 self._print_memory_list()
+                continue
+            if low == "/ledger":
+                self._print_ledger()
                 continue
 
             # ── normal message: deliberate and answer ──
@@ -301,6 +320,12 @@ class Orchestrator:
                 self._save_to_memory(team, goal, round_num=None)
             except Exception:
                 pass
+        # Evidence ledger extraction + persist
+        if self._ledger is not None:
+            try:
+                self._extract_and_persist_ledger(team, goal)
+            except Exception:
+                pass
 
     def _inject_prior_memory(self, user_question: str) -> None:
         """Pull top-N relevant prior sessions from memory and post them as system context."""
@@ -403,6 +428,9 @@ class Orchestrator:
             return
         if not results:
             return
+        # Cache the VerifiedCitation objects so the evidence ledger can
+        # attach verified/hallucinated status to individual claim records.
+        self._last_verified_citations = [cit for _agent, cit in results]
 
         lines: list[str] = []
         n_verified = sum(1 for _, c in results if c.status == "verified")
@@ -477,6 +505,17 @@ class Orchestrator:
         tldr = self._extract_tldr_from_synthesis(synthesis_full)
         concepts = self._extract_concepts_from_recap()
 
+        # Per-agent contributions: the last meaningful turn from each agent
+        # in this scope, so future sessions can retrieve 'what did Skeptic
+        # say the last time this topic came up?'.
+        agent_contribs: dict[str, str] = {}
+        for e in scope:
+            agent = e.get("agent", "")
+            content = str(e.get("content", ""))
+            if agent and content:
+                # Keep the last (most recent) contribution per agent
+                agent_contribs[agent] = content[:1500]
+
         entry = MemoryEntry(
             session_id=SessionMemory.new_session_id(),
             timestamp=datetime.now().isoformat(timespec="seconds"),
@@ -485,6 +524,7 @@ class Orchestrator:
             synthesis_tldr=tldr[:400],
             synthesis_full=synthesis_full[:5000],
             key_concepts=concepts[:8],
+            agent_contributions=agent_contribs,
         )
         try:
             self._memory.remember(entry)
@@ -514,6 +554,44 @@ class Orchestrator:
         just read that cached list. Returns [] if recap generation failed.
         """
         return getattr(self, "_last_recap_concepts", [])
+
+    def _print_ledger(self) -> None:
+        """Show the user their global evidence ledger (/ledger command)."""
+        if self._ledger is None:
+            self.console.print("  [yellow]Ledger is not initialized.[/]")
+            return
+        records = self._ledger.all_global_records()
+        if not records:
+            self.console.print("  [dim]No claim records yet.[/]")
+            return
+        # Group by grade
+        by_grade: dict[str, list] = {}
+        for r in records:
+            by_grade.setdefault(r.grade or "?", []).append(r)
+
+        self.console.print()
+        self.console.print(
+            f"  [bold]📒 Evidence ledger — {len(records)} claim(s) across "
+            f"{len({r.session_id for r in records})} session(s)[/]"
+        )
+        for grade in ["A", "B", "C", "D", "?"]:
+            if grade not in by_grade:
+                continue
+            rows = by_grade[grade]
+            label = "unstated" if grade == "?" else f"Grade {grade}"
+            self.console.print(
+                f"\n  [bold]{label}[/] [dim]({len(rows)} claim(s))[/]"
+            )
+            for r in rows[-5:]:
+                ts = r.timestamp[:10]
+                agent = r.agent
+                claim_short = r.claim[:100].replace("\n", " ")
+                self.console.print(
+                    f"  [dim]{ts}[/] [bold]{agent}[/]: {claim_short}..."
+                )
+        self.console.print(
+            f"\n  [dim]Full CSV export path on next session close.[/]"
+        )
 
     def _print_memory_list(self) -> None:
         """Show the user their stored memory entries (/memory command)."""
@@ -559,6 +637,7 @@ class Orchestrator:
             "  [bold]commands:[/]\n"
             "    [bold white]/ask @Name question[/]  — direct a question at one agent\n"
             "    [bold white]/memory[/]              — list stored prior sessions\n"
+            "    [bold white]/ledger[/]              — show the evidence ledger (all claims)\n"
             "    [bold white]/export[/]              — save transcript to markdown\n"
             "    [bold white]/reset[/]               — clear conversation history\n"
             "    [bold white]/bye[/]                 — end session"
@@ -587,11 +666,16 @@ class Orchestrator:
         for ac in team.agents:
             if not ac.model or ac.model == "default":
                 ac.model = self.default_model
+            # Per-agent prior contributions — this specific agent's own
+            # history across past sessions (so they remember their own
+            # stances, not just the shared bus memory).
+            prior = self._fetch_agent_prior_contributions(ac.name)
             agent = Agent(
                 config=ac,
                 bus=self.bus,
                 narrator=self.narrator,
                 team_roster=roster,
+                prior_contributions=prior,
             )
             self.agents[ac.name] = agent
 
@@ -808,6 +892,45 @@ class Orchestrator:
         )
         resp = leader.respond(closing, round_num=round_num, is_final_round=is_final)
         return self._post_agent(resp, leader, round_num, is_final)
+
+    def _fetch_agent_prior_contributions(self, agent_name: str) -> str:
+        """Retrieve this specific agent's own history across past sessions.
+
+        Uses the current goal (or empty) as the retrieval query. Results
+        are formatted as a block suitable for injection into the agent's
+        system prompt at construction time.
+        """
+        if self._memory is None:
+            return ""
+        query = getattr(self, "_goal", "") or ""
+        try:
+            hits = self._memory.recall_for_agent(agent_name, query, n_results=2)
+        except Exception:
+            return ""
+        if not hits:
+            return ""
+        try:
+            return SessionMemory.format_agent_context(agent_name, hits)
+        except Exception:
+            return ""
+
+    def _extract_and_persist_ledger(self, team: TeamConfig, goal: str) -> None:
+        """Pull claim records from the session transcript and persist them.
+
+        Also caches the most recent Citationist results so their verified/
+        hallucinated statuses attach to the matching claim records.
+        """
+        if self._ledger is None:
+            return
+        last_verified = getattr(self, "_last_verified_citations", None)
+        self._ledger.extract_from_transcript(
+            transcript_entries=list(self._transcript),
+            session_id=self._ledger_session_id,
+            team_name=team.name if team else "",
+            user_question=goal,
+            verified_citations=last_verified,
+        )
+        self._ledger.persist()
 
     def _fire_midpoint_pulse(self, round_num: int) -> None:
         """Run a coverage pulse at the deliberation midpoint and inject the result."""

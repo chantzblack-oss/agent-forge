@@ -40,6 +40,8 @@ class MemoryEntry:
     synthesis_full: str              # Scholar's closing synthesis
     key_concepts: list[dict[str, str]] = field(default_factory=list)
     # [{"term": "...", "definition": "..."}]
+    # Per-agent contributions: {agent_name: "brief summary of their position"}
+    agent_contributions: dict[str, str] = field(default_factory=dict)
 
     def searchable_document(self) -> str:
         """Compact text representation used for embedding + retrieval."""
@@ -224,6 +226,64 @@ class SessionMemory:
     @staticmethod
     def new_session_id() -> str:
         return f"sess_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+    def recall_for_agent(
+        self, agent_name: str, query: str, n_results: int = 3,
+    ) -> list[dict[str, Any]]:
+        """Retrieve this agent's specific prior contributions on related questions.
+
+        Lets Skeptic in session N+1 know 'I challenged the MBSR parity claim
+        last time; watch for Scholar re-smuggling it'. Uses the JSON log
+        (agent_contributions field) and keyword-overlap scoring.
+        """
+        if not self._json_path.exists():
+            return []
+        rows: list[tuple[int, dict[str, Any]]] = []
+        try:
+            with open(self._json_path, encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        data = json.loads(line)
+                    except Exception:
+                        continue
+                    contribs = data.get("agent_contributions") or {}
+                    this_agent = contribs.get(agent_name, "")
+                    if not this_agent:
+                        continue
+                    score = _overlap_score(
+                        query,
+                        this_agent + " " + data.get("user_question", ""),
+                    )
+                    if score > 0:
+                        rows.append((score, {
+                            "contribution": this_agent,
+                            "user_question": data.get("user_question", ""),
+                            "timestamp": data.get("timestamp", ""),
+                            "team_name": data.get("team_name", ""),
+                        }))
+        except Exception:
+            return []
+        rows.sort(key=lambda x: x[0], reverse=True)
+        return [r[1] for r in rows[:n_results]]
+
+    @staticmethod
+    def format_agent_context(agent_name: str, hits: list[dict[str, Any]]) -> str:
+        """Render per-agent prior-contribution hits for inclusion in the agent's system prompt."""
+        if not hits:
+            return ""
+        parts = [
+            f"YOUR PRIOR CONTRIBUTIONS (across past sessions, as {agent_name})",
+            "(You may reference these and build on them. Watch for ideas you "
+            "previously challenged or conditions you previously introduced — "
+            "don't let them get silently dropped.)",
+        ]
+        for i, h in enumerate(hits, 1):
+            parts.append(
+                f"\n[{i} — {h.get('timestamp', '')[:10]}]"
+                f"\nUser asked: {h.get('user_question', '')[:200]}"
+                f"\nYour position: {h.get('contribution', '')[:500]}"
+            )
+        return "\n".join(parts)
 
     @staticmethod
     def format_for_context(hits: list[dict[str, Any]]) -> str:

@@ -140,12 +140,17 @@ class Agent:
         bus: MessageBus,
         narrator: Narrator | None = None,
         team_roster: list[str] | None = None,
+        prior_contributions: str = "",
     ) -> None:
         self.config = config
         self.bus = bus
         self.narrator = narrator
         self.console = Console(force_terminal=True)
         self.team_roster: list[str] = team_roster or []
+        # Pre-rendered summary of this agent's prior contributions across
+        # past sessions (injected by the Orchestrator when the team assembles).
+        # Makes each agent remember THEIR OWN stance, not just the shared bus.
+        self.prior_contributions = prior_contributions
 
         # Resolve provider: explicit name, or auto-detect from model
         provider_name = config.provider
@@ -299,8 +304,15 @@ class Agent:
         teammates = [n for n in self.team_roster if n != self.name]
         roster_str = ", ".join(teammates) if teammates else "(solo)"
 
-        return f"""{self.config.personality}
+        # Prepend per-agent prior contributions if present — each agent
+        # remembers THEIR own past stance (not just the shared bus memory).
+        prior_block = (
+            f"\n{self.prior_contributions}\n"
+            if self.prior_contributions else ""
+        )
 
+        return f"""{self.config.personality}
+{prior_block}
 IDENTITY: {self.name} ({self.role})
 TEAM: {roster_str}
 

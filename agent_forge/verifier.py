@@ -1,0 +1,273 @@
+"""Citationist + Verifier — post-deliberation audit agents.
+
+Two capabilities:
+
+1. **Citationist**: takes markdown citations of the form ``[label](url)`` from
+   agent output, actually fetches each URL (via Claude CLI with WebFetch),
+   extracts a supporting quote, and flags citations where the page content
+   doesn't back the claim. Catches hallucinated or misattributed sources.
+
+2. **Verifier**: runs a final audit pass over the full deliberation transcript
+   and surfaces contradictions agents didn't resolve, unsupported claims, and
+   over-extrapolations (e.g. clinical findings applied to healthy adults).
+
+Both are best-effort: if the ``claude`` CLI isn't on PATH or WebFetch isn't
+allowed, they degrade silently rather than blocking the user's flow.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from typing import Iterable
+
+
+_CLAUDE_PATH: str | None = shutil.which("claude")
+
+# Matches markdown links: [label](url)  — standard and the form our agents emit
+_CITATION_RE = re.compile(r"\[([^\]]+?)\]\((https?://[^)\s]+)\)")
+
+
+# ── data types ────────────────────────────────────────────
+
+@dataclass
+class VerifiedCitation:
+    label: str
+    url: str
+    claim_context: str          # 200 chars of text surrounding the citation
+    verified: bool = False      # True only if fetched page content backs the claim
+    finding: str = ""           # one-sentence summary of what the page actually says
+    extracted_quote: str = ""   # verbatim supporting quote, if any
+    error: str | None = None    # populated if fetch or parse failed
+
+
+@dataclass
+class DeliberationAudit:
+    contradictions: list[str] = field(default_factory=list)
+    unsupported_claims: list[str] = field(default_factory=list)
+    over_extrapolations: list[str] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not (self.contradictions or self.unsupported_claims or self.over_extrapolations)
+
+
+# ── citation extraction ──────────────────────────────────
+
+def extract_citations(text: str, context_chars: int = 200) -> list[tuple[str, str, str]]:
+    """Return every ``[label](url)`` in ``text`` with surrounding context.
+
+    Context is the ``context_chars`` characters preceding the citation — used
+    so the verifier knows what claim the citation was backing.
+    """
+    results: list[tuple[str, str, str]] = []
+    for m in _CITATION_RE.finditer(text):
+        label = m.group(1).strip()
+        url = m.group(2).strip()
+        start = max(0, m.start() - context_chars)
+        context = text[start:m.end()].replace("\n", " ").strip()
+        # Skip obvious non-citations: anchor links, agent dashboards, etc.
+        if url.startswith("#"):
+            continue
+        results.append((label, url, context))
+    return results
+
+
+def extract_citations_from_transcript(
+    transcript: Iterable[dict], max_total: int = 8,
+) -> list[tuple[str, str, str, str]]:
+    """Pull citations from every agent turn, tagged with agent name.
+
+    Returns (agent_name, label, url, context). Capped at ``max_total`` to
+    keep the verifier fast and cheap.
+    """
+    tagged: list[tuple[str, str, str, str]] = []
+    seen_urls: set[str] = set()
+    for entry in transcript:
+        agent = entry.get("agent", "?")
+        content = entry.get("content", "")
+        for label, url, ctx in extract_citations(content):
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            tagged.append((agent, label, url, ctx))
+            if len(tagged) >= max_total:
+                return tagged
+    return tagged
+
+
+# ── Citationist: verify one URL ──────────────────────────
+
+def _clean_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env.pop("ANTHROPIC_API_KEY", None)
+    return env
+
+
+def _extract_json(raw: str) -> dict | None:
+    """Find and parse a JSON object from a Claude response."""
+    if not raw:
+        return None
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(0))
+    except json.JSONDecodeError:
+        return None
+
+
+def verify_citation(label: str, url: str, context: str) -> VerifiedCitation:
+    """Fetch the URL and check whether its content supports the citation context."""
+    cit = VerifiedCitation(
+        label=label, url=url, claim_context=context[-400:],
+    )
+    if not _CLAUDE_PATH:
+        cit.error = "claude CLI not found on PATH"
+        return cit
+
+    prompt = (
+        "You are auditing a citation made during a multi-agent research deliberation.\n\n"
+        f"URL: {url}\n\n"
+        f"THE CITATION WAS USED TO SUPPORT THIS CLAIM (see end of context):\n"
+        f"{context[-600:]}\n\n"
+        "Use WebFetch to actually read the URL, then output ONLY this JSON "
+        "(no other text, no markdown fences):\n"
+        "{\n"
+        '  "verified": true|false,\n'
+        '  "finding": "one-sentence summary of what the page actually says",\n'
+        '  "quote": "verbatim supporting quote (max 220 chars) or empty string"\n'
+        "}\n\n"
+        "RULES:\n"
+        "- verified=true ONLY if the page's real content substantively supports "
+        "the specific claim being cited. Tangentially related ≠ verified.\n"
+        "- verified=false if the URL 404s, is paywalled, requires login, or "
+        "the page is about something different.\n"
+        "- quote must be a REAL verbatim string taken from the page."
+    )
+
+    try:
+        result = subprocess.run(
+            [_CLAUDE_PATH, "-p",
+             "--model", "haiku",
+             "--effort", "low",
+             "--allowedTools", "WebFetch",
+             "--no-session-persistence"],
+            input=prompt,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            env=_clean_env(),
+            timeout=90,
+        )
+    except subprocess.TimeoutExpired:
+        cit.error = "verification timed out"
+        return cit
+    except Exception as exc:
+        cit.error = f"{type(exc).__name__}: {str(exc)[:120]}"
+        return cit
+
+    data = _extract_json(result.stdout)
+    if not data:
+        cit.error = "verifier returned no parseable JSON"
+        return cit
+
+    cit.verified = bool(data.get("verified", False))
+    cit.finding = str(data.get("finding", ""))[:400]
+    cit.extracted_quote = str(data.get("quote", ""))[:320]
+    return cit
+
+
+def verify_citations_parallel(
+    tagged_citations: list[tuple[str, str, str, str]],
+    max_workers: int = 4,
+) -> list[tuple[str, VerifiedCitation]]:
+    """Run ``verify_citation`` concurrently over a batch.
+
+    Returns [(agent_name, VerifiedCitation), ...] in the same order as input.
+    """
+    if not tagged_citations:
+        return []
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = [
+            (agent, pool.submit(verify_citation, label, url, ctx))
+            for (agent, label, url, ctx) in tagged_citations
+        ]
+        return [(agent, fut.result()) for agent, fut in futures]
+
+
+# ── Verifier: end-of-deliberation audit ──────────────────
+
+def audit_deliberation(
+    transcript_entries: list[dict],
+    user_question: str,
+) -> DeliberationAudit:
+    """Run a final-pass audit of the deliberation.
+
+    Scholar's synthesis is included in the audit target — the auditor gets to
+    check whether the synthesis smuggled in unsupported claims or papered
+    over real contradictions.
+    """
+    audit = DeliberationAudit()
+    if not _CLAUDE_PATH or not transcript_entries:
+        return audit
+
+    transcript = "\n\n".join(
+        f"[{e.get('agent', '?')} ({e.get('role', '?')})]: "
+        f"{str(e.get('content', ''))[:2400]}"
+        for e in transcript_entries
+    )[:16000]
+
+    prompt = (
+        "You are the Verifier — a final auditor for a multi-agent deliberation.\n"
+        "Your job is to surface what the inline Skeptic may have missed.\n\n"
+        f"USER'S ORIGINAL QUESTION:\n{user_question}\n\n"
+        f"FULL TRANSCRIPT:\n{transcript}\n\n"
+        "Output ONLY this JSON (no markdown, no commentary):\n"
+        "{\n"
+        '  "contradictions": [\n'
+        '    "Specific unresolved disagreements — quote both sides"\n'
+        "  ],\n"
+        '  "unsupported_claims": [\n'
+        '    "Specific assertions any agent made without evidence — quote the claim"\n'
+        "  ],\n"
+        '  "over_extrapolations": [\n'
+        '    "Places where findings from one population (e.g., clinical) were '
+        'applied to another (e.g., healthy adults) without justification — be specific"\n'
+        "  ]\n"
+        "}\n\n"
+        "RULES:\n"
+        "- Be SPECIFIC — quote or paraphrase the exact text you're flagging.\n"
+        "- Max 3 items per category.\n"
+        "- Empty arrays only if there genuinely aren't issues.\n"
+        "- Do NOT repeat issues Skeptic already resolved inline.\n"
+        "- Focus on what a careful reader would push back on."
+    )
+
+    try:
+        result = subprocess.run(
+            [_CLAUDE_PATH, "-p",
+             "--model", "haiku",
+             "--effort", "medium",
+             "--no-session-persistence"],
+            input=prompt,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            env=_clean_env(),
+            timeout=90,
+        )
+    except Exception:
+        return audit
+
+    data = _extract_json(result.stdout)
+    if not data:
+        return audit
+
+    audit.contradictions = [str(x) for x in data.get("contradictions", [])][:3]
+    audit.unsupported_claims = [str(x) for x in data.get("unsupported_claims", [])][:3]
+    audit.over_extrapolations = [str(x) for x in data.get("over_extrapolations", [])][:3]
+    return audit

@@ -27,6 +27,14 @@ from .agent import Agent, AgentResponse, ROLE_STYLES
 from .bus import MessageBus, Message, MessageType
 from .narrator import Narrator
 from .teams import TeamConfig
+from .verifier import (
+    audit_deliberation,
+    extract_citations_from_transcript,
+    verify_citations_parallel,
+    DeliberationAudit,
+    VerifiedCitation,
+)
+from .memory import SessionMemory, MemoryEntry
 
 # Roles that can run in parallel within a round when auto-grouping.
 _PARALLEL_ROLES = {"worker", "debater"}
@@ -76,13 +84,17 @@ class Orchestrator:
 
         The team assembles once; conversation history (bus + scratchpad)
         persists across every user message. Each user turn triggers one
-        short deliberation (respecting ``team.max_deliberation_turns``).
+        short deliberation (respecting ``team.max_deliberation_turns``),
+        then runs a Verifier audit, Citationist verification of the most
+        important URLs, and saves a compact memory entry so future sessions
+        can build on this one.
 
         Commands the user can type at the prompt:
           /bye, /quit, /exit  — end the session
           /reset              — wipe conversation history, keep team
           /export             — dump the transcript to a markdown file
           /ask <agent>        — direct a question to one specific agent
+          /memory             — list stored prior-session summaries
         """
         self.bus = MessageBus()
         self.agents = {}
@@ -91,6 +103,11 @@ class Orchestrator:
         self._team = team
         self._start_time = _time.time()
         self.narrator = Narrator(mode=self.narrate_mode)
+        # Persistent memory across sessions — silently disabled if init fails
+        try:
+            self._memory: SessionMemory | None = SessionMemory()
+        except Exception:
+            self._memory = None
 
         try:
             self._run_chat(team)
@@ -157,8 +174,17 @@ class Orchestrator:
             if low in ("/help", "/?"):
                 self._print_chat_help()
                 continue
+            if low == "/memory":
+                self._print_memory_list()
+                continue
 
             # ── normal message: deliberate and answer ──
+
+            # On the FIRST user message, pull relevant prior sessions from
+            # memory so the team can build on what you've already learned.
+            if message_count == 0 and self._memory is not None:
+                self._inject_prior_memory(user_input)
+
             message_count += 1
             self.bus.post(Message(
                 sender="Human",
@@ -170,8 +196,18 @@ class Orchestrator:
             # One deliberation per user message
             self._execute_deliberation_round(team, round_num=message_count)
 
+            # Audit: Verifier pass — surfaces what Skeptic missed
+            self._render_audit_panel(user_input, round_num=message_count)
+
             # Pedagogical wrap-up: Learning Recap panel
             self._render_learning_recap(team, round_num=message_count)
+
+            # Reliability: Citationist — fetch + verify the cited URLs
+            self._render_citations_panel(round_num=message_count)
+
+            # Persistence: save this deliberation for future sessions
+            if self._memory is not None:
+                self._save_to_memory(team, user_input, round_num=message_count)
 
             # After 3+ messages, summarize the earliest one to keep context focused
             if message_count >= 3:
@@ -215,15 +251,207 @@ class Orchestrator:
             "content": resp.message.content,
         })
 
+    # ── memory / audit / citations hooks ───────────────────
+
+    def _inject_prior_memory(self, user_question: str) -> None:
+        """Pull top-N relevant prior sessions from memory and post them as system context."""
+        if self._memory is None:
+            return
+        try:
+            hits = self._memory.recall(user_question, n_results=3)
+        except Exception:
+            return
+        if not hits:
+            return
+
+        ctx_block = SessionMemory.format_for_context(hits)
+        self.bus.post(Message(
+            sender="System",
+            content=ctx_block,
+            msg_type=MessageType.SYSTEM,
+            round_num=0,
+        ))
+        # Compact user-facing hint
+        self.console.print()
+        self.console.print(
+            f"  [dim]🧠 Memory: injected {len(hits)} relevant prior session(s) "
+            f"(backend={self._memory.backend})[/]"
+        )
+
+    def _render_audit_panel(self, user_question: str, round_num: int) -> None:
+        """Verifier pass — highlight what Skeptic missed."""
+        round_entries = [e for e in self._transcript if e.get("round") == round_num]
+        try:
+            audit = audit_deliberation(round_entries, user_question)
+        except Exception:
+            return
+        if audit.is_empty():
+            return
+
+        lines: list[str] = []
+        if audit.contradictions:
+            lines.append("[bold bright_white]Unresolved contradictions[/]")
+            for c in audit.contradictions:
+                lines.append(f"  [yellow]⚠[/] {c}")
+        if audit.unsupported_claims:
+            if lines:
+                lines.append("")
+            lines.append("[bold bright_white]Unsupported claims[/]")
+            for c in audit.unsupported_claims:
+                lines.append(f"  [yellow]•[/] {c}")
+        if audit.over_extrapolations:
+            if lines:
+                lines.append("")
+            lines.append("[bold bright_white]Over-extrapolations[/]")
+            for c in audit.over_extrapolations:
+                lines.append(f"  [yellow]↯[/] {c}")
+
+        self.console.print()
+        self.console.print(Panel(
+            Text.from_markup("\n".join(lines)),
+            title="[bold yellow]🔎 Audit Addendum[/] [dim](Verifier)[/]",
+            title_align="left",
+            border_style="yellow",
+            padding=(1, 2),
+        ))
+
+    def _render_citations_panel(self, round_num: int) -> None:
+        """Citationist — fetch the top URLs and check they support the claims."""
+        round_entries = [e for e in self._transcript if e.get("round") == round_num]
+        tagged = extract_citations_from_transcript(round_entries, max_total=6)
+        if not tagged:
+            return
+
+        self.console.print()
+        self.console.print(
+            f"  [dim]🔗 Verifying {len(tagged)} citation(s) — fetching sources...[/]"
+        )
+        try:
+            results = verify_citations_parallel(tagged, max_workers=3)
+        except Exception:
+            return
+        if not results:
+            return
+
+        lines: list[str] = []
+        n_verified = sum(1 for _, c in results if c.verified)
+        n_unverified = sum(1 for _, c in results if c.error or not c.verified)
+        header = (
+            f"[dim]{n_verified} verified · {n_unverified} flagged[/]"
+        )
+        lines.append(header)
+        lines.append("")
+
+        for agent, cit in results:
+            badge = "[green]✓[/]" if cit.verified else ("[red]✗[/]" if cit.error is None else "[dim]?[/]")
+            lines.append(
+                f"{badge} [bold]{cit.label[:60]}[/] "
+                f"[dim]({agent})[/]"
+            )
+            lines.append(f"    [dim link={cit.url}]{cit.url}[/]")
+            if cit.error:
+                lines.append(f"    [red]error:[/] [dim]{cit.error[:200]}[/]")
+            elif cit.verified and cit.extracted_quote:
+                lines.append(f"    [green]quote:[/] [italic]\"{cit.extracted_quote[:220]}\"[/]")
+            elif cit.finding:
+                lines.append(f"    [yellow]note:[/] [dim]{cit.finding[:220]}[/]")
+
+        self.console.print(Panel(
+            Text.from_markup("\n".join(lines)),
+            title="[bold green]🔗 Citations Verified[/] [dim](Citationist)[/]",
+            title_align="left",
+            border_style="green",
+            padding=(1, 2),
+        ))
+
+    def _save_to_memory(
+        self, team: TeamConfig, user_question: str, round_num: int,
+    ) -> None:
+        """Extract TL;DR + synthesis + concepts from this round and persist."""
+        if self._memory is None:
+            return
+
+        round_entries = [e for e in self._transcript if e.get("round") == round_num]
+        # Leader's synthesis is the most recent leader turn in this round
+        leader_entries = [e for e in round_entries if e.get("role") == "leader"]
+        synthesis_full = leader_entries[-1]["content"] if leader_entries else ""
+        if not synthesis_full:
+            return
+
+        tldr = self._extract_tldr_from_synthesis(synthesis_full)
+        concepts = self._extract_concepts_from_recap()
+
+        entry = MemoryEntry(
+            session_id=SessionMemory.new_session_id(),
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+            team_name=team.name,
+            user_question=user_question[:1000],
+            synthesis_tldr=tldr[:400],
+            synthesis_full=synthesis_full[:5000],
+            key_concepts=concepts[:8],
+        )
+        try:
+            self._memory.remember(entry)
+        except Exception:
+            pass
+
+    def _extract_tldr_from_synthesis(self, text: str) -> str:
+        """Best-effort: grab 'The Takeaway' sentence from Scholar's 3-layer synthesis."""
+        import re as _re
+        m = _re.search(
+            r"(?:The\s+Takeaway|TL;DR|\(a\)\s*(?:The\s+Takeaway)?)[:\s]*(.+?)(?:\n\n|\(b\)|$)",
+            text, _re.IGNORECASE | _re.DOTALL,
+        )
+        if m:
+            return m.group(1).strip()[:400]
+        # Fallback: first non-header sentence
+        for line in text.split("\n"):
+            line = line.strip()
+            if line and not line.startswith(("#", "(", "—", "-", "*", "[")):
+                return line[:400]
+        return text[:400]
+
+    def _extract_concepts_from_recap(self) -> list[dict[str, str]]:
+        """Parse 'Key Concepts' entries from the most recently rendered Learning Recap.
+
+        We store concepts on the orchestrator during recap render; here we
+        just read that cached list. Returns [] if recap generation failed.
+        """
+        return getattr(self, "_last_recap_concepts", [])
+
+    def _print_memory_list(self) -> None:
+        """Show the user their stored memory entries (/memory command)."""
+        if self._memory is None:
+            self.console.print("  [yellow]Memory is not initialized.[/]")
+            return
+        entries = self._memory.all_entries()
+        if not entries:
+            self.console.print("  [dim]No prior sessions yet.[/]")
+            return
+        self.console.print()
+        self.console.print(
+            f"  [bold]🧠 {len(entries)} session(s) in memory "
+            f"[dim](backend={self._memory.backend})[/][/]"
+        )
+        for e in entries[-10:]:
+            ts = e.get("timestamp", "")[:10]
+            q = e.get("user_question", "")[:90]
+            tldr = e.get("synthesis_tldr", "")[:120]
+            self.console.print(f"  [dim]{ts}[/]  {q}")
+            self.console.print(f"    [dim italic]→ {tldr}[/]")
+
     def _print_chat_banner(self, team: TeamConfig) -> None:
+        mem_status = (
+            f"memory: {self._memory.backend}" if self._memory is not None else "memory: off"
+        )
         self.console.print()
         self.console.print(Panel(
             f"  [bold]{team.name}[/] is ready.  Ask anything.\n\n"
-            "  [dim]Commands:[/]\n"
-            "  [dim]  /ask @Name question  — ask one agent directly[/]\n"
-            "  [dim]  /export              — save this conversation to markdown[/]\n"
-            "  [dim]  /reset               — start fresh with the same team[/]\n"
-            "  [dim]  /bye                 — end session[/]",
+            f"  [dim]After each answer you'll see:[/]\n"
+            f"  [dim]  🎓 Agent panels · 🔎 Audit · 📘 Learning Recap · 🔗 Citations Verified[/]\n"
+            f"  [dim]Sessions are saved to memory — future questions build on this one.[/]\n\n"
+            "  [dim]Commands: /ask @Name q · /memory · /export · /reset · /bye[/]\n"
+            f"  [dim]Status: {mem_status}[/]",
             border_style="bright_blue",
             title="[bold]Chat[/]",
             padding=(1, 2),
@@ -234,6 +462,7 @@ class Orchestrator:
         self.console.print(
             "  [bold]commands:[/]\n"
             "    [bold white]/ask @Name question[/]  — direct a question at one agent\n"
+            "    [bold white]/memory[/]              — list stored prior sessions\n"
             "    [bold white]/export[/]              — save transcript to markdown\n"
             "    [bold white]/reset[/]               — clear conversation history\n"
             "    [bold white]/bye[/]                 — end session"
@@ -917,6 +1146,9 @@ class Orchestrator:
 
         if not (tldr or concepts or followups):
             return
+
+        # Cache concepts so _save_to_memory can include them in the stored entry
+        self._last_recap_concepts = [{"term": t, "definition": d} for t, d in concepts[:8]]
 
         parts: list[str] = []
 

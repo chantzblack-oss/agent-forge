@@ -60,6 +60,13 @@ class Orchestrator:
         self.agents: dict[str, Agent] = {}
         self.narrator: Narrator | None = None
         self._transcript: list[dict] = []
+        # Mode flags — always defined so helpers can check them even before
+        # a session starts. chat() / run() will re-initialise them.
+        self._adversarial_mode: bool = False
+        self._ensemble_next: bool = False
+        self._memory = None
+        self._ledger = None
+        self._ledger_session_id = ""
         self._goal: str = ""
         self._team: TeamConfig | None = None
         self._start_time: float = 0.0
@@ -89,6 +96,11 @@ class Orchestrator:
         except Exception:
             self._ledger = None
         self._ledger_session_id = ClaimLedger.new_session_id() if self._ledger else ""
+        # Mode flags toggled by /adversarial (Skeptic+Connector argue
+        # harder) and /ensemble (next deliberation runs 3x in parallel
+        # with consensus synthesis).
+        self._adversarial_mode: bool = False
+        self._ensemble_next: bool = False
 
         try:
             self._run_session(goal, team)
@@ -130,6 +142,11 @@ class Orchestrator:
         except Exception:
             self._ledger = None
         self._ledger_session_id = ClaimLedger.new_session_id() if self._ledger else ""
+        # Mode flags toggled by /adversarial (Skeptic+Connector argue
+        # harder) and /ensemble (next deliberation runs 3x in parallel
+        # with consensus synthesis).
+        self._adversarial_mode: bool = False
+        self._ensemble_next: bool = False
 
         try:
             self._run_chat(team)
@@ -207,6 +224,21 @@ class Orchestrator:
             if low == "/ledger":
                 self._print_ledger()
                 continue
+            if low == "/adversarial":
+                self._adversarial_mode = not self._adversarial_mode
+                state = "ON" if self._adversarial_mode else "OFF"
+                self.console.print(
+                    f"  [bold yellow]⚔  Adversarial mode: {state}[/] "
+                    "[dim](Skeptic + Connector will argue against Scholar's direction)[/]"
+                )
+                continue
+            if low == "/ensemble":
+                self._ensemble_next = True
+                self.console.print(
+                    "  [bold magenta]🎲 Ensemble mode armed for NEXT question[/] "
+                    "[dim](runs 3× in parallel, synthesizes consensus — slow but robust)[/]"
+                )
+                continue
 
             # ── normal message: deliberate and answer ──
 
@@ -223,8 +255,12 @@ class Orchestrator:
                 round_num=message_count,
             ))
 
-            # One deliberation per user message
-            self._execute_deliberation_round(team, round_num=message_count)
+            # One deliberation per user message — unless ensemble was armed
+            if self._ensemble_next:
+                self._ensemble_next = False
+                self._run_ensemble_deliberation(team, message_count, n_runs=3)
+            else:
+                self._execute_deliberation_round(team, round_num=message_count)
 
             # Audit: Verifier pass — surfaces what Skeptic missed
             self._render_audit_panel(user_input, round_num=message_count)
@@ -638,6 +674,8 @@ class Orchestrator:
             "    [bold white]/ask @Name question[/]  — direct a question at one agent\n"
             "    [bold white]/memory[/]              — list stored prior sessions\n"
             "    [bold white]/ledger[/]              — show the evidence ledger (all claims)\n"
+            "    [bold white]/adversarial[/]         — toggle: team argues against Scholar\n"
+            "    [bold white]/ensemble[/]            — arm: next question runs 3× & consensuses\n"
             "    [bold white]/export[/]              — save transcript to markdown\n"
             "    [bold white]/reset[/]               — clear conversation history\n"
             "    [bold white]/bye[/]                 — end session"
@@ -992,6 +1030,134 @@ class Orchestrator:
         )
         return human or self._goal or ""
 
+    def _run_ensemble_deliberation(
+        self,
+        team: TeamConfig,
+        base_round_num: int,
+        n_runs: int = 3,
+    ) -> None:
+        """Run the deliberation N times sequentially, then synthesize consensus.
+
+        Each run produces its own leader synthesis. A final Haiku pass reads
+        all N syntheses and outputs a consensus answer highlighting what the
+        runs agreed on, what they diverged on, and the confidence-weighted
+        final recommendation. Expensive (~3x normal cost) but robust for
+        hard questions where a single run's idiosyncrasies could mislead.
+        """
+        import copy
+        question = self._current_question(base_round_num)
+        self.console.print()
+        self.console.print(Panel(
+            f"[bold]🎲 Ensemble deliberation — running {n_runs} parallel drafts[/]\n\n"
+            f"[dim]Each draft runs the full team independently. Final synthesis "
+            f"will highlight consensus vs. divergence.[/]",
+            title="[bold magenta]Ensemble[/]",
+            border_style="magenta",
+            padding=(1, 2),
+        ))
+
+        syntheses: list[str] = []
+        for i in range(n_runs):
+            self.console.print()
+            self.console.print(
+                f"  [bold magenta]═══ Draft {i+1} of {n_runs} ═══[/]"
+            )
+            # Use a distinct round number per draft so bus messages don't
+            # collide with each other, and so per-round helpers still work.
+            draft_round = base_round_num * 100 + i  # unique but derived
+            # Post the user's question under the draft's round id
+            self.bus.post(Message(
+                sender="Human",
+                content=question,
+                msg_type=MessageType.HUMAN,
+                round_num=draft_round,
+            ))
+            try:
+                self._execute_deliberation_round(team, round_num=draft_round)
+            except Exception as exc:
+                self.console.print(
+                    f"  [red]Draft {i+1} failed: {exc}[/]"
+                )
+                continue
+            # Pull this draft's leader synthesis
+            draft_entries = [
+                e for e in self._transcript if e.get("round") == draft_round
+            ]
+            leader_turns = [e for e in draft_entries if e.get("role") == "leader"]
+            if leader_turns:
+                syntheses.append(leader_turns[-1]["content"])
+
+        if not syntheses:
+            self.console.print("  [red]Ensemble produced no syntheses.[/]")
+            return
+
+        consensus = self._synthesize_ensemble_consensus(question, syntheses)
+        if consensus:
+            self.console.print()
+            self.console.print(Panel(
+                Text.from_markup(consensus),
+                title="[bold magenta]🎲 Ensemble Consensus[/] "
+                      f"[dim]({len(syntheses)} drafts)[/]",
+                title_align="left",
+                border_style="magenta",
+                padding=(1, 2),
+            ))
+
+        # Record the consensus under the user's canonical round so
+        # downstream finalization (audit/recap/citations/ledger) treats it
+        # as the session's output.
+        self._transcript.append({
+            "round": base_round_num,
+            "agent": "Ensemble",
+            "role": "leader",
+            "content": consensus or "\n\n".join(syntheses),
+        })
+
+    def _synthesize_ensemble_consensus(
+        self, question: str, syntheses: list[str],
+    ) -> str:
+        """Use Haiku to pick consensus + divergence across the N drafts."""
+        if not _CLAUDE_PATH or not syntheses:
+            return ""
+        joined = "\n\n".join(
+            f"═══ DRAFT {i+1} ═══\n{s[:4000]}"
+            for i, s in enumerate(syntheses)
+        )[:15000]
+        prompt = (
+            "You are the ensemble consensus-maker. Three independent drafts "
+            "of a multi-agent deliberation are below. Your job: identify "
+            "what they AGREE on (high confidence), where they DIVERGE (real "
+            "uncertainty), and produce a final answer weighted by consensus.\n\n"
+            f"USER'S QUESTION:\n{question}\n\n"
+            f"THE DRAFTS:\n{joined}\n\n"
+            "Output markdown with exactly these sections:\n"
+            "[bold]High-Confidence Consensus[/]\n"
+            "(Claims all drafts agreed on — these are robust.)\n\n"
+            "[bold]Meaningful Divergence[/]\n"
+            "(Where drafts disagreed — flag as genuine uncertainty.)\n\n"
+            "[bold]Final Answer[/]\n"
+            "(The best-weighted response to the user. Preserve grades and "
+            "conditions. Where drafts diverged, state the tension explicitly "
+            "rather than hiding it.)"
+        )
+        env = os.environ.copy()
+        env.pop("ANTHROPIC_API_KEY", None)
+        try:
+            result = subprocess.run(
+                [_CLAUDE_PATH, "-p",
+                 "--model", "haiku",
+                 "--effort", "medium",
+                 "--no-session-persistence"],
+                input=prompt,
+                capture_output=True, text=True,
+                encoding="utf-8", errors="replace",
+                env=env,
+                timeout=90,
+            )
+            return (result.stdout or "").strip()
+        except Exception:
+            return ""
+
     def _run_synthesis_audit(
         self,
         team: TeamConfig,
@@ -1156,17 +1322,49 @@ class Orchestrator:
                 "if it's time to close, say [COMPLETE] with a one-paragraph "
                 "decision.  Do not introduce new factual claims in synthesis."
             )
+            adv = self._adversarial_addendum(agent.role)
             return (
                 f"{base}  As leader, moderate: if the discussion is circling, redirect; "
-                f"if it's converging, test the consensus; {synth}"
+                f"if it's converging, test the consensus; {synth}{adv}"
             )
         if agent.role in ("critic", "judge"):
             return (
                 f"{base}  As reviewer, spot-check the most recent claim — "
                 f"demand a source, challenge the logic, or say [APPROVED] if the "
-                f"case is solid."
+                f"case is solid.{self._adversarial_addendum(agent.role)}"
             )
-        return base
+        return base + self._adversarial_addendum(agent.role)
+
+    def _adversarial_addendum(self, role: str) -> str:
+        """Extra prompt nudge when /adversarial mode is active.
+
+        Skeptic becomes more aggressive; Connector argues against Scholar's
+        apparent direction; workers surface opposing frames; the team
+        becomes a jury instead of a chorus.  Active only when the flag is on.
+        """
+        if not getattr(self, "_adversarial_mode", False):
+            return ""
+        if role == "critic" or role == "judge":
+            return (
+                "  ⚔ ADVERSARIAL MODE: Push harder than usual. Don't approve "
+                "anything that hasn't been pressure-tested from the strongest "
+                "opposing view. If the team is converging too comfortably, "
+                "disrupt the consensus."
+            )
+        if role == "leader":
+            return (
+                "  ⚔ ADVERSARIAL MODE is on. Before synthesizing, explicitly "
+                "consider the opposite position the team didn't advocate for. "
+                "If their conclusion still holds against its strongest "
+                "steelman, state so; otherwise show the tension."
+            )
+        # workers
+        return (
+            "  ⚔ ADVERSARIAL MODE: If the team is converging on one view, "
+            "articulate the strongest version of the opposing position and "
+            "its best evidence. Don't manufacture disagreement; do surface "
+            "legitimate tension that's being glossed over."
+        )
 
     def _print_turn_header(self, turn: int, max_turns: int, agent: Agent) -> None:
         self.console.print()

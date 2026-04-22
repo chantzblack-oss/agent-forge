@@ -187,8 +187,30 @@ class GoogleProvider(Provider):
         tools: list = []
         if self._enable_search:
             tools.append(types.Tool(google_search=types.GoogleSearch()))
-        return types.GenerateContentConfig(
-            system_instruction=system,
-            max_output_tokens=max_tokens,
-            tools=tools or None,
-        )
+
+        # Gemini 2.5 Pro enables 'thinking' by default, and thinking tokens
+        # count against max_output_tokens. On short-turn deliberations we were
+        # seeing only ~30 visible tokens before the stream ended because
+        # thinking consumed the whole budget.  Set a modest thinking budget
+        # (~10% of output budget) so quality stays high but visible output
+        # isn't starved.  Falls back gracefully if the SDK version doesn't
+        # expose ThinkingConfig.
+        thinking_cfg = None
+        try:
+            ThinkingConfig = getattr(types, "ThinkingConfig", None)
+            if ThinkingConfig is not None:
+                thinking_cfg = ThinkingConfig(
+                    thinking_budget=max(128, max_tokens // 10),
+                    include_thoughts=False,
+                )
+        except Exception:
+            thinking_cfg = None
+
+        kwargs: dict = {
+            "system_instruction": system,
+            "max_output_tokens": max_tokens,
+            "tools": tools or None,
+        }
+        if thinking_cfg is not None:
+            kwargs["thinking_config"] = thinking_cfg
+        return types.GenerateContentConfig(**kwargs)

@@ -702,7 +702,8 @@ class Orchestrator:
             "content": content,
         })
 
-        if "[NEED @Human" in content:
+        import re as _re
+        if _re.search(r"\[NEED\s+@Human", content):
             self._handle_human_request(resp.message, round_num)
 
         # Surface scratchpad writes to the operator
@@ -1145,7 +1146,10 @@ class Orchestrator:
         # operator can see what was actually asked (display-strip hides the
         # token from the agent panel, so we re-surface it here).
         import re as _re
-        match = _re.search(r"\[NEED @Human:\s*(.*?)\]", msg.content, _re.DOTALL)
+        # Accept colon, em-dash, or whitespace after "@Human"
+        match = _re.search(
+            r"\[NEED\s+@Human[:\-—\s]+(.*?)\]", msg.content, _re.DOTALL,
+        )
         question = match.group(1).strip() if match else ""
 
         self.console.print()

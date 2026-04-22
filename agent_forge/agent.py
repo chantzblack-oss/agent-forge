@@ -59,7 +59,8 @@ _DISPLAY_STRIP_PATTERNS = [
     re.compile(r"\[DONE\]"),
     re.compile(r"\[COMPLETE\]"),
     re.compile(r"\[APPROVED\]"),
-    re.compile(r"\[NEED @Human:[^\]]*\]"),
+    # Tolerate colon / em-dash / whitespace separators after "@Human"
+    re.compile(r"\[NEED\s+@Human[^\]]*\]", re.DOTALL),
     re.compile(r"\[DIRECT @\w+:\s*[^\]]*\]", re.DOTALL),
     re.compile(r"\[SCRATCHPAD [\w./-]+\].*?\[/SCRATCHPAD\]", re.DOTALL),
     re.compile(r"UNVERIFIED:\s*", re.IGNORECASE),

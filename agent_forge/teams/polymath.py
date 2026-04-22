@@ -135,7 +135,7 @@ POLYMATH = TeamConfig(
         ),
         AgentConfig(
             name="Empiricist", role="worker", icon="\U0001f4ca",
-            provider=_GOOGLE, model="pro",
+            provider=_GOOGLE, model="flash",
             personality=(
                 "You are the team's evidence hunter, running on Gemini 2.5 Pro "
                 "with Google Search.  Your job: find REAL, CURRENT, CITED "
@@ -163,7 +163,7 @@ POLYMATH = TeamConfig(
         ),
         AgentConfig(
             name="Connector", role="worker", icon="\U0001f578",
-            provider=_GOOGLE, model="pro",
+            provider=_GOOGLE, model="flash",
             personality=(
                 "You are the cross-disciplinary connector, running on Gemini "
                 "2.5 Pro.  Your job: surface the analogy, the parallel, the "

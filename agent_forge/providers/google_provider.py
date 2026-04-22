@@ -8,7 +8,10 @@ from typing import Iterator
 from .base import Provider, ProviderError
 
 
-DEFAULT_MODEL = "gemini-2.5-pro"
+# Default to Flash — Google's free-tier quota for 2.5-pro is often 0 for new
+# Studio keys (pro is paid-tier only). Flash has real free-tier access and is
+# still highly capable.  Users with paid-tier keys can specify model="pro".
+DEFAULT_MODEL = "gemini-2.5-flash"
 
 _MODEL_ALIASES: dict[str, str] = {
     "default":     DEFAULT_MODEL,
@@ -20,6 +23,39 @@ _MODEL_ALIASES: dict[str, str] = {
 
 def _resolve_model(model: str) -> str:
     return _MODEL_ALIASES.get(model, model)
+
+
+def _reraise_with_hint(exc: Exception, model: str) -> None:
+    """Turn noisy google-genai errors into short, actionable ProviderError hints."""
+    msg = str(exc)
+    low = msg.lower()
+
+    # Quota exhausted (very common: free-tier pro has limit=0)
+    if "429" in msg or "resource_exhausted" in low or "quota" in low:
+        if model.startswith("gemini-2.5-pro") or model == "gemini-pro":
+            raise ProviderError(
+                "Gemini quota exceeded for "
+                + model
+                + ". Free-tier Studio keys often have limit=0 for 2.5-pro "
+                "(it's paid-tier only). Use model='flash' instead — it has a "
+                "real free-tier quota. To switch: edit your team config or let "
+                "Agent Forge's default kick in."
+            ) from exc
+        raise ProviderError(
+            f"Gemini quota exceeded for {model}. "
+            "Retry in a few minutes, switch to model='flash-lite', or upgrade "
+            "to paid tier at https://aistudio.google.com/apikey."
+        ) from exc
+
+    # Bad key
+    if "api key not valid" in low or "api_key_invalid" in low or "unauthenticated" in low:
+        raise ProviderError(
+            "Gemini API key is not valid. Regenerate at "
+            "https://aistudio.google.com/apikey and re-export GEMINI_API_KEY."
+        ) from exc
+
+    # Everything else — short, not the 400-line traceback
+    raise ProviderError(f"Gemini ({model}) call failed: {msg[:300]}") from exc
 
 
 class GoogleProvider(Provider):
@@ -50,22 +86,28 @@ class GoogleProvider(Provider):
 
     def stream(self, system: str, user: str, model: str, max_tokens: int) -> Iterator[str]:
         config = self._config(system, max_tokens)
-        for chunk in self._client.models.generate_content_stream(
-            model=_resolve_model(model),
-            contents=user,
-            config=config,
-        ):
-            text = getattr(chunk, "text", None)
-            if text:
-                yield text
+        try:
+            for chunk in self._client.models.generate_content_stream(
+                model=_resolve_model(model),
+                contents=user,
+                config=config,
+            ):
+                text = getattr(chunk, "text", None)
+                if text:
+                    yield text
+        except Exception as exc:
+            _reraise_with_hint(exc, _resolve_model(model))
 
     def complete(self, system: str, user: str, model: str, max_tokens: int) -> str:
         config = self._config(system, max_tokens)
-        response = self._client.models.generate_content(
-            model=_resolve_model(model),
-            contents=user,
-            config=config,
-        )
+        try:
+            response = self._client.models.generate_content(
+                model=_resolve_model(model),
+                contents=user,
+                config=config,
+            )
+        except Exception as exc:
+            _reraise_with_hint(exc, _resolve_model(model))
         return getattr(response, "text", "") or ""
 
     # ── config ───────────────────────────────────────────

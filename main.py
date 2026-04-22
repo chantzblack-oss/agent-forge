@@ -41,9 +41,9 @@ def print_banner() -> None:
     # Staggered info lines — "boot-up" feel
     info_lines = [
         ("    [dim]Multi-Agent Orchestration Engine[/]", 0.06),
-        ("    [dim italic]v0.5.0[/]", 0.06),
-        ("    [dim]Opus 4.6 \u00b7 Extended Thinking \u00b7 Web Search \u00b7 Voice[/]", 0.06),
-        (f"    [dim]{len(TEAMS)} specialized teams across {len(CATEGORIES)} domains[/]", 0.06),
+        ("    [dim italic]v0.6.0[/]", 0.06),
+        ("    [dim]Cross-Model (Claude + Gemini) \u00b7 Deliberation \u00b7 Chat[/]", 0.06),
+        (f"    [dim]{len(TEAMS)} teams across {len(CATEGORIES)} domains[/]", 0.06),
     ]
     for line, delay in info_lines:
         time.sleep(delay)
@@ -215,17 +215,19 @@ def main() -> None:
         console.print(f"  [dim]Agents: {agents_str}[/]")
         console.print(f"  [dim]Rounds: {team_config.max_rounds}[/]")
 
-        # Goal input
-        console.print()
-        goal = Prompt.ask(f"  [bold]Goal for {team_config.name}[/]")
-
-        if not goal.strip():
-            console.print("  [red]No goal provided.[/]")
-            continue
-
-        # Run
         orchestrator = Orchestrator(narrate_mode=narration_mode)
-        orchestrator.run(goal=goal, team=team_config)
+
+        if getattr(team_config, "chat_mode", False):
+            # Persistent chat — no goal, just talk
+            orchestrator.chat(team=team_config)
+        else:
+            # One-shot session — ask for the goal
+            console.print()
+            goal = Prompt.ask(f"  [bold]Goal for {team_config.name}[/]")
+            if not goal.strip():
+                console.print("  [red]No goal provided.[/]")
+                continue
+            orchestrator.run(goal=goal, team=team_config)
 
         # Again?
         console.print()

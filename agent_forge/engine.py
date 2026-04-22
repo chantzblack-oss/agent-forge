@@ -71,6 +71,178 @@ class Orchestrator:
             if self.narrator:
                 self.narrator.shutdown()
 
+    def chat(self, team: TeamConfig) -> None:
+        """Enter a persistent chat loop with the team.
+
+        The team assembles once; conversation history (bus + scratchpad)
+        persists across every user message. Each user turn triggers one
+        short deliberation (respecting ``team.max_deliberation_turns``).
+
+        Commands the user can type at the prompt:
+          /bye, /quit, /exit  — end the session
+          /reset              — wipe conversation history, keep team
+          /export             — dump the transcript to a markdown file
+          /ask <agent>        — direct a question to one specific agent
+        """
+        self.bus = MessageBus()
+        self.agents = {}
+        self._transcript = []
+        self._goal = f"Chat session with {team.name}"
+        self._team = team
+        self._start_time = _time.time()
+        self.narrator = Narrator(mode=self.narrate_mode)
+
+        try:
+            self._run_chat(team)
+        finally:
+            if self.narrator:
+                self.narrator.shutdown()
+
+    def _run_chat(self, team: TeamConfig) -> None:
+        """Chat loop with persistent team state."""
+        self._print_assembly(team)
+
+        if self.narrator:
+            agent_names = ", ".join(ac.name for ac in team.agents)
+            self.narrator.narrate_system(
+                f"Assembling {team.name}. Ready to chat.",
+            )
+            self.narrator.wait_until_done()
+
+        roster = [ac.name for ac in team.agents]
+        for ac in team.agents:
+            if not ac.model or ac.model == "default":
+                ac.model = self.default_model
+            agent = Agent(
+                config=ac,
+                bus=self.bus,
+                narrator=self.narrator,
+                team_roster=roster,
+            )
+            self.agents[ac.name] = agent
+
+        self._print_chat_banner(team)
+
+        message_count = 0
+        while True:
+            self.console.print()
+            try:
+                user_input = Prompt.ask("  [bold bright_white]you[/]").strip()
+            except (KeyboardInterrupt, EOFError):
+                self.console.print()
+                break
+            if not user_input:
+                continue
+
+            # ── handle commands ──
+            low = user_input.lower()
+            if low in ("/bye", "/quit", "/exit", "/q"):
+                break
+            if low == "/reset":
+                self.bus = MessageBus()
+                self._transcript = []
+                message_count = 0
+                for a in self.agents.values():
+                    a.bus = self.bus
+                self.console.print("  [dim]✓ Conversation history cleared.[/]")
+                continue
+            if low == "/export":
+                path = self._export_session()
+                self.console.print(f"  [bold green]✓ Exported to {path}[/]")
+                continue
+            if low.startswith("/ask "):
+                self._chat_ask_one(user_input[5:].strip(), message_count + 1)
+                message_count += 1
+                continue
+            if low in ("/help", "/?"):
+                self._print_chat_help()
+                continue
+
+            # ── normal message: deliberate and answer ──
+            message_count += 1
+            self.bus.post(Message(
+                sender="Human",
+                content=user_input,
+                msg_type=MessageType.HUMAN,
+                round_num=message_count,
+            ))
+
+            # One deliberation per user message
+            self._execute_deliberation_round(team, round_num=message_count)
+
+            # After 3+ messages, summarize the earliest one to keep context focused
+            if message_count >= 3:
+                oldest_unsum = message_count - 2
+                if not self.bus.get_round_summary(oldest_unsum):
+                    self._generate_and_store_round_summary(oldest_unsum)
+
+        self._print_chat_goodbye()
+
+    def _chat_ask_one(self, request: str, turn: int) -> None:
+        """Direct a single question at one agent (parsed as: '@Name question' or 'Name: question')."""
+        import re as _re
+        m = _re.match(r"^@?(\w+)[:\s]+(.+)$", request, _re.DOTALL)
+        if not m:
+            self.console.print(
+                "  [yellow]Usage: /ask @AgentName your question[/]"
+            )
+            return
+        target, question = m.group(1), m.group(2).strip()
+        agent = self.agents.get(target)
+        if not agent:
+            self.console.print(f"  [yellow]Unknown agent: {target}[/]")
+            return
+
+        self.bus.post(Message(
+            sender="Human",
+            content=f"@{target}: {question}",
+            msg_type=MessageType.HUMAN,
+            round_num=turn,
+        ))
+        prompt = (
+            f"The user has addressed you directly: {question}\n\n"
+            "Answer thoroughly using your expertise. Keep it conversational. "
+            "Reference prior context where relevant."
+        )
+        resp = agent.respond(prompt, round_num=turn, is_final_round=False)
+        self._transcript.append({
+            "round": turn,
+            "agent": target,
+            "role": agent.role,
+            "content": resp.message.content,
+        })
+
+    def _print_chat_banner(self, team: TeamConfig) -> None:
+        self.console.print()
+        self.console.print(Panel(
+            f"  [bold]{team.name}[/] is ready.  Ask anything.\n\n"
+            "  [dim]Commands:[/]\n"
+            "  [dim]  /ask @Name question  — ask one agent directly[/]\n"
+            "  [dim]  /export              — save this conversation to markdown[/]\n"
+            "  [dim]  /reset               — start fresh with the same team[/]\n"
+            "  [dim]  /bye                 — end session[/]",
+            border_style="bright_blue",
+            title="[bold]Chat[/]",
+            padding=(1, 2),
+        ))
+
+    def _print_chat_help(self) -> None:
+        self.console.print()
+        self.console.print(
+            "  [bold]commands:[/]\n"
+            "    [bold white]/ask @Name question[/]  — direct a question at one agent\n"
+            "    [bold white]/export[/]              — save transcript to markdown\n"
+            "    [bold white]/reset[/]               — clear conversation history\n"
+            "    [bold white]/bye[/]                 — end session"
+        )
+
+    def _print_chat_goodbye(self) -> None:
+        self.console.print()
+        self.console.print("  [dim]Goodbye.[/]")
+        if self.narrator:
+            self.narrator.narrate_system("Goodbye.")
+            self.narrator.wait_until_done()
+
     def _run_session(self, goal: str, team: TeamConfig) -> None:
         """Inner session loop."""
         self._print_assembly(team)
@@ -317,27 +489,47 @@ class Orchestrator:
         is_opening: bool,
     ) -> str:
         """Short, conversational prompt that encourages back-and-forth."""
-        r = f"Deliberation — turn {turn_number}/{max_turns} of round {round_num}/{max_rounds}."
+        is_chat = bool(self._team and getattr(self._team, "chat_mode", False))
+        focus = (
+            "the user's MOST RECENT message in the conversation history"
+            if is_chat else
+            "the PROJECT GOAL"
+        )
+        r = (
+            f"Turn {turn_number}/{max_turns}."
+            if is_chat else
+            f"Deliberation — turn {turn_number}/{max_turns} of round {round_num}/{max_rounds}."
+        )
+
         if is_opening and agent.role == "leader":
             return (
-                f"{r} You are OPENING the deliberation.  Review the PROJECT GOAL and "
-                f"frame the question sharply.  Then call on ONE teammate by name using "
-                f"[DIRECT @Name: specific question] to kick things off.  Under 150 words."
+                f"{r} You are OPENING the deliberation.  Read {focus} and "
+                f"frame the question sharply — if it's vague, reframe it into "
+                f"something the team can actually answer well.  Then call on "
+                f"ONE teammate using [DIRECT @Name: specific task] to kick "
+                f"things off.  Under 150 words."
             )
 
         base = (
             f"{r} This is a LIVE conversation — not a report. Keep your turn to "
             f"~150 words.  Lead with your single best point.  "
+            f"Address {focus}.  "
             f"If you want a specific teammate to respond, use [DIRECT @Name: question] "
             f"at the end of your turn (you can also @mention them inline).  "
             f"Ask hard questions.  Cite sources briefly with URLs.  End with [DONE]."
         )
 
         if agent.role == "leader":
+            synth = (
+                "if it's time to close, say [COMPLETE] with a synthesis that "
+                "ANSWERS the user's question — integrating what the team said, "
+                "not summarizing it."
+                if is_chat else
+                "if it's time to close, say [COMPLETE] with a one-paragraph decision."
+            )
             return (
                 f"{base}  As leader, moderate: if the discussion is circling, redirect; "
-                f"if it's converging, test the consensus; if it's time to close, say [COMPLETE] "
-                f"with a one-paragraph decision."
+                f"if it's converging, test the consensus; {synth}"
             )
         if agent.role in ("critic", "judge"):
             return (

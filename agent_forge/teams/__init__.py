@@ -33,6 +33,13 @@ class TeamConfig:
     # Per-turn soft budget — keeps turns short so the conversation flows.
     deliberation_turn_tokens: int = 800
 
+    # ── chat mode ───────────────────────────────────────
+    # When True, the team runs as a persistent conversation loop: user types
+    # a question, the team deliberates and answers, the session loops until
+    # the user exits.  Conversation history (bus messages) persists across
+    # all user turns so context compounds naturally.
+    chat_mode: bool = False
+
 
 @dataclass
 class TeamCategory:
@@ -48,9 +55,15 @@ from .creative import WRITERS_ROOM, PHILOSOPHY_SALON, DND_CAMPAIGN, COMEDY_WRITE
 from .technical import SECURITY_AUDIT, DATA_SCIENCE, SYSTEM_DESIGN
 from .business import LEGAL_ANALYSIS, FINANCIAL_PLANNING, CRISIS_COMMS
 from .cross_model import CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DEBATE, CROSS_MODEL_DELIBERATION
+from .polymath import POLYMATH
 
 
 CATEGORIES: list[TeamCategory] = [
+    TeamCategory(
+        name="Chat",
+        icon="\U0001f4ac",
+        teams=[POLYMATH],
+    ),
     TeamCategory(
         name="Cross-Model",
         icon="\U0001f9e0",

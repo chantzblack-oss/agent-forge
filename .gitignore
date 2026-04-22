@@ -13,3 +13,6 @@ dist/
 
 # Exported session transcripts
 agent_forge_*.md
+
+# Throwaway scratch / test scripts
+_*.py

@@ -66,10 +66,40 @@ _DISPLAY_STRIP_PATTERNS = [
     re.compile(r"UNVERIFIED:\s*", re.IGNORECASE),
 ]
 
+# Matches a search-query style citation: [Title ... — Author Year, Journal]
+# The em-dash is the key separator. Excludes real [Label](url) markdown links.
+_SEARCH_CITATION_RE = re.compile(
+    r"\[([^\[\]\n]+?\s[—–-]\s[^\[\]\n]+?)\](?!\()"
+)
+
+
+def _search_citation_to_scholar(text: str) -> str:
+    """Convert ``[Title — Author Year, Journal]`` into a Scholar search markdown link.
+
+    Agents are instructed to prefer this format over raw URLs so they can't
+    hallucinate broken links. The resulting markdown link ALWAYS works — worst
+    case Scholar just returns related papers if the exact title doesn't match.
+    """
+    import urllib.parse as _urlparse
+
+    def _replace(match: re.Match) -> str:
+        query = match.group(1).strip()
+        # Skip short / non-citation-looking labels (must have a year digit)
+        if not re.search(r"\b(19|20)\d{2}\b", query):
+            return match.group(0)
+        encoded = _urlparse.quote_plus(query[:180])
+        url = f"https://scholar.google.com/scholar?q={encoded}"
+        return f"[{query}]({url})"
+
+    return _SEARCH_CITATION_RE.sub(_replace, text)
+
 
 def _clean_for_display(text: str) -> str:
-    """Strip engine-protocol tokens and collapse extra blank lines for presentation."""
+    """Strip engine-protocol tokens, auto-link search-query citations, collapse blank lines."""
     cleaned = text
+    # Auto-link search-query citations BEFORE stripping protocol tokens so the
+    # em-dash pattern doesn't accidentally match a stripped [DIRECT @X — ...].
+    cleaned = _search_citation_to_scholar(cleaned)
     for pat in _DISPLAY_STRIP_PATTERNS:
         cleaned = pat.sub("", cleaned)
     # Collapse 3+ blank lines to 2
@@ -276,8 +306,27 @@ TEAM: {roster_str}
 
 RESEARCH MANDATE
 - You MUST search the web for any claim requiring current data or evidence.
-- Cite sources inline as [Source Name](URL). Say "UNVERIFIED:" for unsourced claims.
 - Prefer primary sources (govt data, peer-reviewed, SEC filings). Search multiple queries.
+
+SOURCE CITATIONS — CRITICAL RULES
+Hallucinated URLs are the #1 failure mode of LLM research. Follow these rules:
+
+1. DEFAULT FORMAT — ALWAYS PREFER THIS:
+   [Title of paper or finding — Author(s) Year, Journal]
+   Example: [The free-energy principle — Friston 2010, Nature Rev Neuroscience]
+   This always renders as a Google Scholar search link the user can click.
+   It's IMPOSSIBLE to hallucinate — Scholar will find the actual paper.
+
+2. URL FORMAT — ONLY WHEN YOU ARE 100% CERTAIN the URL is correct:
+   [Label](https://real-url-you-verified.com/exact-path)
+   Use this ONLY for URLs returned directly by your web search tool in this
+   turn. NEVER type a URL from memory — you will get it wrong.
+
+3. IF UNCERTAIN, USE FORMAT (1). Wrong URLs destroy user trust permanently.
+   The user's framework has a Citationist that will flag bad URLs in red.
+   Don't give it anything to flag.
+
+4. Say "UNVERIFIED:" before claims you cannot source at all.
 
 {self._output_format_for_role()}
 

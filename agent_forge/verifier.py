@@ -44,6 +44,10 @@ class VerifiedCitation:
     finding: str = ""           # one-sentence summary of what the page actually says
     extracted_quote: str = ""   # verbatim supporting quote, if any
     error: str | None = None    # populated if fetch or parse failed
+    # Severity of a failed verification — distinguishes real reliability problems
+    # from "can't check, might be fine" cases so the UI can treat them differently.
+    # Values: "verified" | "paywalled" | "wrong_article" | "not_found" | "error"
+    status: str = "verified"
 
 
 @dataclass
@@ -138,16 +142,21 @@ def verify_citation(label: str, url: str, context: str) -> VerifiedCitation:
         "Use WebFetch to actually read the URL, then output ONLY this JSON "
         "(no other text, no markdown fences):\n"
         "{\n"
-        '  "verified": true|false,\n'
-        '  "finding": "one-sentence summary of what the page actually says",\n'
+        '  "status": "verified" | "paywalled" | "wrong_article" | "not_found",\n'
+        '  "finding": "one-sentence summary of what the page actually says or why it is unreadable",\n'
         '  "quote": "verbatim supporting quote (max 220 chars) or empty string"\n'
         "}\n\n"
-        "RULES:\n"
-        "- verified=true ONLY if the page's real content substantively supports "
-        "the specific claim being cited. Tangentially related ≠ verified.\n"
-        "- verified=false if the URL 404s, is paywalled, requires login, or "
-        "the page is about something different.\n"
-        "- quote must be a REAL verbatim string taken from the page."
+        "STATUS DEFINITIONS (be strict — wrong_article and not_found are the worst):\n"
+        "- verified     : page content substantively supports the claim. "
+        "Tangentially related ≠ verified.\n"
+        "- paywalled    : URL resolves but content is behind paywall/login (403, "
+        "'sign in', journal-subscriber-only). The citation MAY be legitimate — "
+        "we just can't check. Less severe than wrong_article.\n"
+        "- wrong_article: URL resolves but the page is about something else "
+        "entirely (common LLM failure mode — plausible-looking URL, wrong content).\n"
+        "- not_found    : URL returns 404 or DNS error. The URL was hallucinated.\n\n"
+        "The quote field must be a REAL verbatim string taken from the page, or "
+        "empty string if you couldn't read it."
     )
 
     try:
@@ -173,9 +182,15 @@ def verify_citation(label: str, url: str, context: str) -> VerifiedCitation:
     data = _extract_json(result.stdout)
     if not data:
         cit.error = "verifier returned no parseable JSON"
+        cit.status = "error"
         return cit
 
-    cit.verified = bool(data.get("verified", False))
+    status = str(data.get("status", "")).lower()
+    if status not in ("verified", "paywalled", "wrong_article", "not_found"):
+        # Back-compat: older verifier responses used boolean "verified"
+        status = "verified" if data.get("verified") else "wrong_article"
+    cit.status = status
+    cit.verified = (status == "verified")
     cit.finding = str(data.get("finding", ""))[:400]
     cit.extracted_quote = str(data.get("quote", ""))[:320]
     return cit

@@ -397,27 +397,45 @@ class Orchestrator:
             return
 
         lines: list[str] = []
-        n_verified = sum(1 for _, c in results if c.verified)
-        n_unverified = sum(1 for _, c in results if c.error or not c.verified)
-        header = (
-            f"[dim]{n_verified} verified · {n_unverified} flagged[/]"
+        n_verified = sum(1 for _, c in results if c.status == "verified")
+        n_paywalled = sum(1 for _, c in results if c.status == "paywalled")
+        n_hallucinated = sum(
+            1 for _, c in results if c.status in ("wrong_article", "not_found")
         )
-        lines.append(header)
+        n_errored = sum(1 for _, c in results if c.status == "error")
+        bits = [f"[green]{n_verified} verified[/]"]
+        if n_paywalled:
+            bits.append(f"[yellow]{n_paywalled} paywalled[/]")
+        if n_hallucinated:
+            bits.append(f"[red]{n_hallucinated} BAD URL[/]")
+        if n_errored:
+            bits.append(f"[dim]{n_errored} errored[/]")
+        lines.append(" · ".join(bits))
         lines.append("")
 
+        # Status → (badge, color, short label)
+        _STATUS_DISPLAY = {
+            "verified":      ("[green]✓[/]",    "green",  None),
+            "paywalled":     ("[yellow]🔒[/]",  "yellow", "paywalled (may be real, can't verify)"),
+            "wrong_article": ("[red]✗[/]",      "red",    "URL points to a DIFFERENT paper"),
+            "not_found":     ("[red]✗[/]",      "red",    "URL does not exist (hallucinated)"),
+            "error":         ("[dim]?[/]",     "dim",    "verification failed"),
+        }
+
         for agent, cit in results:
-            badge = "[green]✓[/]" if cit.verified else ("[red]✗[/]" if cit.error is None else "[dim]?[/]")
+            badge, _color, flag = _STATUS_DISPLAY.get(
+                cit.status, ("[dim]?[/]", "dim", "unknown")
+            )
             lines.append(
-                f"{badge} [bold]{cit.label[:60]}[/] "
-                f"[dim]({agent})[/]"
+                f"{badge} [bold]{cit.label[:60]}[/] [dim]({agent})[/]"
             )
             lines.append(f"    [dim link={cit.url}]{cit.url}[/]")
-            if cit.error:
-                lines.append(f"    [red]error:[/] [dim]{cit.error[:200]}[/]")
-            elif cit.verified and cit.extracted_quote:
+            if flag:
+                lines.append(f"    [dim]{flag}[/]")
+            if cit.status == "verified" and cit.extracted_quote:
                 lines.append(f"    [green]quote:[/] [italic]\"{cit.extracted_quote[:220]}\"[/]")
             elif cit.finding:
-                lines.append(f"    [yellow]note:[/] [dim]{cit.finding[:220]}[/]")
+                lines.append(f"    [dim]note:[/] [dim]{cit.finding[:220]}[/]")
 
         self.console.print(Panel(
             Text.from_markup("\n".join(lines)),
@@ -727,7 +745,11 @@ class Orchestrator:
             if status in ("complete", "error"):
                 return status
 
-            last_speaker = next_speaker
+            # If _post_agent fired reactive turns (via [DIRECT @X]), the real
+            # last speaker is whoever was called reactively — look it up from
+            # the transcript so round-robin picks the right next agent.
+            last_real_speaker = self._transcript[-1]["agent"] if self._transcript else next_speaker
+            last_speaker = last_real_speaker
             next_speaker = self._pick_next_speaker(resp, team, last_speaker, leader_name)
 
         # Hit the turn cap — force leader to synthesize
@@ -1018,9 +1040,16 @@ class Orchestrator:
         for key, _ in resp.scratchpad_writes:
             self.console.print(f"  [dim]📌 scratchpad ← {key} (by {agent.name})[/]")
 
-        # Reactive turns for direct requests
+        # Reactive turns for direct requests — service each [DIRECT @X] inline,
+        # then clear them from the response so the caller's _pick_next_speaker
+        # doesn't double-book the same agent for the very next turn. Previously
+        # an emission like "...[DIRECT @Connector: ...]" would (1) fire a
+        # reactive turn handled here AND (2) make _pick_next_speaker target
+        # Connector again on its next iteration, producing two near-identical
+        # Connector turns back-to-back.
         if resp.direct_requests:
             self._handle_direct_requests(resp, agent, round_num, is_final)
+            resp.direct_requests = []
 
         if content.startswith("[ERROR]"):
             return "error"

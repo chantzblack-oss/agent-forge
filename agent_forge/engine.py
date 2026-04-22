@@ -115,7 +115,10 @@ class Orchestrator:
                 )
                 self.narrator.wait_until_done()
 
-            result = self._execute_round(team, execution_plan, round_num)
+            if getattr(team, "deliberation_mode", False):
+                result = self._execute_deliberation_round(team, round_num)
+            else:
+                result = self._execute_round(team, execution_plan, round_num)
             if result == "complete":
                 self._print_round_recap(round_num)
                 self._print_complete()
@@ -186,6 +189,170 @@ class Orchestrator:
             })
         self._print_complete()
         self._end_session(goal, team, team.max_rounds)
+
+    # ── live deliberation mode ────────────────────────────
+
+    def _execute_deliberation_round(
+        self,
+        team: TeamConfig,
+        round_num: int,
+    ) -> str:
+        """Dynamic turn-taking loop — short turns, speaker picked by @-mentions.
+
+        This is the "real-time meeting" flow: leader opens, then whoever
+        was addressed (or @-mentioned) speaks next, creating organic
+        back-and-forth instead of a fixed order.  Returns one of:
+        "complete" (leader said [COMPLETE]), "error", or "ok".
+        """
+        import re as _re
+
+        is_final = round_num == team.max_rounds
+        leader_name = self._leader_name()
+        if not leader_name:
+            self.console.print("  [bold red]Deliberation requires a leader role.[/]")
+            return "error"
+
+        turns_used = 0
+        next_speaker = leader_name                # leader opens the round
+        last_speaker: str | None = None
+
+        turn_budget = team.deliberation_turn_tokens
+
+        while turns_used < team.max_deliberation_turns:
+            agent = self.agents[next_speaker]
+            self._print_turn_header(turns_used + 1, team.max_deliberation_turns, agent)
+
+            prompt = self._build_deliberation_prompt(
+                agent, round_num, team.max_rounds,
+                turn_number=turns_used + 1,
+                max_turns=team.max_deliberation_turns,
+                is_opening=turns_used == 0,
+            )
+
+            # Override the model's max_tokens for this short turn
+            original_max = agent.config.max_tokens
+            agent.config.max_tokens = turn_budget
+            try:
+                resp = agent.respond(prompt, round_num=round_num, is_final_round=is_final)
+            finally:
+                agent.config.max_tokens = original_max
+
+            status = self._post_agent(resp, agent, round_num, is_final)
+            turns_used += 1
+
+            if status in ("complete", "error"):
+                return status
+
+            last_speaker = next_speaker
+            next_speaker = self._pick_next_speaker(resp, team, last_speaker, leader_name)
+
+        # Hit the turn cap — force leader to synthesize
+        self.console.print(
+            f"\n  [dim]Turn cap reached ({team.max_deliberation_turns}). Leader synthesizing.[/]"
+        )
+        leader = self.agents[leader_name]
+        closing = (
+            "The deliberation has reached its turn cap. Synthesize the discussion "
+            "into a decision: (1) the one key insight that emerged, (2) remaining "
+            "disagreements and how to resolve them, (3) next concrete actions. "
+            "Under 400 words."
+        )
+        resp = leader.respond(closing, round_num=round_num, is_final_round=is_final)
+        return self._post_agent(resp, leader, round_num, is_final)
+
+    def _leader_name(self) -> str | None:
+        for a in self.agents.values():
+            if a.role == "leader":
+                return a.name
+        return None
+
+    def _pick_next_speaker(
+        self,
+        resp: AgentResponse,
+        team: TeamConfig,
+        last_speaker: str,
+        leader_name: str,
+    ) -> str:
+        """Decide who speaks next based on the previous agent's output.
+
+        Priority:
+          1. Explicit [DIRECT @X: ...] request
+          2. Last-resort inline @mention of a teammate (other than self)
+          3. Leader gets the floor back every ~3 turns to moderate
+          4. Round-robin through non-leaders, skipping the last speaker
+        """
+        import re as _re
+
+        content = resp.message.content
+        # 1. Explicit direct request
+        for target, _q in resp.direct_requests:
+            if target in self.agents and target != last_speaker:
+                return target
+        # 2. @mention (first one that isn't self / [NEED @Human])
+        mentions = _re.findall(r"@(\w+)", content)
+        for name in mentions:
+            if name == "Human":
+                continue
+            if name in self.agents and name != last_speaker:
+                return name
+        # 3. Periodic leader moderation
+        recent = [e for e in self._transcript if e.get("role")][-3:]
+        if last_speaker != leader_name and all(e["agent"] != leader_name for e in recent):
+            return leader_name
+        # 4. Round-robin (skip last speaker)
+        non_leader = [
+            n for n in team.round_order if n != leader_name and n != last_speaker
+        ]
+        if non_leader:
+            return non_leader[0]
+        return leader_name
+
+    def _build_deliberation_prompt(
+        self,
+        agent: Agent,
+        round_num: int,
+        max_rounds: int,
+        turn_number: int,
+        max_turns: int,
+        is_opening: bool,
+    ) -> str:
+        """Short, conversational prompt that encourages back-and-forth."""
+        r = f"Deliberation — turn {turn_number}/{max_turns} of round {round_num}/{max_rounds}."
+        if is_opening and agent.role == "leader":
+            return (
+                f"{r} You are OPENING the deliberation.  Review the PROJECT GOAL and "
+                f"frame the question sharply.  Then call on ONE teammate by name using "
+                f"[DIRECT @Name: specific question] to kick things off.  Under 150 words."
+            )
+
+        base = (
+            f"{r} This is a LIVE conversation — not a report. Keep your turn to "
+            f"~150 words.  Lead with your single best point.  "
+            f"If you want a specific teammate to respond, use [DIRECT @Name: question] "
+            f"at the end of your turn (you can also @mention them inline).  "
+            f"Ask hard questions.  Cite sources briefly with URLs.  End with [DONE]."
+        )
+
+        if agent.role == "leader":
+            return (
+                f"{base}  As leader, moderate: if the discussion is circling, redirect; "
+                f"if it's converging, test the consensus; if it's time to close, say [COMPLETE] "
+                f"with a one-paragraph decision."
+            )
+        if agent.role in ("critic", "judge"):
+            return (
+                f"{base}  As reviewer, spot-check the most recent claim — "
+                f"demand a source, challenge the logic, or say [APPROVED] if the "
+                f"case is solid."
+            )
+        return base
+
+    def _print_turn_header(self, turn: int, max_turns: int, agent: Agent) -> None:
+        self.console.print()
+        self.console.print(
+            f"  [dim]turn {turn}/{max_turns} —[/] [{agent.color}]{agent.name}[/] "
+            f"[dim]({agent.role})[/]"
+        )
 
     # ── execution planning ────────────────────────────────
 

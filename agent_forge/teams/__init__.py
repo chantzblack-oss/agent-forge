@@ -18,9 +18,20 @@ class TeamConfig:
     # Optional explicit execution plan: list of groups, where each group runs
     # in parallel and groups run sequentially. e.g.
     #   [["Principal"], ["Analyst", "Contrarian"], ["Synthesizer"], ["Reviewer"], ["Principal"]]
-    # If None, the orchestrator auto-derives groups from round_order by
-    # collapsing consecutive workers/debaters into parallel groups.
+    # If None, the orchestrator runs round_order fully sequentially.
     execution_plan: list[list[str]] | None = None
+
+    # ── live deliberation mode ──────────────────────────
+    # When True, a "round" is a dynamic back-and-forth conversation with
+    # short turns and speaker selection based on @-mentions, [DIRECT @X]
+    # requests, and leader moderation — instead of fixed round_order iteration.
+    # Feels like a live meeting; different agents jump in as they have things
+    # to add.  Default False (classic fixed-order rounds).
+    deliberation_mode: bool = False
+    # Max turns within a single deliberation "round" before forcing synthesis.
+    max_deliberation_turns: int = 12
+    # Per-turn soft budget — keeps turns short so the conversation flows.
+    deliberation_turn_tokens: int = 800
 
 
 @dataclass
@@ -36,14 +47,14 @@ from .healthcare import CLINICAL_CASE, PRACTICE_GROWTH, BEHAVIORAL_HEALTH
 from .creative import WRITERS_ROOM, PHILOSOPHY_SALON, DND_CAMPAIGN, COMEDY_WRITERS
 from .technical import SECURITY_AUDIT, DATA_SCIENCE, SYSTEM_DESIGN
 from .business import LEGAL_ANALYSIS, FINANCIAL_PLANNING, CRISIS_COMMS
-from .cross_model import CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DEBATE
+from .cross_model import CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DEBATE, CROSS_MODEL_DELIBERATION
 
 
 CATEGORIES: list[TeamCategory] = [
     TeamCategory(
         name="Cross-Model",
         icon="\U0001f9e0",
-        teams=[CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DEBATE],
+        teams=[CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DELIBERATION, CROSS_MODEL_DEBATE],
     ),
     TeamCategory(
         name="Work",

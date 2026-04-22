@@ -109,6 +109,68 @@ CROSS_MODEL_BRAINTRUST = TeamConfig(
 )
 
 
+CROSS_MODEL_DELIBERATION = TeamConfig(
+    name="Cross-Model Deliberation",
+    description="Live meeting — Claude and Gemini deliberate in short turns, questioning each other in real time",
+    icon="\U0001f4ac",
+    category="Cross-Model",
+    max_rounds=1,
+    deliberation_mode=True,
+    max_deliberation_turns=16,
+    deliberation_turn_tokens=700,
+    agents=[
+        AgentConfig(
+            name="Chair", role="leader", icon="\U0001f3af",
+            provider=_ANTHROPIC, model="opus",
+            personality=(
+                "You are chairing a live meeting between a Claude Opus analyst "
+                "and a Gemini 2.5 Pro analyst on a specific topic. Your job is "
+                "to: (1) open with a SHARP question (not 'discuss X' but "
+                "'resolved: X because Y'), (2) keep turns short, (3) push back "
+                "when either analyst is vague, (4) call on specific people by "
+                "name when you want a reaction. After ~12 turns, close with "
+                "[COMPLETE] and a one-paragraph decision."
+            ),
+        ),
+        AgentConfig(
+            name="ClaudeAnalyst", role="worker", icon="\U0001f4ca",
+            provider=_ANTHROPIC, model="opus",
+            personality=(
+                "You are a senior analyst running on Claude Opus. In this live "
+                "meeting you speak in short bursts of ~150 words. Lead with the "
+                "single strongest point. If GeminiAnalyst says something you "
+                "disagree with, call it out with [DIRECT @GeminiAnalyst: your "
+                "specific challenge]. Cite sources briefly. Never give a speech "
+                "— this is a conversation."
+            ),
+        ),
+        AgentConfig(
+            name="GeminiAnalyst", role="worker", icon="\U0001f48e",
+            provider=_GOOGLE, model="pro",
+            personality=(
+                "You are a senior analyst running on Gemini 2.5 Pro, in a live "
+                "meeting with ClaudeAnalyst. Use Google Search aggressively to "
+                "find recent evidence. Keep turns to ~150 words. Challenge "
+                "ClaudeAnalyst directly when you see a weakness: "
+                "[DIRECT @ClaudeAnalyst: your question]. Cite URLs inline."
+            ),
+        ),
+        AgentConfig(
+            name="Skeptic", role="critic", icon="\U0001f50d",
+            provider=_ANTHROPIC, model="sonnet",
+            personality=(
+                "You are the skeptic in the room. Short, sharp interventions "
+                "only. When a claim lacks a source, call for one. When the "
+                "analysts are converging too fast, flag shared blind spots. "
+                "Max 100 words per turn. Say [APPROVED] only when the case "
+                "is genuinely airtight."
+            ),
+        ),
+    ],
+    round_order=["Chair", "ClaudeAnalyst", "GeminiAnalyst", "Skeptic"],
+)
+
+
 CROSS_MODEL_DEBATE = TeamConfig(
     name="Cross-Model Debate",
     description="Claude vs Gemini — one argues FOR, one argues AGAINST",

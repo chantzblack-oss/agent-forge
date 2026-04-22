@@ -1,7 +1,16 @@
-"""Provider registry — resolves a provider name into a backend instance."""
+"""Provider registry — resolves a provider name into a backend instance.
+
+Preference order (when provider == "anthropic" or "google"):
+    1. The subscription-authenticated CLI (no API key needed)
+    2. The SDK path (requires API key)
+
+Explicit names ("claude_cli", "gemini_cli", "claude_api", "gemini_api") skip
+auto-resolution and force a specific path.
+"""
 
 from __future__ import annotations
 
+import shutil
 from functools import lru_cache
 
 from .base import Provider, ProviderError
@@ -10,14 +19,14 @@ from .base import Provider, ProviderError
 # ── auto-detection from model name ────────────────────────
 
 _ANTHROPIC_MODEL_PREFIXES = ("claude-", "claude_", "opus", "sonnet", "haiku")
-_GOOGLE_MODEL_PREFIXES = ("gemini",)
+_GOOGLE_MODEL_PREFIXES = ("gemini", "pro", "flash")
 
 
 def detect_provider(model: str) -> str:
-    """Guess the provider name from a model string.
+    """Guess the provider family from a model string.
 
-    Falls back to 'anthropic' for empty or 'default' model values since that
-    was the pre-v0.6 behavior.
+    Returns an alias ("anthropic" | "google") — the actual backend (CLI vs SDK)
+    is chosen later by :func:`get_provider` based on what's installed.
     """
     m = (model or "").lower()
     if not m or m == "default":
@@ -28,29 +37,55 @@ def detect_provider(model: str) -> str:
     for prefix in _GOOGLE_MODEL_PREFIXES:
         if m.startswith(prefix):
             return "google"
-    # Default when we can't tell
     return "anthropic"
 
 
-# ── construction (cached) ─────────────────────────────────
+# ── backend resolution ────────────────────────────────────
+
+def _resolve_anthropic_backend() -> str:
+    """CLI if `claude` is on PATH, else SDK."""
+    if shutil.which("claude"):
+        return "claude_cli"
+    return "claude_api"
+
+
+def _resolve_google_backend() -> str:
+    """CLI if `gemini` is on PATH, else SDK."""
+    if shutil.which("gemini"):
+        return "gemini_cli"
+    return "gemini_api"
+
 
 @lru_cache(maxsize=None)
 def get_provider(name: str) -> Provider:
     """Return a singleton provider instance by name.
 
-    Providers are expensive to construct (API clients, SDK imports) and
-    stateless across calls, so we cache one instance per name.
+    Aliases ("anthropic", "google") pick the best installed backend.
     """
+    # Alias resolution (subscription CLI preferred, SDK as fallback)
     if name == "anthropic":
-        from .anthropic_provider import AnthropicProvider
-        return AnthropicProvider()
+        return get_provider(_resolve_anthropic_backend())
     if name == "google":
-        from .google_provider import GoogleProvider
-        return GoogleProvider()
+        return get_provider(_resolve_google_backend())
+
+    # Concrete backends
     if name == "claude_cli":
         from .claude_cli_provider import ClaudeCliProvider
         return ClaudeCliProvider()
-    raise ProviderError(f"Unknown provider: {name!r}. Known: anthropic, google, claude_cli.")
+    if name == "gemini_cli":
+        from .gemini_cli_provider import GeminiCliProvider
+        return GeminiCliProvider()
+    if name == "claude_api":
+        from .anthropic_provider import AnthropicProvider
+        return AnthropicProvider()
+    if name == "gemini_api":
+        from .google_provider import GoogleProvider
+        return GoogleProvider()
+
+    raise ProviderError(
+        f"Unknown provider: {name!r}. "
+        "Known: anthropic, google, claude_cli, gemini_cli, claude_api, gemini_api."
+    )
 
 
 def reset_providers() -> None:

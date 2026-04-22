@@ -1,7 +1,17 @@
 """Cross-model teams — genuine multi-provider collaboration.
 
-These teams mix Anthropic and Google models so different model families
-actually debate each other, rather than one model wearing multiple hats.
+These teams mix Anthropic Claude and Google Gemini so different model
+families actually debate each other, rather than one model wearing multiple
+personality hats.
+
+Auth is CLI-first (no API keys required):
+- Claude: install Claude Code (``claude`` CLI) and sign in to your Anthropic
+  subscription.
+- Gemini: install ``npm install -g @google/gemini-cli`` and sign in with
+  Google.
+
+API-key fallback (Anthropic / Google SDK) kicks in automatically if the CLI
+isn't installed — see agent_forge/providers/__init__.py.
 """
 
 from __future__ import annotations
@@ -10,16 +20,21 @@ from . import TeamConfig
 from ..agent import AgentConfig
 
 
+# Use provider aliases so the registry picks CLI when installed, API key as fallback.
+_ANTHROPIC = "anthropic"
+_GOOGLE = "google"
+
+
 CROSS_MODEL_BRAINTRUST = TeamConfig(
     name="Cross-Model Braintrust",
     description="Claude + Gemini debate a problem — different models, different blind spots",
     icon="\U0001f9e0",
-    category="Work",
+    category="Cross-Model",
     max_rounds=3,
     agents=[
         AgentConfig(
             name="Principal", role="leader", icon="\U0001f3af",
-            provider="anthropic", model="claude-opus-4-5",
+            provider=_ANTHROPIC, model="opus",
             personality=(
                 "You are a principal researcher running a cross-model braintrust. "
                 "Your team includes Claude AND Gemini agents — two different model "
@@ -32,7 +47,7 @@ CROSS_MODEL_BRAINTRUST = TeamConfig(
         ),
         AgentConfig(
             name="ClaudeAnalyst", role="worker", icon="\U0001f4ca",
-            provider="anthropic", model="claude-opus-4-5",
+            provider=_ANTHROPIC, model="opus",
             personality=(
                 "You are an analyst running on Anthropic's Claude Opus. You're "
                 "strong at nuanced reasoning, structured analysis, and careful "
@@ -44,7 +59,7 @@ CROSS_MODEL_BRAINTRUST = TeamConfig(
         ),
         AgentConfig(
             name="GeminiAnalyst", role="worker", icon="\U0001f48e",
-            provider="google", model="gemini-2.5-pro",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You are an analyst running on Google's Gemini 2.5 Pro. You're "
                 "strong at web-grounded factual research, multi-modal reasoning, "
@@ -56,7 +71,7 @@ CROSS_MODEL_BRAINTRUST = TeamConfig(
         ),
         AgentConfig(
             name="Contrarian", role="worker", icon="\U0001f504",
-            provider="anthropic", model="claude-sonnet-4-5",
+            provider=_ANTHROPIC, model="sonnet",
             personality=(
                 "You are an intellectual contrarian. You read what BOTH ClaudeAnalyst "
                 "and GeminiAnalyst wrote and look for: (1) shared assumptions neither "
@@ -69,7 +84,7 @@ CROSS_MODEL_BRAINTRUST = TeamConfig(
         ),
         AgentConfig(
             name="Reviewer", role="critic", icon="\U0001f50d",
-            provider="google", model="gemini-2.5-pro",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You are a peer reviewer with Nature/Lancet standards, running on "
                 "Gemini 2.5 Pro. Your role is to fact-check every major claim using "
@@ -98,12 +113,12 @@ CROSS_MODEL_DEBATE = TeamConfig(
     name="Cross-Model Debate",
     description="Claude vs Gemini — one argues FOR, one argues AGAINST",
     icon="⚔️",
-    category="Debate & Ideas",
+    category="Cross-Model",
     max_rounds=2,
     agents=[
         AgentConfig(
             name="Moderator", role="leader", icon="\U0001f399️",
-            provider="anthropic", model="claude-opus-4-5",
+            provider=_ANTHROPIC, model="opus",
             personality=(
                 "You are a debate moderator structuring a debate between a Claude-based "
                 "Advocate and a Gemini-based Opponent. Frame the topic as a clear "
@@ -114,7 +129,7 @@ CROSS_MODEL_DEBATE = TeamConfig(
         ),
         AgentConfig(
             name="ClaudeAdvocate", role="debater", icon="\U0001f7e2",
-            provider="anthropic", model="claude-opus-4-5",
+            provider=_ANTHROPIC, model="opus",
             personality=(
                 "You argue FOR the proposition, running on Claude Opus. Supreme Court "
                 "advocate skill. Every major claim needs a citation. Anticipate "
@@ -124,7 +139,7 @@ CROSS_MODEL_DEBATE = TeamConfig(
         ),
         AgentConfig(
             name="GeminiOpponent", role="debater", icon="\U0001f534",
-            provider="google", model="gemini-2.5-pro",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You argue AGAINST the proposition, running on Gemini 2.5 Pro. Federal "
                 "prosecutor precision. Aggressively search for counter-evidence: failed "
@@ -135,7 +150,7 @@ CROSS_MODEL_DEBATE = TeamConfig(
         ),
         AgentConfig(
             name="Judge", role="judge", icon="⚖️",
-            provider="anthropic", model="claude-opus-4-5",
+            provider=_ANTHROPIC, model="opus",
             personality=(
                 "Impartial judge with federal appeals court rigor. Evaluate on: logical "
                 "validity, evidence quality, real-world applicability, intellectual "

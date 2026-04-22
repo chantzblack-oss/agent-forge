@@ -31,7 +31,7 @@ POLYMATH_CLAUDE = TeamConfig(
     max_rounds=1,
     deliberation_mode=True,
     max_deliberation_turns=8,
-    deliberation_turn_tokens=900,
+    deliberation_turn_tokens=1300,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",
@@ -123,7 +123,7 @@ POLYMATH = TeamConfig(
     max_rounds=1,
     deliberation_mode=True,
     max_deliberation_turns=8,
-    deliberation_turn_tokens=900,
+    deliberation_turn_tokens=1300,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",
@@ -146,11 +146,12 @@ POLYMATH = TeamConfig(
             personality=(
                 "You are the team's evidence hunter, running on Gemini 2.5 Pro "
                 "with Google Search.  Your job: find REAL, CURRENT, CITED "
-                "evidence.  Primary sources only when possible.  Numbers with "
-                "baselines.  Studies with methodology notes.  Every claim gets "
-                "a URL and a date.  Lead with the single most striking data "
-                "point.  If you can't find good evidence, say so — don't "
-                "fabricate.  Under 150 words per turn; this is a conversation."
+                "When you use a specialized term (e.g. 'hazard "
+                "ratio', 'chemotactile receptor') OR any abbreviation "
+                "(MACE, NNT, CVD, T2D, HR, CI, RCT, HRV, VO2max), define it "
+                "parenthetically in plain words on first use. No exceptions — "
+                "never leak undefined jargon to the reader. Under 150 words; "
+                "this is a conversation."
             ),
         ),
         AgentConfig(

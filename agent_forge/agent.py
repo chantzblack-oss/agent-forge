@@ -1,6 +1,8 @@
-"""Agent with Claude CLI integration, streaming output, and voice narration.
+"""Agent backed by a pluggable LLM provider (Anthropic SDK, Google SDK, or Claude CLI).
 
 v0.6 additions:
+- Multi-provider dispatch via ``agent_forge.providers`` — any agent can run
+  against Anthropic, Google, or the Claude CLI based on ``AgentConfig.provider``.
 - ``respond_silent()`` for parallel execution (captures output, no streaming).
 - Scratchpad parsing: ``[SCRATCHPAD key]...[/SCRATCHPAD]`` blocks are extracted
   and written to the shared bus scratchpad.
@@ -10,10 +12,7 @@ v0.6 additions:
 
 from __future__ import annotations
 
-import os
 import re
-import shutil
-import subprocess
 import sys
 from dataclasses import dataclass
 
@@ -21,6 +20,7 @@ from rich.console import Console
 
 from .bus import MessageBus, Message, MessageType
 from .narrator import Narrator
+from .providers import get_provider, detect_provider, ProviderError
 
 
 ROLE_STYLES: dict[str, dict[str, str]] = {
@@ -42,8 +42,6 @@ _ROLE_ANSI: dict[str, str] = {
 }
 _ANSI_RESET = "\033[0m"
 
-_CLAUDE_PATH: str | None = shutil.which("claude")
-
 # ── regex for scratchpad and direct-message parsing ──────
 _SCRATCHPAD_RE = re.compile(
     r"\[SCRATCHPAD\s+([\w./-]+)\](.*?)\[/SCRATCHPAD\]",
@@ -60,10 +58,15 @@ class AgentConfig:
     name: str
     role: str
     personality: str
-    model: str = "opus"
+    # Which backend to use: "anthropic" | "google" | "claude_cli" | "auto".
+    # "auto" detects from the model name (claude-* → anthropic, gemini-* → google).
+    provider: str = "auto"
+    # Provider-specific model id (e.g. "claude-opus-4-6", "gemini-2.5-pro").
+    # Shorthand allowed: "opus", "sonnet", "haiku", "pro", "flash".
+    model: str = "default"
     temperature: float = 0.8
     icon: str = ""
-    max_tokens: int = 0
+    max_tokens: int = 16000
 
 
 @dataclass
@@ -90,11 +93,13 @@ class Agent:
         self.console = Console(force_terminal=True)
         self.team_roster: list[str] = team_roster or []
 
-        if not _CLAUDE_PATH:
-            raise FileNotFoundError(
-                "Could not find 'claude' CLI on PATH. "
-                "Install Claude Code: https://docs.anthropic.com/en/docs/claude-code"
-            )
+        # Resolve provider: explicit name, or auto-detect from model
+        provider_name = config.provider
+        if not provider_name or provider_name == "auto":
+            provider_name = detect_provider(config.model)
+        self._provider_name = provider_name
+        # Lazy-load so a missing SDK for an unused provider doesn't block others
+        self._provider = None
 
     # ── properties ────────────────────────────────────────
 
@@ -277,91 +282,82 @@ RULES
 YOUR TASK THIS TURN
 {round_prompt}"""
 
-    # ── CLI calls ────────────────────────────────────────
+    # ── provider calls ───────────────────────────────────
 
-    def _clean_env(self) -> dict[str, str]:
-        env = os.environ.copy()
-        env.pop("ANTHROPIC_API_KEY", None)
-        return env
+    def _get_provider(self):
+        if self._provider is None:
+            self._provider = get_provider(self._provider_name)
+        return self._provider
 
-    def _cli_args(self, system: str) -> list[str]:
-        return [
-            _CLAUDE_PATH,
-            "-p",
-            "--system-prompt", system,
-            "--model", self.config.model,
-            "--effort", "max",
-            "--no-session-persistence",
-            "--allowedTools", "WebSearch", "WebFetch",
-        ]
+    @property
+    def provider_name(self) -> str:
+        return self._provider_name
 
     def _call_cli(self, system: str, user_prompt: str) -> str:
-        """Call Claude CLI with animated spinner, then stream response with colored border."""
-        proc = subprocess.Popen(
-            self._cli_args(system),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            env=self._clean_env(),
-        )
-
-        proc.stdin.write(user_prompt)
-        proc.stdin.close()
+        """Stream response from the configured provider with colored border + spinner."""
+        try:
+            provider = self._get_provider()
+        except ProviderError as exc:
+            return f"[ERROR] {exc}"
 
         spinner_style = self.color.replace("bold ", "")
         status = self.console.status(
-            f"  {self.icon} [{self.color}]{self.name}[/] [dim]researching & thinking...[/]",
+            f"  {self.icon} [{self.color}]{self.name}[/] "
+            f"[dim]({self._provider_name}:{self.config.model}) researching & thinking...[/]",
             spinner="dots",
             spinner_style=spinner_style,
         )
         status.start()
 
         ansi_color = _ROLE_ANSI.get(self.role, "\033[37m")
-        lines: list[str] = []
-        first_line = True
+        buf = ""
+        first_chunk = True
+        line_has_prefix = False
 
-        for line in proc.stdout:
-            if first_line:
-                status.stop()
-                first_line = False
-            sys.stdout.write(f"  {ansi_color}\u2502{_ANSI_RESET} {line}")
-            sys.stdout.flush()
-            lines.append(line)
-
-        if first_line:
+        try:
+            for chunk in provider.stream(
+                system, user_prompt, self.config.model, self.config.max_tokens,
+            ):
+                if first_chunk:
+                    status.stop()
+                    first_chunk = False
+                buf += chunk
+                for ch in chunk:
+                    if not line_has_prefix:
+                        sys.stdout.write(f"  {ansi_color}\u2502{_ANSI_RESET} ")
+                        line_has_prefix = True
+                    sys.stdout.write(ch)
+                    if ch == "\n":
+                        line_has_prefix = False
+                sys.stdout.flush()
+        except Exception as exc:
             status.stop()
+            return f"[ERROR] {type(exc).__name__}: {exc}"
 
-        proc.wait()
-        text = "".join(lines).strip()
+        if first_chunk:
+            status.stop()
+        if buf and not buf.endswith("\n"):
+            sys.stdout.write("\n")
+            sys.stdout.flush()
 
+        text = buf.strip()
         if not text:
-            return "[ERROR] No response from Claude CLI. The model may be overloaded — try again."
+            return "[ERROR] Empty response from provider. The model may be overloaded — try again."
         return text
 
     def _call_cli_silent(self, system: str, user_prompt: str) -> str:
-        """Call Claude CLI and capture output without streaming (for parallel execution)."""
-        proc = subprocess.Popen(
-            self._cli_args(system),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            env=self._clean_env(),
-        )
-
-        proc.stdin.write(user_prompt)
-        proc.stdin.close()
-
-        stdout, _ = proc.communicate()
-        text = stdout.strip() if stdout else ""
-
+        """Capture full response without streaming (for parallel execution)."""
+        try:
+            provider = self._get_provider()
+            text = provider.complete(
+                system, user_prompt, self.config.model, self.config.max_tokens,
+            ).strip()
+        except ProviderError as exc:
+            return f"[ERROR] {exc}"
+        except Exception as exc:
+            return f"[ERROR] {type(exc).__name__}: {exc}"
         if not text:
-            return "[ERROR] No response from Claude CLI. The model may be overloaded — try again."
+            return "[ERROR] Empty response from provider. The model may be overloaded — try again."
         return text
 
     # ── display ──────────────────────────────────────────

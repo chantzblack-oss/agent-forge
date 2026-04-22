@@ -36,9 +36,15 @@ from .healthcare import CLINICAL_CASE, PRACTICE_GROWTH, BEHAVIORAL_HEALTH
 from .creative import WRITERS_ROOM, PHILOSOPHY_SALON, DND_CAMPAIGN, COMEDY_WRITERS
 from .technical import SECURITY_AUDIT, DATA_SCIENCE, SYSTEM_DESIGN
 from .business import LEGAL_ANALYSIS, FINANCIAL_PLANNING, CRISIS_COMMS
+from .cross_model import CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DEBATE
 
 
 CATEGORIES: list[TeamCategory] = [
+    TeamCategory(
+        name="Cross-Model",
+        icon="\U0001f9e0",
+        teams=[CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DEBATE],
+    ),
     TeamCategory(
         name="Work",
         icon="\U0001f4bc",

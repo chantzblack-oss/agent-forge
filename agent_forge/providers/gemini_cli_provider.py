@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import tempfile
 from typing import Iterator
 
 from .base import Provider, ProviderError
@@ -41,6 +42,9 @@ class GeminiCliProvider(Provider):
                 "gemini CLI not found on PATH. Install with: "
                 "npm install -g @google/gemini-cli  (then run `gemini` once to auth)"
             )
+        # Neutral cwd so the child CLI doesn't pick up GEMINI.md / project
+        # context from the caller's directory.
+        self._cwd = tempfile.mkdtemp(prefix="agent_forge_gemini_")
 
     def _args(self, system: str, model: str) -> list[str]:
         # The gemini CLI accepts `-p <prompt>` for non-interactive single-shot,
@@ -65,12 +69,15 @@ class GeminiCliProvider(Provider):
             text=True,
             encoding="utf-8",
             errors="replace",
+            cwd=self._cwd,
         )
-        proc.stdin.write(self._merge_system(system, user))
-        proc.stdin.close()
-        for line in proc.stdout:
-            yield line
-        proc.wait()
+        try:
+            proc.stdin.write(self._merge_system(system, user))
+            proc.stdin.close()
+            for line in proc.stdout:
+                yield line
+        finally:
+            proc.wait()
 
     def complete(self, system: str, user: str, model: str, max_tokens: int) -> str:
         proc = subprocess.Popen(
@@ -81,8 +88,7 @@ class GeminiCliProvider(Provider):
             text=True,
             encoding="utf-8",
             errors="replace",
+            cwd=self._cwd,
         )
-        proc.stdin.write(self._merge_system(system, user))
-        proc.stdin.close()
-        stdout, _ = proc.communicate()
+        stdout, _ = proc.communicate(input=self._merge_system(system, user))
         return stdout.strip() if stdout else ""

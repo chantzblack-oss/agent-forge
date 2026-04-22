@@ -190,29 +190,22 @@ class Orchestrator:
     # ── execution planning ────────────────────────────────
 
     def _resolve_execution_plan(self, team: TeamConfig) -> list[list[str]]:
-        """Get explicit execution plan, or auto-derive from round_order.
+        """Get explicit execution plan, or default to fully sequential.
 
-        Auto-rule: consecutive agents whose role is in _PARALLEL_ROLES
-        (worker, debater) form a parallel group. Everything else is sequential.
+        Parallel execution is opt-in per team via ``TeamConfig.execution_plan``
+        because most teams encode real ordering dependencies in ``round_order``
+        (debaters must react to each other; Storyteller's Charactersmith
+        depends on Worldbuilder; Code Shop's Tester depends on Backend, etc.).
+        Blindly parallelizing consecutive workers corrupts those semantics.
+
+        Teams that benefit from real concurrent work — like Cross-Model
+        Braintrust, where independent models should research the same
+        question in parallel — declare it explicitly.
         """
         explicit = getattr(team, "execution_plan", None)
         if explicit:
             return explicit
-
-        plan: list[list[str]] = []
-        current_parallel: list[str] = []
-        for name in team.round_order:
-            agent = self.agents.get(name)
-            if agent and agent.role in _PARALLEL_ROLES:
-                current_parallel.append(name)
-            else:
-                if current_parallel:
-                    plan.append(current_parallel)
-                    current_parallel = []
-                plan.append([name])
-        if current_parallel:
-            plan.append(current_parallel)
-        return plan
+        return [[name] for name in team.round_order]
 
     # ── round execution ───────────────────────────────────
 

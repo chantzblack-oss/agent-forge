@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 from typing import Iterator
 
 from .base import Provider, ProviderError
@@ -25,6 +26,10 @@ class ClaudeCliProvider(Provider):
             raise ProviderError(
                 "claude CLI not found on PATH. Install Claude Code or use a different provider."
             )
+        # Run the subprocess from a neutral temp directory so the child CLI
+        # doesn't inherit project-specific CLAUDE.md / settings from the
+        # caller's cwd (which would leak into every agent's system prompt).
+        self._cwd = tempfile.mkdtemp(prefix="agent_forge_claude_")
 
     def _clean_env(self) -> dict[str, str]:
         env = os.environ.copy()
@@ -53,12 +58,15 @@ class ClaudeCliProvider(Provider):
             encoding="utf-8",
             errors="replace",
             env=self._clean_env(),
+            cwd=self._cwd,
         )
-        proc.stdin.write(user)
-        proc.stdin.close()
-        for line in proc.stdout:
-            yield line
-        proc.wait()
+        try:
+            proc.stdin.write(user)
+            proc.stdin.close()
+            for line in proc.stdout:
+                yield line
+        finally:
+            proc.wait()
 
     def complete(self, system: str, user: str, model: str, max_tokens: int) -> str:
         proc = subprocess.Popen(
@@ -70,8 +78,7 @@ class ClaudeCliProvider(Provider):
             encoding="utf-8",
             errors="replace",
             env=self._clean_env(),
+            cwd=self._cwd,
         )
-        proc.stdin.write(user)
-        proc.stdin.close()
-        stdout, _ = proc.communicate()
+        stdout, _ = proc.communicate(input=user)
         return stdout.strip() if stdout else ""

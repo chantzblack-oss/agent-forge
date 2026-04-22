@@ -33,7 +33,10 @@ DEFAULT_MODEL = "gemini-2.5-flash"
 
 _MODEL_ALIASES: dict[str, str] = {
     "default":     DEFAULT_MODEL,
-    "pro":         "gemini-2.5-pro",
+    "pro":         "gemini-3.1-pro",
+    "pro-3.1":     "gemini-3.1-pro",
+    "3.1":         "gemini-3.1-pro",
+    "2.5-pro":     "gemini-2.5-pro",
     "flash":       "gemini-2.5-flash",
     "flash-lite":  "gemini-2.5-flash-lite",
 }

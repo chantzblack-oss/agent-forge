@@ -23,12 +23,12 @@ from typing import Iterator
 from .base import Provider, ProviderError
 
 
-DEFAULT_MODEL = "claude-opus-4-5"
+DEFAULT_MODEL = "claude-opus-4-7"
 
 _MODEL_ALIASES: dict[str, str] = {
     "default": DEFAULT_MODEL,
-    "opus":    "claude-opus-4-5",
-    "sonnet":  "claude-sonnet-4-5",
+    "opus":    "claude-opus-4-7",
+    "sonnet":  "claude-sonnet-4-6",
     "haiku":   "claude-haiku-4-5",
 }
 

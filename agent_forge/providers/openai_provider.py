@@ -24,14 +24,15 @@ from typing import Iterator
 from .base import Provider, ProviderError
 
 
-DEFAULT_MODEL = "gpt-5"
+DEFAULT_MODEL = "gpt-5.4"
 
 # Shorthand → canonical model id
 _MODEL_ALIASES: dict[str, str] = {
     "default":  DEFAULT_MODEL,
-    "gpt":      "gpt-5",
-    "gpt5":     "gpt-5",
+    "gpt":      "gpt-5.4",
+    "gpt5":     "gpt-5.4",
     "gpt-5":    "gpt-5",
+    "gpt-5.4":  "gpt-5.4",
     "4o":       "gpt-4o",
     "gpt-4o":   "gpt-4o",
     "4o-mini":  "gpt-4o-mini",

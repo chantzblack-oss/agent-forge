@@ -131,13 +131,20 @@ class Agent:
         user_prompt = self._build_user_prompt(prompt, round_num)
         self._print_header()
 
+        printed_error = False
         try:
             text = self._call_cli(system, user_prompt)
         except FileNotFoundError:
             text = "[ERROR] 'claude' CLI not found. Make sure Claude Code is installed and on your PATH."
             self.console.print(f"  [bold red]{text}[/]")
+            printed_error = True
         except Exception as exc:
             text = f"[ERROR] {exc}"
+            self.console.print(f"  [bold red]{text}[/]")
+            printed_error = True
+        # If the provider returned error text (rather than raising), surface it
+        # to the operator so the failure mode is visible instead of silent.
+        if text.startswith("[ERROR]") and not printed_error:
             self.console.print(f"  [bold red]{text}[/]")
 
         self._print_footer()

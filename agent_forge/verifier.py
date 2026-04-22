@@ -55,9 +55,15 @@ class DeliberationAudit:
     contradictions: list[str] = field(default_factory=list)
     unsupported_claims: list[str] = field(default_factory=list)
     over_extrapolations: list[str] = field(default_factory=list)
+    coverage_gaps: list[str] = field(default_factory=list)
 
     def is_empty(self) -> bool:
-        return not (self.contradictions or self.unsupported_claims or self.over_extrapolations)
+        return not (
+            self.contradictions
+            or self.unsupported_claims
+            or self.over_extrapolations
+            or self.coverage_gaps
+        )
 
 
 # ── citation extraction ──────────────────────────────────
@@ -239,7 +245,8 @@ def audit_deliberation(
 
     prompt = (
         "You are the Verifier — a final auditor for a multi-agent deliberation.\n"
-        "Your job is to surface what the inline Skeptic may have missed.\n\n"
+        "Your job is to surface what the inline Skeptic may have missed, including "
+        "important dimensions of the user's question the team never addressed.\n\n"
         f"USER'S ORIGINAL QUESTION:\n{user_question}\n\n"
         f"FULL TRANSCRIPT:\n{transcript}\n\n"
         "Output ONLY this JSON (no markdown, no commentary):\n"
@@ -253,6 +260,12 @@ def audit_deliberation(
         '  "over_extrapolations": [\n'
         '    "Places where findings from one population (e.g., clinical) were '
         'applied to another (e.g., healthy adults) without justification — be specific"\n'
+        "  ],\n"
+        '  "coverage_gaps": [\n'
+        '    "Important dimensions of the USER\'S QUESTION the team never addressed. '
+        'For example: if the question is about daily-life mental health and the team '
+        'covers exercise + sleep but skips social connection (one of the strongest '
+        'predictors in the literature), flag it here. Max 15 words each."\n'
         "  ]\n"
         "}\n\n"
         "RULES:\n"
@@ -260,7 +273,8 @@ def audit_deliberation(
         "- Max 3 items per category.\n"
         "- Empty arrays only if there genuinely aren't issues.\n"
         "- Do NOT repeat issues Skeptic already resolved inline.\n"
-        "- Focus on what a careful reader would push back on."
+        "- For coverage_gaps: think about what an expert in this field would be "
+        "surprised the team DIDN'T discuss, not just what they'd add as nice-to-have."
     )
 
     try:
@@ -285,4 +299,5 @@ def audit_deliberation(
     audit.contradictions = [str(x) for x in data.get("contradictions", [])][:3]
     audit.unsupported_claims = [str(x) for x in data.get("unsupported_claims", [])][:3]
     audit.over_extrapolations = [str(x) for x in data.get("over_extrapolations", [])][:3]
+    audit.coverage_gaps = [str(x) for x in data.get("coverage_gaps", [])][:3]
     return audit

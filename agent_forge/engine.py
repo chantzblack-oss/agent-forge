@@ -362,6 +362,12 @@ class Orchestrator:
             lines.append("[bold bright_white]Over-extrapolations[/]")
             for c in audit.over_extrapolations:
                 lines.append(f"  [yellow]↯[/] {c}")
+        if audit.coverage_gaps:
+            if lines:
+                lines.append("")
+            lines.append("[bold bright_white]Coverage gaps[/] [dim](dimensions the team skipped)[/]")
+            for c in audit.coverage_gaps:
+                lines.append(f"  [bright_red]✗[/] {c}")
 
         self.console.print()
         self.console.print(Panel(
@@ -742,7 +748,15 @@ class Orchestrator:
             status = self._post_agent(resp, agent, round_num, is_final)
             turns_used += 1
 
-            if status in ("complete", "error"):
+            if status == "error":
+                return status
+            if status == "complete":
+                # Give Skeptic (if team has one) a final pressure-test on the
+                # synthesis itself. Scholar's close is the highest-leverage
+                # place for false equivalences and flattened conditions to
+                # sneak in, and the inline Skeptic turns never see the
+                # synthesis. This one extra turn is the last-line defense.
+                self._run_synthesis_audit(team, resp, round_num, is_final)
                 return status
 
             # If _post_agent fired reactive turns (via [DIRECT @X]), the real
@@ -765,6 +779,70 @@ class Orchestrator:
         )
         resp = leader.respond(closing, round_num=round_num, is_final_round=is_final)
         return self._post_agent(resp, leader, round_num, is_final)
+
+    def _run_synthesis_audit(
+        self,
+        team: TeamConfig,
+        synthesis_resp: AgentResponse,
+        round_num: int,
+        is_final: bool,
+    ) -> None:
+        """One mandatory pressure-test of the leader's synthesis, by the critic.
+
+        The inline Skeptic never sees the synthesis — they speak during the
+        deliberation, then Scholar closes. This turn exists precisely to catch
+        false equivalences Scholar introduced (e.g. 'MBSR and HIIT both earn
+        prior-updater status' without comparable evidence), conditions that
+        got flattened, and smuggled claims. If the synthesis is sound, the
+        critic says 'synthesis approved' and stops — no manufactured doubt.
+        """
+        # Find the team's critic/judge (first one if multiple)
+        critic = next(
+            (a for a in self.agents.values() if a.role in ("critic", "judge")),
+            None,
+        )
+        if critic is None:
+            return
+
+        synthesis_text = synthesis_resp.message.content
+        audit_prompt = (
+            "Scholar has delivered the closing synthesis for this deliberation. "
+            "Your job right now is NOT to re-litigate the whole debate — it is "
+            "to audit the SYNTHESIS specifically for three failure modes:\n\n"
+            "1. FALSE EQUIVALENCE: Did Scholar equate two things the evidence "
+            "doesn't equate? (e.g. 'X and Y both earn A-tier status' when only "
+            "X has the transfer-test RCT)\n"
+            "2. FLATTENED CONDITIONS: Did Scholar drop a condition YOU or a "
+            "teammate introduced? (e.g. 'works for high-baseline-stress' got "
+            "turned into blanket 'do it')\n"
+            "3. SMUGGLED CLAIMS: Did Scholar introduce ANY assertion that the "
+            "team never actually evidenced during deliberation?\n\n"
+            f"SCHOLAR'S SYNTHESIS:\n\n{synthesis_text[:6000]}\n\n"
+            "Deliver your audit in under 120 words. Quote the exact phrase "
+            "you're flagging. If the synthesis is genuinely sound, say "
+            "[SYNTHESIS APPROVED] in one sentence and stop — do not "
+            "manufacture doubt."
+        )
+        self.console.print()
+        self.console.print(
+            f"  [dim]🔍 {critic.name} pressure-testing the synthesis...[/]"
+        )
+        # Give Skeptic a fresh small budget for this audit
+        original_max = critic.config.max_tokens
+        critic.config.max_tokens = 500
+        try:
+            audit_resp = critic.respond(
+                audit_prompt, round_num=round_num, is_final_round=is_final,
+            )
+        finally:
+            critic.config.max_tokens = original_max
+
+        self._transcript.append({
+            "round": round_num,
+            "agent": critic.name,
+            "role": critic.role,
+            "content": f"[Synthesis Audit]\n\n{audit_resp.message.content}",
+        })
 
     def _leader_name(self) -> str | None:
         for a in self.agents.values():

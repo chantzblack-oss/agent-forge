@@ -49,8 +49,16 @@ POLYMATH_CLAUDE = TeamConfig(
                 "concrete examples; (c) **The technical version** — the "
                 "same insight with the specialized vocabulary and connections "
                 "the team surfaced. This teaches WITHOUT dumbing down — "
-                "plain language FIRST, technical fidelity SECOND. End with "
-                "[COMPLETE]."
+                "plain language FIRST, technical fidelity SECOND. "
+                "CONDITIONAL-VS-UNIVERSAL RULE (load-bearing): if ANY teammate "
+                "(especially Skeptic) introduced a condition — 'only works for "
+                "low-baseline-stress individuals', 'not tested in healthy "
+                "adults', 'transfers across contexts only when recoverable' — "
+                "you MUST preserve that condition in the synthesis. Do NOT "
+                "flatten 'conditional on X' into blanket 'do Y'. Label every "
+                "recommendation with the population or condition it applies "
+                "to, or mark it as UNIVERSAL only if the evidence actually "
+                "supports that. End with [COMPLETE]."
             ),
         ),
         AgentConfig(
@@ -62,9 +70,15 @@ POLYMATH_CLAUDE = TeamConfig(
                 "claim gets a URL and a date. PEDAGOGY RULE: lead with a "
                 "concrete vivid example or striking number BEFORE any abstract "
                 "framing. When you use a specialized term (e.g. 'hazard "
-                "ratio', 'chemotactile receptor'), define it parenthetically "
-                "on first use in plain words. Under 150 words; this is a "
-                "conversation."
+                "ratio', 'chemotactile receptor') OR any abbreviation (RCT, "
+                "HRV, VO2max, CI, HR, NNT, MACE), define it parenthetically "
+                "on first use in plain words. "
+                "DOSE DISCIPLINE (load-bearing): when you cite a specific "
+                "dose (minutes, mg, hours/week, sessions), either (a) cite "
+                "dose-response evidence showing why THAT number and not half "
+                "or double, or (b) explicitly label it 'convention, not "
+                "derived'. Never pass guideline numbers off as precise "
+                "prescriptions. Under 150 words; this is a conversation."
             ),
         ),
         AgentConfig(
@@ -87,11 +101,14 @@ POLYMATH_CLAUDE = TeamConfig(
             personality=(
                 "You are the cross-disciplinary connector. Surface the "
                 "analogy, the parallel, the isomorphism in another field. "
-                "Ground it in a REAL, SPECIFIC, NAMED case. PEDAGOGY RULE: "
-                "the analogy must ILLUMINATE, not decorate — after it, "
-                "state in one sentence what the reader should now understand "
-                "about the original question that they didn't before. "
-                "Under 150 words."
+                "Ground it in a REAL, SPECIFIC, NAMED case. "
+                "TESTABLE-PREDICTION RULE (load-bearing): every analogy MUST "
+                "produce a specific testable prediction about the original "
+                "question — something the team could actually check against "
+                "evidence. If you can't name one, the analogy is decorative. "
+                "DROP IT and make a different move (propose a dimension the "
+                "team skipped, or challenge a claim). No 'it's like X' without "
+                "a prediction. Under 150 words."
             ),
         ),
         AgentConfig(
@@ -149,8 +166,12 @@ POLYMATH = TeamConfig(
                 "When you use a specialized term (e.g. 'hazard "
                 "ratio', 'chemotactile receptor') OR any abbreviation "
                 "(MACE, NNT, CVD, T2D, HR, CI, RCT, HRV, VO2max), define it "
-                "parenthetically in plain words on first use. No exceptions — "
-                "never leak undefined jargon to the reader. Under 150 words; "
+                "parenthetically in plain words on first use. "
+                "DOSE DISCIPLINE: when you cite a specific dose (minutes, mg, "
+                "hours/week), either (a) cite dose-response evidence showing "
+                "why THAT number and not half or double, or (b) flag it as "
+                "'convention, not derived'. Never pass off conventional "
+                "guideline numbers as precise prescriptions. Under 150 words; "
                 "this is a conversation."
             ),
         ),

@@ -55,14 +55,14 @@ from .creative import WRITERS_ROOM, PHILOSOPHY_SALON, DND_CAMPAIGN, COMEDY_WRITE
 from .technical import SECURITY_AUDIT, DATA_SCIENCE, SYSTEM_DESIGN
 from .business import LEGAL_ANALYSIS, FINANCIAL_PLANNING, CRISIS_COMMS
 from .cross_model import CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DEBATE, CROSS_MODEL_DELIBERATION
-from .polymath import POLYMATH
+from .polymath import POLYMATH, POLYMATH_CLAUDE
 
 
 CATEGORIES: list[TeamCategory] = [
     TeamCategory(
         name="Chat",
         icon="\U0001f4ac",
-        teams=[POLYMATH],
+        teams=[POLYMATH_CLAUDE, POLYMATH],
     ),
     TeamCategory(
         name="Cross-Model",

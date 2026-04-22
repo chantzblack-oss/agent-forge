@@ -64,7 +64,12 @@ class Orchestrator:
     # ── public ────────────────────────────────────────────
 
     def run(self, goal: str, team: TeamConfig) -> None:
-        """Execute a full multi-agent session."""
+        """Execute a full multi-agent session.
+
+        After the rounds complete, runs the v0.7 finalization stack:
+        Verifier audit, Learning Recap, Citationist verification, and
+        memory save — the same scaffolding that runs per-message in chat.
+        """
         self.bus = MessageBus()
         self.agents = {}
         self._transcript = []
@@ -72,6 +77,10 @@ class Orchestrator:
         self._team = team
         self._start_time = _time.time()
         self.narrator = Narrator(mode=self.narrate_mode)
+        try:
+            self._memory: SessionMemory | None = SessionMemory()
+        except Exception:
+            self._memory = None
 
         try:
             self._run_session(goal, team)
@@ -253,6 +262,44 @@ class Orchestrator:
 
     # ── memory / audit / citations hooks ───────────────────
 
+    def _finalize_session(
+        self, goal: str, team: TeamConfig, round_num: int,
+    ) -> None:
+        """Whole-session finalization: audit + learning recap + citations + memory save.
+
+        Called from ``_run_session`` at every exit path (complete, error,
+        user-stop, max-rounds). Mirrors what ``chat()`` does per-message but
+        scoped to the full classic-session transcript.
+
+        Each sub-step is wrapped so a failure in one (e.g. Haiku timeout)
+        doesn't block the others. Memory save is last so audit/recap/citations
+        are visible even if persistence fails.
+        """
+        if not self._transcript:
+            return
+
+        # Verifier
+        try:
+            self._render_audit_panel(goal, round_num=None)
+        except Exception:
+            pass
+        # Learning Recap (new for classic sessions)
+        try:
+            self._render_learning_recap(team, round_num=None)
+        except Exception:
+            pass
+        # Citationist
+        try:
+            self._render_citations_panel(round_num=None)
+        except Exception:
+            pass
+        # Memory save
+        if self._memory is not None:
+            try:
+                self._save_to_memory(team, goal, round_num=None)
+            except Exception:
+                pass
+
     def _inject_prior_memory(self, user_question: str) -> None:
         """Pull top-N relevant prior sessions from memory and post them as system context."""
         if self._memory is None:
@@ -278,9 +325,19 @@ class Orchestrator:
             f"(backend={self._memory.backend})[/]"
         )
 
-    def _render_audit_panel(self, user_question: str, round_num: int) -> None:
-        """Verifier pass — highlight what Skeptic missed."""
-        round_entries = [e for e in self._transcript if e.get("round") == round_num]
+    def _render_audit_panel(
+        self, user_question: str, round_num: int | None = None,
+    ) -> None:
+        """Verifier pass — highlight what Skeptic missed.
+
+        ``round_num=None`` audits the entire session (all rounds). A specific
+        round_num limits the audit to that round's transcript entries, which
+        is how chat mode uses it.
+        """
+        if round_num is None:
+            round_entries = list(self._transcript)
+        else:
+            round_entries = [e for e in self._transcript if e.get("round") == round_num]
         try:
             audit = audit_deliberation(round_entries, user_question)
         except Exception:
@@ -315,9 +372,15 @@ class Orchestrator:
             padding=(1, 2),
         ))
 
-    def _render_citations_panel(self, round_num: int) -> None:
-        """Citationist — fetch the top URLs and check they support the claims."""
-        round_entries = [e for e in self._transcript if e.get("round") == round_num]
+    def _render_citations_panel(self, round_num: int | None = None) -> None:
+        """Citationist — fetch the top URLs and check they support the claims.
+
+        ``round_num=None`` scans the entire session transcript for citations.
+        """
+        if round_num is None:
+            round_entries = list(self._transcript)
+        else:
+            round_entries = [e for e in self._transcript if e.get("round") == round_num]
         tagged = extract_citations_from_transcript(round_entries, max_total=6)
         if not tagged:
             return
@@ -365,15 +428,22 @@ class Orchestrator:
         ))
 
     def _save_to_memory(
-        self, team: TeamConfig, user_question: str, round_num: int,
+        self, team: TeamConfig, user_question: str, round_num: int | None = None,
     ) -> None:
-        """Extract TL;DR + synthesis + concepts from this round and persist."""
+        """Extract TL;DR + synthesis + concepts from this round (or whole session) and persist.
+
+        ``round_num=None`` uses the last leader turn across the entire transcript,
+        which is what classic ``run()`` sessions want.
+        """
         if self._memory is None:
             return
 
-        round_entries = [e for e in self._transcript if e.get("round") == round_num]
-        # Leader's synthesis is the most recent leader turn in this round
-        leader_entries = [e for e in round_entries if e.get("role") == "leader"]
+        if round_num is None:
+            scope = list(self._transcript)
+        else:
+            scope = [e for e in self._transcript if e.get("round") == round_num]
+        # Leader's synthesis is the most recent leader turn in scope
+        leader_entries = [e for e in scope if e.get("role") == "leader"]
         synthesis_full = leader_entries[-1]["content"] if leader_entries else ""
         if not synthesis_full:
             return
@@ -506,6 +576,10 @@ class Orchestrator:
             round_num=0,
         ))
 
+        # Pull relevant prior sessions from memory — same hook as chat()
+        if getattr(self, "_memory", None) is not None:
+            self._inject_prior_memory(goal)
+
         # Build execution plan (either explicit or auto-derived)
         execution_plan = self._resolve_execution_plan(team)
 
@@ -526,10 +600,13 @@ class Orchestrator:
             if result == "complete":
                 self._print_round_recap(round_num)
                 self._print_complete()
+                self._finalize_session(goal, team, round_num)
                 self._end_session(goal, team, round_num)
                 return
             if result == "error":
                 self.console.print("\n  [bold red]Stopping due to error.[/]")
+                # Still try to finalize what we have
+                self._finalize_session(goal, team, round_num)
                 return
 
             # Round recap
@@ -554,6 +631,7 @@ class Orchestrator:
             if round_num < team.max_rounds:
                 action = self._between_rounds(team, round_num)
                 if action == "stop":
+                    self._finalize_session(goal, team, round_num)
                     self._end_session(goal, team, round_num)
                     return
                 elif action not in ("continue", ""):
@@ -592,6 +670,7 @@ class Orchestrator:
                 "content": resp.message.content,
             })
         self._print_complete()
+        self._finalize_session(goal, team, team.max_rounds)
         self._end_session(goal, team, team.max_rounds)
 
     # ── live deliberation mode ────────────────────────────
@@ -1022,7 +1101,9 @@ class Orchestrator:
 
     # ── learning recap (pedagogical wrap-up) ──────────────
 
-    def _render_learning_recap(self, team: TeamConfig, round_num: int) -> None:
+    def _render_learning_recap(
+        self, team: TeamConfig, round_num: int | None = None,
+    ) -> None:
         """After a deliberation, generate a compact 'Learning Recap' panel.
 
         Uses a fast Haiku call to distill: TL;DR, key concepts with plain
@@ -1030,20 +1111,27 @@ class Orchestrator:
         (Google Scholar / YouTube search / general web) the user can click
         to go deeper.  Search URLs avoid hallucination — actual videos and
         papers are rendered only if the user actually clicks through.
+
+        ``round_num=None`` recaps the whole session (all rounds) — used by
+        classic ``run()`` finalization. A specific round_num is used in chat.
         """
         if not _CLAUDE_PATH:
             return
 
-        # Grab only the *current* round's messages for the recap scope
-        round_msgs = self.bus.get_round_messages(round_num)
+        if round_num is None:
+            # Whole-session recap: pull from all messages
+            round_msgs = self.bus.get_all(limit=500)
+            # Use the stored goal as the question
+            question = self._goal or ""
+        else:
+            round_msgs = self.bus.get_round_messages(round_num)
+            # First HUMAN message in this round is the question
+            question = next(
+                (m.content for m in round_msgs if m.msg_type == MessageType.HUMAN),
+                "",
+            )
         if not round_msgs:
             return
-
-        # The human question is the first HUMAN message in this round
-        question = next(
-            (m.content for m in round_msgs if m.msg_type == MessageType.HUMAN),
-            "",
-        )
         transcript = "\n\n".join(
             f"[{m.sender}]: {m.content[:1800]}"
             for m in round_msgs

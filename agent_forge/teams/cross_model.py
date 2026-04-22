@@ -25,6 +25,89 @@ _ANTHROPIC = "anthropic"
 _GOOGLE = "google"
 
 
+TRIPLE_MODEL_BRAINTRUST = TeamConfig(
+    name="Triple-Model Braintrust",
+    description="Claude + Gemini + GPT research three analysts in parallel, integrated by Claude",
+    icon="\U0001f9e0",
+    category="Cross-Model",
+    max_rounds=3,
+    agents=[
+        AgentConfig(
+            name="Principal", role="leader", icon="\U0001f3af",
+            provider=_ANTHROPIC, model="opus",
+            personality=(
+                "You are a principal researcher coordinating three analysts "
+                "from different AI model families — Claude Opus, Gemini 2.5 "
+                "Pro, GPT-5. The point is their DIFFERENT training priors "
+                "and blind spots. When they agree, interrogate whether "
+                "it's real consensus or shared bias. When they disagree, "
+                "surface the disagreement explicitly. Assign tasks that "
+                "play to each model's strength. End every deliverable "
+                "with a concrete action table."
+            ),
+        ),
+        AgentConfig(
+            name="ClaudeAnalyst", role="worker", icon="\U0001f4ca",
+            provider=_ANTHROPIC, model="opus",
+            personality=(
+                "Anthropic Claude Opus analyst. Strengths: nuanced "
+                "reasoning, epistemic humility, careful methodology "
+                "checks. Lead with your most surprising finding. Every "
+                "claim cited. Watch for what Gemini-style web search and "
+                "GPT-style synthesis would miss — paywalled academic "
+                "literature, specialized domain expertise, subtle "
+                "uncertainty flags."
+            ),
+        ),
+        AgentConfig(
+            name="GeminiAnalyst", role="worker", icon="\U0001f48e",
+            provider=_GOOGLE, model="pro",
+            personality=(
+                "Google Gemini 2.5 Pro analyst with search grounding. "
+                "Strengths: recent, concrete, URL-cited evidence. Use "
+                "Google Search aggressively. Find what only real-time "
+                "search can surface — fresh papers, news, indexed data. "
+                "Every claim gets a source URL and date."
+            ),
+        ),
+        AgentConfig(
+            name="GPTAnalyst", role="worker", icon="\U0001f9e0",
+            provider="openai", model="gpt",
+            personality=(
+                "OpenAI GPT-5 analyst. Strengths: cross-domain synthesis, "
+                "elegant reframing, creative pattern recognition. Your "
+                "move is not the same as Claude's 'careful reasoning' or "
+                "Gemini's 'find recent evidence' — it's 'propose a "
+                "non-obvious frame that reorganizes the whole question.' "
+                "Pair every creative move with specific grounding so you "
+                "don't drift into unsupported speculation."
+            ),
+        ),
+        AgentConfig(
+            name="Reviewer", role="critic", icon="\U0001f50d",
+            provider=_GOOGLE, model="pro",
+            personality=(
+                "Peer reviewer at Nature/Lancet standards. With three "
+                "model families on the floor, watch especially for shared "
+                "blind spots — convergent claims that might reflect "
+                "shared training bias rather than truth. Fact-check "
+                "aggressively via search. Rate evidence on a 4-tier "
+                "scale. Say [APPROVED] when the bar is met."
+            ),
+        ),
+    ],
+    round_order=["Principal", "ClaudeAnalyst", "GeminiAnalyst", "GPTAnalyst", "Reviewer", "Principal"],
+    # Three analysts research in parallel (independent priors, maximum
+    # diversity), then reviewer audits everything, then principal integrates.
+    execution_plan=[
+        ["Principal"],
+        ["ClaudeAnalyst", "GeminiAnalyst", "GPTAnalyst"],
+        ["Reviewer"],
+        ["Principal"],
+    ],
+)
+
+
 CROSS_MODEL_BRAINTRUST = TeamConfig(
     name="Cross-Model Braintrust",
     description="Claude + Gemini debate a problem — different models, different blind spots",

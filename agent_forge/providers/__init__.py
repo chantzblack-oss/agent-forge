@@ -20,17 +20,22 @@ from .base import Provider, ProviderError
 
 _ANTHROPIC_MODEL_PREFIXES = ("claude-", "claude_", "opus", "sonnet", "haiku")
 _GOOGLE_MODEL_PREFIXES = ("gemini", "pro", "flash")
+_OPENAI_MODEL_PREFIXES = ("gpt", "gpt-", "gpt5", "o1", "o3", "o4", "4o")
 
 
 def detect_provider(model: str) -> str:
     """Guess the provider family from a model string.
 
-    Returns an alias ("anthropic" | "google") — the actual backend (CLI vs SDK)
-    is chosen later by :func:`get_provider` based on what's installed.
+    Returns an alias ("anthropic" | "google" | "openai") — the actual backend
+    (CLI vs SDK) is chosen later by :func:`get_provider` based on what's
+    installed and configured.
     """
     m = (model or "").lower()
     if not m or m == "default":
         return "anthropic"
+    for prefix in _OPENAI_MODEL_PREFIXES:
+        if m.startswith(prefix):
+            return "openai"
     for prefix in _ANTHROPIC_MODEL_PREFIXES:
         if m.startswith(prefix):
             return "anthropic"
@@ -82,9 +87,14 @@ def get_provider(name: str) -> Provider:
         from .google_provider import GoogleProvider
         return GoogleProvider()
 
+    # OpenAI — no CLI, SDK only
+    if name in ("openai", "openai_api", "gpt"):
+        from .openai_provider import OpenAIProvider
+        return OpenAIProvider()
+
     raise ProviderError(
-        f"Unknown provider: {name!r}. "
-        "Known: anthropic, google, claude_cli, gemini_cli, claude_api, gemini_api."
+        f"Unknown provider: {name!r}. Known: anthropic, google, openai, "
+        "claude_cli, gemini_cli, claude_api, gemini_api, openai_api."
     )
 
 

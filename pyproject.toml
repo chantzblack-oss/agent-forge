@@ -14,7 +14,8 @@ dependencies = [
 [project.optional-dependencies]
 anthropic-api = ["anthropic>=0.40.0"]
 google-api = ["google-genai>=1.0.0"]
-all-api = ["anthropic>=0.40.0", "google-genai>=1.0.0"]
+openai-api = ["openai>=1.50.0"]
+all-api = ["anthropic>=0.40.0", "google-genai>=1.0.0", "openai>=1.50.0"]
 # Persistent cross-session memory with semantic search (Chroma + embeddings).
 # Optional — falls back to a JSON keyword-overlap log if not installed.
 memory = ["chromadb>=0.4.0"]

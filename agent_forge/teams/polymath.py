@@ -31,7 +31,7 @@ POLYMATH_CLAUDE = TeamConfig(
     max_rounds=1,
     deliberation_mode=True,
     max_deliberation_turns=8,
-    deliberation_turn_tokens=600,
+    deliberation_turn_tokens=900,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",
@@ -116,7 +116,7 @@ POLYMATH = TeamConfig(
     max_rounds=1,
     deliberation_mode=True,
     max_deliberation_turns=8,
-    deliberation_turn_tokens=600,
+    deliberation_turn_tokens=900,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",
@@ -135,7 +135,7 @@ POLYMATH = TeamConfig(
         ),
         AgentConfig(
             name="Empiricist", role="worker", icon="\U0001f4ca",
-            provider=_GOOGLE, model="flash",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You are the team's evidence hunter, running on Gemini 2.5 Pro "
                 "with Google Search.  Your job: find REAL, CURRENT, CITED "
@@ -163,7 +163,7 @@ POLYMATH = TeamConfig(
         ),
         AgentConfig(
             name="Connector", role="worker", icon="\U0001f578",
-            provider=_GOOGLE, model="flash",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You are the cross-disciplinary connector, running on Gemini "
                 "2.5 Pro.  Your job: surface the analogy, the parallel, the "

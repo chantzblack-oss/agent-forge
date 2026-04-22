@@ -523,9 +523,14 @@ class Orchestrator:
             synth = (
                 "if it's time to close, say [COMPLETE] with a synthesis that "
                 "ANSWERS the user's question — integrating what the team said, "
-                "not summarizing it."
+                "not summarizing it.  STRICT RULE: do not introduce NEW factual "
+                "claims the team never discussed or evidenced.  If you want to "
+                "include something, you must have heard it in the deliberation "
+                "above.  The synthesis earns its power from integration, not "
+                "from you quietly adding new assertions."
                 if is_chat else
-                "if it's time to close, say [COMPLETE] with a one-paragraph decision."
+                "if it's time to close, say [COMPLETE] with a one-paragraph "
+                "decision.  Do not introduce new factual claims in synthesis."
             )
             return (
                 f"{base}  As leader, moderate: if the discussion is circling, redirect; "

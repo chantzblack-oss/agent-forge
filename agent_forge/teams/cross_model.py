@@ -59,7 +59,7 @@ CROSS_MODEL_BRAINTRUST = TeamConfig(
         ),
         AgentConfig(
             name="GeminiAnalyst", role="worker", icon="\U0001f48e",
-            provider=_GOOGLE, model="flash",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You are an analyst running on Google's Gemini 2.5 Pro. You're "
                 "strong at web-grounded factual research, multi-modal reasoning, "
@@ -84,7 +84,7 @@ CROSS_MODEL_BRAINTRUST = TeamConfig(
         ),
         AgentConfig(
             name="Reviewer", role="critic", icon="\U0001f50d",
-            provider=_GOOGLE, model="flash",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You are a peer reviewer with Nature/Lancet standards, running on "
                 "Gemini 2.5 Pro. Your role is to fact-check every major claim using "
@@ -117,7 +117,7 @@ CROSS_MODEL_DELIBERATION = TeamConfig(
     max_rounds=1,
     deliberation_mode=True,
     max_deliberation_turns=16,
-    deliberation_turn_tokens=700,
+    deliberation_turn_tokens=900,
     agents=[
         AgentConfig(
             name="Chair", role="leader", icon="\U0001f3af",
@@ -146,7 +146,7 @@ CROSS_MODEL_DELIBERATION = TeamConfig(
         ),
         AgentConfig(
             name="GeminiAnalyst", role="worker", icon="\U0001f48e",
-            provider=_GOOGLE, model="flash",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You are a senior analyst running on Gemini 2.5 Pro, in a live "
                 "meeting with ClaudeAnalyst. Use Google Search aggressively to "
@@ -201,7 +201,7 @@ CROSS_MODEL_DEBATE = TeamConfig(
         ),
         AgentConfig(
             name="GeminiOpponent", role="debater", icon="\U0001f534",
-            provider=_GOOGLE, model="flash",
+            provider=_GOOGLE, model="pro",
             personality=(
                 "You argue AGAINST the proposition, running on Gemini 2.5 Pro. Federal "
                 "prosecutor precision. Aggressively search for counter-evidence: failed "

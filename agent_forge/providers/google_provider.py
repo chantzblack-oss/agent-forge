@@ -3,9 +3,27 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import Iterator
 
 from .base import Provider, ProviderError
+
+
+def _is_transient(exc: Exception) -> bool:
+    """True for server-side capacity / overload errors that often succeed on retry."""
+    msg = str(exc).lower()
+    return any(
+        marker in msg
+        for marker in (
+            "503", "unavailable", "500", "502", "504",
+            "overloaded", "temporarily", "deadline",
+        )
+    )
+
+
+def _is_rate_limit(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return "429" in msg or "resource_exhausted" in msg or "quota" in msg
 
 
 # Default to Flash — Google's free-tier quota for 2.5-pro is often 0 for new
@@ -85,30 +103,82 @@ class GoogleProvider(Provider):
     # ── public ────────────────────────────────────────────
 
     def stream(self, system: str, user: str, model: str, max_tokens: int) -> Iterator[str]:
+        """Stream with retry-on-transient and fallback to flash if pro is overloaded.
+
+        Strategy: up to 3 attempts with exponential backoff (3s, 8s, 15s).  If
+        all retries of the requested model fail with transient errors AND the
+        model was pro, one final attempt on flash.  Retry is only attempted
+        BEFORE any chunks have been yielded; mid-stream failures raise.
+        """
         config = self._config(system, max_tokens)
-        try:
-            for chunk in self._client.models.generate_content_stream(
-                model=_resolve_model(model),
-                contents=user,
-                config=config,
-            ):
-                text = getattr(chunk, "text", None)
-                if text:
-                    yield text
-        except Exception as exc:
-            _reraise_with_hint(exc, _resolve_model(model))
+        resolved = _resolve_model(model)
+
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                got_any = False
+                for chunk in self._client.models.generate_content_stream(
+                    model=resolved, contents=user, config=config,
+                ):
+                    got_any = True
+                    text = getattr(chunk, "text", None)
+                    if text:
+                        yield text
+                return
+            except Exception as exc:
+                last_exc = exc
+                if got_any:
+                    _reraise_with_hint(exc, resolved)
+                if not _is_transient(exc):
+                    _reraise_with_hint(exc, resolved)
+                if attempt < 2:
+                    time.sleep([3, 8, 15][attempt])
+
+        # All retries on the requested model exhausted — try flash as a fallback
+        if resolved != "gemini-2.5-flash" and last_exc is not None:
+            try:
+                for chunk in self._client.models.generate_content_stream(
+                    model="gemini-2.5-flash", contents=user, config=config,
+                ):
+                    text = getattr(chunk, "text", None)
+                    if text:
+                        yield text
+                return
+            except Exception as fallback_exc:
+                _reraise_with_hint(fallback_exc, "gemini-2.5-flash (fallback)")
+        if last_exc is not None:
+            _reraise_with_hint(last_exc, resolved)
 
     def complete(self, system: str, user: str, model: str, max_tokens: int) -> str:
+        """complete() with same retry + flash-fallback strategy as stream()."""
         config = self._config(system, max_tokens)
-        try:
-            response = self._client.models.generate_content(
-                model=_resolve_model(model),
-                contents=user,
-                config=config,
-            )
-        except Exception as exc:
-            _reraise_with_hint(exc, _resolve_model(model))
-        return getattr(response, "text", "") or ""
+        resolved = _resolve_model(model)
+
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                response = self._client.models.generate_content(
+                    model=resolved, contents=user, config=config,
+                )
+                return getattr(response, "text", "") or ""
+            except Exception as exc:
+                last_exc = exc
+                if not _is_transient(exc):
+                    _reraise_with_hint(exc, resolved)
+                if attempt < 2:
+                    time.sleep([3, 8, 15][attempt])
+
+        if resolved != "gemini-2.5-flash" and last_exc is not None:
+            try:
+                response = self._client.models.generate_content(
+                    model="gemini-2.5-flash", contents=user, config=config,
+                )
+                return getattr(response, "text", "") or ""
+            except Exception as fallback_exc:
+                _reraise_with_hint(fallback_exc, "gemini-2.5-flash (fallback)")
+        if last_exc is not None:
+            _reraise_with_hint(last_exc, resolved)
+        return ""
 
     # ── config ───────────────────────────────────────────
 

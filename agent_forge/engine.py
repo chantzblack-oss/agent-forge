@@ -652,18 +652,23 @@ class Orchestrator:
 
     def _print_chat_banner(self, team: TeamConfig) -> None:
         mem_status = (
-            f"memory: {self._memory.backend}" if self._memory is not None else "memory: off"
+            f"memory · {self._memory.backend}" if self._memory is not None else "memory off"
         )
+        ledger_status = "ledger on" if self._ledger is not None else "ledger off"
+        agents = "  ".join(f"{a.icon} {a.name}" for a in team.agents)
+
         self.console.print()
         self.console.print(Panel(
-            f"  [bold]{team.name}[/] is ready.  Ask anything.\n\n"
-            f"  [dim]After each answer you'll see:[/]\n"
-            f"  [dim]  🎓 Agent panels · 🔎 Audit · 📘 Learning Recap · 🔗 Citations Verified[/]\n"
-            f"  [dim]Sessions are saved to memory — future questions build on this one.[/]\n\n"
-            "  [dim]Commands: /ask @Name q · /memory · /export · /reset · /bye[/]\n"
-            f"  [dim]Status: {mem_status}[/]",
-            border_style="bright_blue",
-            title="[bold]Chat[/]",
+            f"[bold]{team.name}[/]  [dim]·  ready[/]\n\n"
+            f"[dim]{agents}[/]\n\n"
+            f"[dim]After each answer:[/] "
+            f"[dim]🎓 turns · 🔎 audit · 📘 recap · 🔗 citations[/]\n"
+            f"[dim]/ask @Name  ·  /memory  ·  /ledger  ·  "
+            f"/adversarial  ·  /ensemble  ·  /bye[/]\n"
+            f"[dim]{mem_status}  ·  {ledger_status}[/]",
+            border_style="bright_cyan",
+            title="[bold bright_cyan]chat[/]",
+            title_align="left",
             padding=(1, 2),
         ))
 

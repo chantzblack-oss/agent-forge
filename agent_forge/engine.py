@@ -1838,8 +1838,14 @@ class Orchestrator:
         prompt = (
             "You are generating a Learning Recap panel for someone who just watched a team of "
             "expert AI agents deliberate on their question. The recap must teach clearly WITHOUT "
-            "dumbing down. Output PLAIN TEXT in EXACTLY this format (no markdown decoration, no "
-            "extra commentary):\n\n"
+            "dumbing down.\n\n"
+            "CRITICAL RULE FOR SOURCES: You have WebSearch and WebFetch tools. Use them to "
+            "find REAL, VERIFIED sources. For every READ and WATCH item, you MUST have "
+            "actually retrieved a live URL via your tools THIS turn — no guessing, no "
+            "'plausible-sounding' URLs from memory. If you cannot verify a source, omit it. "
+            "Fewer-but-real beats more-but-fabricated. The user has been burned by hallucinated "
+            "citations before and will catch you.\n\n"
+            "Output PLAIN TEXT in EXACTLY this format (no markdown decoration, no extra commentary):\n\n"
             "TLDR: <one sentence answer in plain English, no jargon>\n\n"
             "KEY_CONCEPTS:\n"
             "<term 1> :: <one-sentence plain-English definition>\n"
@@ -1852,21 +1858,24 @@ class Orchestrator:
             "- <another good follow-up>\n"
             "- <another good follow-up>\n\n"
             "READ:\n"
-            "- <book or paper title> by <author/venue, year>\n"
-            "- <another title> by <author/venue, year>\n\n"
+            "- <real title> by <author, year> :: <direct URL you verified>\n"
+            "- <real title> by <author, year> :: <direct URL you verified>\n\n"
             "WATCH:\n"
-            "- <channel name> — search: <2-5 word topic to search for>\n"
-            "- <channel name> — search: <2-5 word topic to search for>\n\n"
+            "- <channel name> — <actual video title> :: <direct YouTube URL you verified>\n"
+            "- <channel name> — <actual video title> :: <direct YouTube URL you verified>\n\n"
             "RULES:\n"
             "- Pull key concepts from what the agents actually discussed.\n"
-            "- For READ: real authors/titles you're confident exist; avoid URLs (we'll build "
-            "search URLs ourselves).\n"
-            "- For WATCH: suggest a REAL channel name (Veritasium, Kurzgesagt, PBS Eons, "
-            "3Blue1Brown, SciShow, etc.) paired with a SHORT SEARCH TOPIC — NOT a specific "
-            "video title. You do NOT know what videos exist. Never invent a video title. "
-            "Just give the channel + a topic to search for. Example: "
-            "'Kurzgesagt — search: how sleep affects the brain' (NOT "
-            "'Kurzgesagt: The Science of Sleep and Why It Matters').\n"
+            "- For READ and WATCH: use WebSearch to find real items with real URLs you "
+            "can retrieve. Real examples of verified URL shapes:\n"
+            "    https://pubmed.ncbi.nlm.nih.gov/12345678/\n"
+            "    https://doi.org/10.xxxx/yyyy\n"
+            "    https://en.wikipedia.org/wiki/<real_page>\n"
+            "    https://www.youtube.com/watch?v=<real_id>\n"
+            "    https://arxiv.org/abs/xxxx.xxxxx\n"
+            "- If you cannot find a verified URL via search, OMIT that entry. It is better to "
+            "return 1 real source than 3 fabricated ones.\n"
+            "- If you cannot verify ANY sources, output 'READ:\\n(none verified)' and "
+            "'WATCH:\\n(none verified)'. Do NOT pad with guesses.\n"
             "- No paragraphs of explanation — just the structured output above.\n\n"
             f"USER QUESTION: {question}\n\nDELIBERATION:\n{transcript}"
         )
@@ -1877,7 +1886,8 @@ class Orchestrator:
             result = subprocess.run(
                 [_CLAUDE_PATH, "-p",
                  "--model", "haiku",
-                 "--effort", "low",
+                 "--effort", "medium",
+                 "--allowedTools", "WebSearch", "WebFetch",
                  "--no-session-persistence"],
                 input=prompt,
                 capture_output=True,
@@ -1885,7 +1895,7 @@ class Orchestrator:
                 encoding="utf-8",
                 errors="replace",
                 env=env,
-                timeout=60,
+                timeout=180,
             )
             raw = result.stdout.strip() if result.returncode == 0 else ""
         except Exception:
@@ -1897,14 +1907,28 @@ class Orchestrator:
         self._render_recap_panel(raw)
 
     def _render_recap_panel(self, raw: str) -> None:
-        """Parse the Haiku recap output and render it as a styled panel."""
-        import urllib.parse
+        """Parse the Haiku recap output and render it as a styled panel.
 
+        READ and WATCH entries come back as ``<item> :: <verified URL>``. We
+        only render entries that carry a real URL — anything without a URL
+        (or that the model flagged as "none verified") is dropped rather
+        than padded with a fabricated search link.
+        """
         tldr = ""
         concepts: list[tuple[str, str]] = []
         followups: list[str] = []
-        reads: list[str] = []
-        watches: list[str] = []
+        reads: list[tuple[str, str]] = []
+        watches: list[tuple[str, str]] = []
+
+        def _split_item_url(text: str) -> tuple[str, str]:
+            """Split a ``<label> :: <url>`` line. Returns (label, url) with url='' if missing or invalid."""
+            if "::" not in text:
+                return text.strip(), ""
+            label, _, url = text.partition("::")
+            url = url.strip()
+            if not (url.startswith("http://") or url.startswith("https://")):
+                return label.strip(), ""
+            return label.strip(), url
 
         section = None
         for line in raw.splitlines():
@@ -1929,9 +1953,13 @@ class Orchestrator:
             elif section == "followups" and stripped.startswith("-"):
                 followups.append(stripped.lstrip("- ").strip())
             elif section == "read" and stripped.startswith("-"):
-                reads.append(stripped.lstrip("- ").strip())
+                label, url = _split_item_url(stripped.lstrip("- ").strip())
+                if url:
+                    reads.append((label, url))
             elif section == "watch" and stripped.startswith("-"):
-                watches.append(stripped.lstrip("- ").strip())
+                label, url = _split_item_url(stripped.lstrip("- ").strip())
+                if url:
+                    watches.append((label, url))
 
         if not (tldr or concepts or followups):
             return
@@ -1958,18 +1986,14 @@ class Orchestrator:
 
         if reads:
             lines = [f"[bold bright_white]Read[/]"]
-            for item in reads[:3]:
-                query = urllib.parse.quote_plus(item[:100])
-                url = f"https://scholar.google.com/scholar?q={query}"
-                lines.append(f"  [green]•[/] {item}\n    [dim link={url}]{url}[/]")
+            for label, url in reads[:3]:
+                lines.append(f"  [green]•[/] {label}\n    [dim link={url}]{url}[/]")
             parts.append("\n".join(lines))
 
         if watches:
             lines = [f"[bold bright_white]Watch[/]"]
-            for item in watches[:3]:
-                query = urllib.parse.quote_plus(item[:100])
-                url = f"https://www.youtube.com/results?search_query={query}"
-                lines.append(f"  [red]▶[/] {item}\n    [dim link={url}]{url}[/]")
+            for label, url in watches[:3]:
+                lines.append(f"  [red]▶[/] {label}\n    [dim link={url}]{url}[/]")
             parts.append("\n".join(lines))
 
         body_markup = "\n\n".join(parts)

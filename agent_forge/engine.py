@@ -276,6 +276,20 @@ class Orchestrator:
                 self._inject_prior_memory(user_input)
 
             message_count += 1
+            # Echo the full received question back in a clean panel. The
+            # terminal's Prompt.ask echo can visually truncate long inputs
+            # at the terminal width — this confirms what the team actually
+            # received so the user isn't guessing.
+            if len(user_input) > 120 or "\n" in user_input:
+                self.console.print()
+                self.console.print(Panel(
+                    Text(user_input, style="white"),
+                    title="[bold bright_cyan]your question[/]",
+                    title_align="left",
+                    border_style="bright_cyan",
+                    padding=(0, 2),
+                ))
+
             self.bus.post(Message(
                 sender="Human",
                 content=user_input,

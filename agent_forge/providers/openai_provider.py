@@ -126,11 +126,9 @@ class OpenAIProvider(Provider):
                 {"role": "user", "content": user},
             ],
             "stream": streaming,
+            # OpenAI's newer models (gpt-5.x, o-series) all use
+            # max_completion_tokens. Using it universally works for
+            # current models and is forward-compatible.
+            "max_completion_tokens": max_tokens,
         }
-        # Parameter convention differs between standard and reasoning models
-        if _is_reasoning_model(resolved):
-            kwargs["max_completion_tokens"] = max_tokens
-            # o-series models don't accept custom temperature
-        else:
-            kwargs["max_tokens"] = max_tokens
         return kwargs

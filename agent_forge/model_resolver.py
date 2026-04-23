@@ -222,7 +222,7 @@ _GOOGLE_FAMILIES = {
 }
 
 _GOOGLE_FALLBACKS = {
-    "pro":         "gemini-3.1-pro",
+    "pro":         "gemini-2.5-pro",
     "flash":       "gemini-2.5-flash",
     "flash-lite":  "gemini-2.5-flash-lite",
 }
@@ -281,10 +281,14 @@ class ResolvedModel:
 def all_resolutions() -> list[ResolvedModel]:
     """Return the current resolved model for every known family, for display."""
     results: list[ResolvedModel] = []
-    cache = _load_cache()
 
     def _record(provider: str, family: str, resolver: Callable[[str], str]) -> None:
+        # Important: read the cache AFTER the resolver call.  The resolver
+        # may have updated the cache file (going from a stale "fallback"
+        # entry to a fresh "api" one), and we want to display the current
+        # status, not a snapshot taken before the resolver ran.
         resolved = resolver(family)
+        cache = _load_cache()
         entry = cache.get(_cache_key(provider, family)) or {}
         results.append(ResolvedModel(
             provider=provider, family=family, resolved=resolved,

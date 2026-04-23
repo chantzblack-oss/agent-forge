@@ -65,6 +65,7 @@ class Orchestrator:
         # a session starts. chat() / run() will re-initialise them.
         self._adversarial_mode: bool = False
         self._ensemble_next: bool = False
+        self._explore_mode: bool = False
         self._memory = None
         self._ledger = None
         self._ledger_session_id = ""
@@ -102,6 +103,7 @@ class Orchestrator:
         # with consensus synthesis).
         self._adversarial_mode: bool = False
         self._ensemble_next: bool = False
+        self._explore_mode: bool = False
 
         try:
             self._run_session(goal, team)
@@ -148,6 +150,7 @@ class Orchestrator:
         # with consensus synthesis).
         self._adversarial_mode: bool = False
         self._ensemble_next: bool = False
+        self._explore_mode: bool = False
 
         try:
             self._run_chat(team)
@@ -231,6 +234,15 @@ class Orchestrator:
                 self.console.print(
                     f"  [bold yellow]⚔  Adversarial mode: {state}[/] "
                     "[dim](Skeptic + Connector will argue against Scholar's direction)[/]"
+                )
+                continue
+            if low == "/explore":
+                self._explore_mode = not self._explore_mode
+                state = "ON" if self._explore_mode else "OFF"
+                self.console.print(
+                    f"  [bold bright_magenta]🔮 Explore mode: {state}[/] "
+                    "[dim](agents think creatively from mechanism + first principles, "
+                    "not just citations; Skeptic challenges logic not evidence tier)[/]"
                 )
                 continue
             if low == "/ensemble":
@@ -792,6 +804,7 @@ class Orchestrator:
             "    [bold white]/ledger[/]              — show the evidence ledger (all claims)\n"
             "    [bold white]/models[/]              — show which model each family resolves to\n"
             "    [bold white]/refresh-models[/]      — re-query providers for latest models\n"
+            "    [bold white]/explore[/]             — toggle: creative thinking from mechanism, not just citations\n"
             "    [bold white]/adversarial[/]         — toggle: team argues against Scholar\n"
             "    [bold white]/ensemble[/]            — arm: next question runs 3× & consensuses\n"
             "    [bold white]/export[/]              — save transcript to markdown\n"
@@ -1451,7 +1464,37 @@ class Orchestrator:
                 f"demand a source, challenge the logic, or say [APPROVED] if the "
                 f"case is solid.{self._adversarial_addendum(agent.role)}"
             )
-        return base + self._adversarial_addendum(agent.role)
+        return base + self._adversarial_addendum(agent.role) + self._explore_addendum(agent.role)
+
+    def _explore_addendum(self, role: str) -> str:
+        """Extra prompt when /explore mode is active — frees agents to think creatively."""
+        if not getattr(self, "_explore_mode", False):
+            return ""
+        if role in ("critic", "judge"):
+            return (
+                "  🔮 EXPLORE MODE: The user wants creative thinking, not "
+                "just literature review. Do NOT kill ideas because 'no RCT "
+                "exists.' Challenge the MECHANISM and LOGIC of speculative "
+                "claims. Ask 'is this plausible?' not 'is this proven?'"
+            )
+        if role == "leader":
+            return (
+                "  🔮 EXPLORE MODE: The user wants a practical protocol or "
+                "creative synthesis, not just a review of what's proven. "
+                "Build recommendations that combine established evidence + "
+                "mechanistic reasoning + creative synthesis. Label each "
+                "tier honestly but DO deliver a complete, actionable answer "
+                "even when evidence is thin."
+            )
+        # workers
+        return (
+            "  🔮 EXPLORE MODE: Think beyond published evidence. Reason "
+            "from mechanism, first principles, and cross-domain analogy. "
+            "Propose what SHOULD work and why, even if the RCT doesn't "
+            "exist yet. Label speculative claims as (Mechanistic) or "
+            "(Speculative) but DO make them — the user came here to learn "
+            "what smart reasoning suggests, not just what's been tested."
+        )
 
     def _adversarial_addendum(self, role: str) -> str:
         """Extra prompt nudge when /adversarial mode is active.

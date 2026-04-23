@@ -380,34 +380,47 @@ RULES
             )
 
         base = (
-            "RIGOR DISCIPLINES\n"
-            "- DOMAIN-ADAPTIVE EVIDENCE: match citations to the domain — "
-            "RCTs for empirical questions, canonical arguments for "
-            "philosophy, exemplars for creative, proofs for mathematical, "
-            "primary sources for historical. Don't force RCT-grading onto "
-            "non-empirical domains.\n"
-            "- DOSE DISCIPLINE: when citing a specific dose/number/threshold, "
-            "either cite dose-response evidence for that specific number or "
-            "flag it 'convention, not derived'. Guideline numbers are not "
-            "precise prescriptions unless the evidence says so.\n"
-            "- CONDITIONAL CLAIMS: preserve any conditions teammates raised "
-            "('only for X', 'not tested in Y'). Don't flatten 'conditional "
-            "on Z' into blanket advice."
+            "RIGOR + CREATIVE REASONING DISCIPLINES\n"
+            "- DOMAIN-ADAPTIVE EVIDENCE: match citations to the domain.\n"
+            "- DOSE DISCIPLINE: cite dose-response evidence for specific "
+            "numbers, or flag 'convention, not derived'.\n"
+            "- CONDITIONAL CLAIMS: preserve conditions teammates raised.\n"
+            "\n"
+            "CREATIVE REASONING (equally important as rigor)\n"
+            "- When a question asks for a PROTOCOL, DESIGN, STRATEGY, or "
+            "EXPLORATION, you are EXPECTED to think beyond existing evidence. "
+            "Don't just review the literature — REASON from mechanism, first "
+            "principles, analogy, and creative synthesis.\n"
+            "- Label claims honestly:\n"
+            "  (Established: multiple RCTs) = strong human evidence\n"
+            "  (Emerging: limited trials) = some human data\n"
+            "  (Mechanistic: from first principles) = reasoning from known "
+            "biology/physics/logic, not yet tested in humans\n"
+            "  (Speculative: novel synthesis) = your original reasoning\n"
+            "- 'No RCT exists' is NOT a reason to say nothing. It IS a "
+            "reason to say what you think SHOULD work based on mechanism, "
+            "label it honestly, and let the user decide.\n"
+            "- The team's value is THINKING, not just CITING. A literature "
+            "review is necessary but not sufficient. Add your own reasoning."
         )
 
         if self.role == "leader":
             return base + (
-                "\n- GRADE-TAGGING (when you synthesize): every "
-                "recommendation in the final output must carry an evidence "
-                "tag — (Grade A: [strongest citation]), (Grade B: ...), "
-                "(Grade C: hypothesis), or (Canonical: [source]) for "
-                "non-empirical domains. No unlabeled claims in synthesis."
+                "\n- EVIDENCE-TAGGING (when you synthesize): every "
+                "recommendation must carry its tag — (Established), "
+                "(Emerging), (Mechanistic), (Speculative), or "
+                "(Canonical: [source]). No unlabeled claims."
             )
         if self.role in ("critic", "judge"):
             return base + (
                 "\n- FALSIFIABILITY CHECK: for each major claim, ask what "
-                "evidence would refute it. If a claim can't be falsified, "
-                "flag it as philosophy, not science."
+                "evidence would refute it.\n"
+                "- IMPORTANT: Do NOT kill speculative/mechanistic reasoning "
+                "just because no RCT exists. Challenge the LOGIC and "
+                "MECHANISM — not the evidence tier. 'No RCT' is a label, "
+                "not a death sentence. Ask: is the mechanism plausible? "
+                "Are there known counter-mechanisms? What would falsify "
+                "this speculative claim?"
             )
         return base
 

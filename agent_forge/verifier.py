@@ -303,6 +303,76 @@ def audit_deliberation(
     return audit
 
 
+# ── Plain-Language Translator ──────────────────────────
+
+def generate_plain_translator(
+    synthesis_text: str,
+    user_question: str,
+) -> str:
+    """Turn the technical synthesis into something a smart non-specialist can actually use.
+
+    The Scholar's 3-layer synthesis stays for depth. This adds a plain-language
+    pass in parallel — 'the gist', a concrete analogy, personal relevance, and a
+    one-sentence sticky takeaway. Designed to close the 'I don't understand shit'
+    gap on dense philosophical / technical questions.
+    """
+    if not _CLAUDE_PATH or not synthesis_text:
+        return ""
+
+    prompt = (
+        "You are a brilliant, generous teacher translating a technical synthesis "
+        "into plain language. NOT dumbing-down — translating. The reader is smart "
+        "but not a specialist in this field. Your job is to make them actually "
+        "understand the answer and walk away with something sticky.\n\n"
+        f"USER'S ORIGINAL QUESTION:\n{user_question}\n\n"
+        f"TECHNICAL SYNTHESIS:\n{synthesis_text[:8000]}\n\n"
+        "Output PLAIN TEXT in EXACTLY this format (no markdown fences):\n\n"
+        "GIST:\n"
+        "<One short paragraph. No jargon. Explain the core insight like you're "
+        "telling a smart friend at a bar. If the synthesis says 'the hard problem "
+        "is a choice of which explanatory debt to carry,' your gist might say "
+        "'the question of consciousness doesn't have a right answer because every "
+        "possible answer comes with its own unsolved mystery — you're picking "
+        "which mystery you'd rather have.'>\n\n"
+        "CONCRETE EXAMPLE:\n"
+        "<One analogy, story, or scenario the reader can picture. Make it "
+        "specific and vivid. Not 'it's like a river' — 'it's like trying to "
+        "understand why your dog recognizes you but not itself in a mirror.' "
+        "The example should make the abstract concrete.>\n\n"
+        "WHY YOU CARE:\n"
+        "<2-3 sentences on the personal/practical implication. What does this "
+        "answer change about how the reader should think, decide, or live?>\n\n"
+        "IF YOU REMEMBER ONE THING:\n"
+        "<A single sentence. Sticky. Quotable. Will survive being half-forgotten.>\n\n"
+        "RULES:\n"
+        "- Strip every jargon word. If you use a technical term, immediately "
+        "define it parenthetically in 5 words or fewer.\n"
+        "- Be specific and concrete. Avoid 'various', 'nuanced', 'complex', 'it "
+        "depends'. Pick a side or name the tension precisely.\n"
+        "- Respect the reader's intelligence. Don't condescend.\n"
+        "- Preserve the honesty of the synthesis — if it acknowledged "
+        "uncertainty, so should you."
+    )
+
+    env = os.environ.copy()
+    env.pop("ANTHROPIC_API_KEY", None)
+    try:
+        result = subprocess.run(
+            [_CLAUDE_PATH, "-p",
+             "--model", "sonnet",
+             "--effort", "medium",
+             "--no-session-persistence"],
+            input=prompt,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+            env=env,
+            timeout=120,
+        )
+        return (result.stdout or "").strip()
+    except Exception:
+        return ""
+
+
 # ── Synthesis brief: structured claim ledger before Scholar closes ──
 
 def generate_synthesis_brief(

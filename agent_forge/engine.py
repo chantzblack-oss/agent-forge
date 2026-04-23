@@ -33,6 +33,7 @@ from .verifier import (
     verify_citations_parallel,
     generate_synthesis_brief,
     mid_deliberation_pulse,
+    generate_plain_translator,
     DeliberationAudit,
     VerifiedCitation,
 )
@@ -249,6 +250,11 @@ class Orchestrator:
                     "  [dim]✓ Model cache cleared — next call will re-query each provider.[/]"
                 )
                 continue
+            if low == "/explain":
+                # Re-run the Plain Translator on the most recent synthesis
+                last_q = self._current_question(message_count) if message_count else self._goal
+                self._render_plain_translator_panel(last_q, round_num=None)
+                continue
 
             # ── normal message: deliberate and answer ──
 
@@ -274,6 +280,9 @@ class Orchestrator:
 
             # Audit: Verifier pass — surfaces what Skeptic missed
             self._render_audit_panel(user_input, round_num=message_count)
+
+            # Plain-Language Translator — translates synthesis for non-specialists
+            self._render_plain_translator_panel(user_input, round_num=message_count)
 
             # Pedagogical wrap-up: Learning Recap panel
             self._render_learning_recap(team, round_num=message_count)
@@ -350,6 +359,11 @@ class Orchestrator:
             self._render_audit_panel(goal, round_num=None)
         except Exception:
             pass
+        # Plain-Language Translator — closes the 'I don't understand shit' gap
+        try:
+            self._render_plain_translator_panel(goal, round_num=None)
+        except Exception:
+            pass
         # Learning Recap (new for classic sessions)
         try:
             self._render_learning_recap(team, round_num=None)
@@ -397,6 +411,66 @@ class Orchestrator:
             f"  [dim]🧠 Memory: injected {len(hits)} relevant prior session(s) "
             f"(backend={self._memory.backend})[/]"
         )
+
+    def _render_plain_translator_panel(
+        self, user_question: str, round_num: int | None = None,
+    ) -> None:
+        """Translate the leader's synthesis into plain language a non-specialist can use."""
+        if round_num is None:
+            scope = list(self._transcript)
+        else:
+            scope = [e for e in self._transcript if e.get("round") == round_num]
+        leader_turns = [e for e in scope if e.get("role") == "leader"]
+        if not leader_turns:
+            return
+        synthesis = leader_turns[-1].get("content", "")
+        if not synthesis or len(synthesis) < 200:
+            return
+
+        try:
+            translation = generate_plain_translator(synthesis, user_question)
+        except Exception:
+            return
+        if not translation:
+            return
+
+        # Parse the 4 sections
+        import re as _re
+        def _section(label: str) -> str:
+            m = _re.search(
+                rf"{label}\s*:\s*(.*?)(?=(?:\n[A-Z][A-Z\s]{{2,}}:|\Z))",
+                translation, _re.DOTALL,
+            )
+            return m.group(1).strip() if m else ""
+
+        gist = _section("GIST")
+        example = _section("CONCRETE EXAMPLE")
+        why_care = _section("WHY YOU CARE")
+        sticky = _section("IF YOU REMEMBER ONE THING")
+
+        if not (gist or example or sticky):
+            # Parsing failed — fall back to rendering raw output
+            parts = [translation]
+        else:
+            parts = []
+            if gist:
+                parts.append(f"[bold bright_white]The gist[/]\n{gist}")
+            if example:
+                parts.append(f"[bold bright_white]Concrete example[/]\n{example}")
+            if why_care:
+                parts.append(f"[bold bright_white]Why you care[/]\n{why_care}")
+            if sticky:
+                parts.append(f"[bold bright_white]If you remember one thing[/]\n[italic]{sticky}[/]")
+
+        body = "\n\n".join(parts)
+        self.console.print()
+        self.console.print(Panel(
+            Text.from_markup(body),
+            title="[bold bright_green]🎓 In Plain Language[/] [dim](Translator)[/]",
+            title_align="left",
+            border_style="bright_green",
+            padding=(1, 2),
+        ))
 
     def _render_audit_panel(
         self, user_question: str, round_num: int | None = None,
@@ -713,6 +787,7 @@ class Orchestrator:
         self.console.print(
             "  [bold]commands:[/]\n"
             "    [bold white]/ask @Name question[/]  — direct a question at one agent\n"
+            "    [bold white]/explain[/]             — plain-language rewrite of last answer\n"
             "    [bold white]/memory[/]              — list stored prior sessions\n"
             "    [bold white]/ledger[/]              — show the evidence ledger (all claims)\n"
             "    [bold white]/models[/]              — show which model each family resolves to\n"
@@ -1603,10 +1678,15 @@ class Orchestrator:
             if not target or target_name == sender.name:
                 continue
 
+            # Show the full direct-request question — previously truncated to
+            # 80 chars which cut off the actual question the user wanted to
+            # read. Wrap long questions across lines with the same indent.
             self.console.print()
             self.console.print(
-                f"  [dim]↳ {sender.name} → {target_name}:[/] [italic]{question[:80]}[/]"
+                f"  [dim]↳ {sender.name} → {target_name}:[/]"
             )
+            for line in question.strip().split("\n"):
+                self.console.print(f"      [italic dim]{line}[/]")
 
             self.bus.post(Message(
                 sender=sender.name,

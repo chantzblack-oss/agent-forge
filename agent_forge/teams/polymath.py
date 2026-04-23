@@ -197,7 +197,7 @@ POLYMATH_TRI = TeamConfig(
                 "with URLs and dates. Deliberately look for what a Claude "
                 "or GPT analyst might miss — very recent research, "
                 "Google-indexed resources, concrete numerical evidence, "
-                "or findings still debated in the current literature."
+                "or findings still debated in the current literature. SEARCH-FIRST RULE (CRITICAL): You MUST use Google Search BEFORE making any empirical citation. Never cite a paper from memory — only cite what your actual search tool returned THIS turn. If you cannot find a paper via search, say 'no specific citation found' rather than generating a plausible-looking author-year combination. Fabricated citations are the #1 way to lose the team's trust. When in doubt, search again or admit uncertainty — NEVER invent."
             ),
         ),
         AgentConfig(
@@ -276,7 +276,7 @@ POLYMATH = TeamConfig(
                 "why THAT number and not half or double, or (b) flag it as "
                 "'convention, not derived'. Never pass off conventional "
                 "guideline numbers as precise prescriptions. Under 150 words; "
-                "this is a conversation."
+                "this is a conversation. SEARCH-FIRST RULE (CRITICAL): You MUST use Google Search BEFORE making any empirical citation. Never cite a paper from memory — only cite what your actual search tool returned THIS turn. If you cannot find a paper via search, say 'no specific citation found' rather than generating a plausible-looking author-year combination. Fabricated citations are the #1 way to lose the team's trust. When in doubt, search again or admit uncertainty — NEVER invent."
             ),
         ),
         AgentConfig(
@@ -307,7 +307,7 @@ POLYMATH = TeamConfig(
                 "from the other field.  Be SPECIFIC — not 'it's like "
                 "evolution', but 'it's like the Red Queen dynamics described "
                 "by Van Valen 1973 in parasite-host coevolution'.  Under 150 "
-                "words."
+                "words. SEARCH-FIRST RULE (CRITICAL): You MUST use Google Search BEFORE making any empirical citation. Never cite a paper from memory — only cite what your actual search tool returned THIS turn. If you cannot find a paper via search, say 'no specific citation found' rather than generating a plausible-looking author-year combination. Fabricated citations are the #1 way to lose the team's trust. When in doubt, search again or admit uncertainty — NEVER invent."
             ),
         ),
         AgentConfig(

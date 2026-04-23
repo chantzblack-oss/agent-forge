@@ -23,18 +23,27 @@ from typing import Iterator
 from .base import Provider, ProviderError
 
 
-DEFAULT_MODEL = "claude-opus-4-7"
+# Family aliases → resolved dynamically from the live Anthropic model list
+# (see agent_forge/model_resolver.resolve_anthropic). Hard-coded fallbacks
+# live in the resolver so the system still works without an API call.
+_FAMILY_ALIASES = {"opus", "sonnet", "haiku"}
 
-_MODEL_ALIASES: dict[str, str] = {
-    "default": DEFAULT_MODEL,
-    "opus":    "claude-opus-4-7",
-    "sonnet":  "claude-sonnet-4-6",
-    "haiku":   "claude-haiku-4-5",
-}
+DEFAULT_MODEL = "opus"  # family alias; dynamically resolved
 
 
 def _resolve_model(model: str) -> str:
-    return _MODEL_ALIASES.get(model, model)
+    """Resolve a family alias (opus/sonnet/haiku) to the actual latest model ID.
+
+    Concrete model IDs (``claude-opus-4-7-20251201`` etc) pass through
+    unchanged — use those to pin a specific version. Use ``opus`` /
+    ``sonnet`` / ``haiku`` to always get the newest in that family.
+    """
+    if not model or model == "default":
+        model = DEFAULT_MODEL
+    if model in _FAMILY_ALIASES:
+        from ..model_resolver import resolve_anthropic
+        return resolve_anthropic(model)
+    return model
 
 
 def _thinking_budget(max_tokens: int) -> int:

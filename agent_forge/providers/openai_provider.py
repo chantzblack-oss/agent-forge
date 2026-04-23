@@ -24,31 +24,32 @@ from typing import Iterator
 from .base import Provider, ProviderError
 
 
-DEFAULT_MODEL = "gpt-5.4"
+# Family aliases → resolved dynamically from OpenAI's model list
+# (agent_forge/model_resolver.resolve_openai). Use these to always pick
+# up new model versions as they ship; pass a concrete ID to pin.
+_FAMILY_ALIASES = {"gpt", "gpt-5", "gpt-4", "gpt-4o", "o1", "o3", "o4"}
 
-# Shorthand → canonical model id
-_MODEL_ALIASES: dict[str, str] = {
-    "default":  DEFAULT_MODEL,
-    "gpt":      "gpt-5.4",
-    "gpt5":     "gpt-5.4",
-    "gpt-5":    "gpt-5",
-    "gpt-5.4":  "gpt-5.4",
-    "4o":       "gpt-4o",
-    "gpt-4o":   "gpt-4o",
-    "4o-mini":  "gpt-4o-mini",
-    "o1":       "o1",
-    "o1-mini":  "o1-mini",
-    "o3":       "o3-mini",
-    "o3-mini":  "o3-mini",
-    "o4-mini":  "o4-mini",
-}
+DEFAULT_MODEL = "gpt"
 
 # o-series reasoning models have different parameter conventions
 _REASONING_PREFIXES = ("o1", "o3", "o4")
 
 
 def _resolve_model(model: str) -> str:
-    return _MODEL_ALIASES.get(model, model or DEFAULT_MODEL)
+    """Resolve a family alias to the latest concrete OpenAI model ID."""
+    if not model or model == "default":
+        model = DEFAULT_MODEL
+    # Shortcut aliases that users commonly type but aren't family names
+    if model in ("gpt5", "gpt-5.4"):
+        model = "gpt"
+    if model == "4o":
+        model = "gpt-4o"
+    if model == "o3-mini":
+        model = "o3"
+    if model in _FAMILY_ALIASES:
+        from ..model_resolver import resolve_openai
+        return resolve_openai(model)
+    return model
 
 
 def _is_reasoning_model(model: str) -> bool:

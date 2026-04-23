@@ -29,21 +29,22 @@ def _is_rate_limit(exc: Exception) -> bool:
 # Default to Flash — Google's free-tier quota for 2.5-pro is often 0 for new
 # Studio keys (pro is paid-tier only). Flash has real free-tier access and is
 # still highly capable.  Users with paid-tier keys can specify model="pro".
-DEFAULT_MODEL = "gemini-2.5-flash"
+# Family aliases → resolved dynamically from Google's model list
+# (agent_forge/model_resolver.resolve_google). Use these to always pick
+# up new Gemini versions as they ship; pass a concrete ID to pin.
+_FAMILY_ALIASES = {"pro", "flash", "flash-lite"}
 
-_MODEL_ALIASES: dict[str, str] = {
-    "default":     DEFAULT_MODEL,
-    "pro":         "gemini-3.1-pro",
-    "pro-3.1":     "gemini-3.1-pro",
-    "3.1":         "gemini-3.1-pro",
-    "2.5-pro":     "gemini-2.5-pro",
-    "flash":       "gemini-2.5-flash",
-    "flash-lite":  "gemini-2.5-flash-lite",
-}
+DEFAULT_MODEL = "flash"
 
 
 def _resolve_model(model: str) -> str:
-    return _MODEL_ALIASES.get(model, model)
+    """Resolve a family alias (pro/flash/flash-lite) to latest Gemini model ID."""
+    if not model or model == "default":
+        model = DEFAULT_MODEL
+    if model in _FAMILY_ALIASES:
+        from ..model_resolver import resolve_google
+        return resolve_google(model)
+    return model
 
 
 def _reraise_with_hint(exc: Exception, model: str) -> None:

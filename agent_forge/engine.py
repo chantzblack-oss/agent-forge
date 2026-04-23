@@ -239,6 +239,16 @@ class Orchestrator:
                     "[dim](runs 3× in parallel, synthesizes consensus — slow but robust)[/]"
                 )
                 continue
+            if low in ("/models", "/model"):
+                self._print_models_status()
+                continue
+            if low == "/refresh-models":
+                from .model_resolver import clear_cache
+                clear_cache()
+                self.console.print(
+                    "  [dim]✓ Model cache cleared — next call will re-query each provider.[/]"
+                )
+                continue
 
             # ── normal message: deliberate and answer ──
 
@@ -591,6 +601,32 @@ class Orchestrator:
         """
         return getattr(self, "_last_recap_concepts", [])
 
+    def _print_models_status(self) -> None:
+        """Show the currently-resolved model IDs for each family (/models)."""
+        try:
+            from .model_resolver import all_resolutions
+            rows = all_resolutions()
+        except Exception as exc:
+            self.console.print(f"  [red]Model resolver failed: {exc}[/]")
+            return
+        self.console.print()
+        self.console.print(f"  [bold]🧬 Active models[/]  [dim](24-hour cache)[/]")
+        by_provider: dict[str, list] = {}
+        for r in rows:
+            by_provider.setdefault(r.provider, []).append(r)
+        for provider in ("anthropic", "google", "openai"):
+            if provider not in by_provider:
+                continue
+            self.console.print(f"\n  [bold bright_cyan]{provider}[/]")
+            for r in by_provider[provider]:
+                src_badge = "[green]live[/]" if r.source == "api" else "[yellow]fallback[/]"
+                self.console.print(
+                    f"    [dim]{r.family:<12}[/] [bold]{r.resolved:<32}[/]  {src_badge}"
+                )
+        self.console.print(
+            "\n  [dim]/refresh-models  re-query every provider (clears cache)[/]"
+        )
+
     def _print_ledger(self) -> None:
         """Show the user their global evidence ledger (/ledger command)."""
         if self._ledger is None:
@@ -679,6 +715,8 @@ class Orchestrator:
             "    [bold white]/ask @Name question[/]  — direct a question at one agent\n"
             "    [bold white]/memory[/]              — list stored prior sessions\n"
             "    [bold white]/ledger[/]              — show the evidence ledger (all claims)\n"
+            "    [bold white]/models[/]              — show which model each family resolves to\n"
+            "    [bold white]/refresh-models[/]      — re-query providers for latest models\n"
             "    [bold white]/adversarial[/]         — toggle: team argues against Scholar\n"
             "    [bold white]/ensemble[/]            — arm: next question runs 3× & consensuses\n"
             "    [bold white]/export[/]              — save transcript to markdown\n"

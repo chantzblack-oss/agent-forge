@@ -22,6 +22,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+import threading
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -63,6 +64,7 @@ class ClaimLedger:
         storage_dir.mkdir(parents=True, exist_ok=True)
         self.storage_dir = storage_dir
         self._global_log = storage_dir / "all_claims.jsonl"
+        self._lock = threading.Lock()
         self.records: list[ClaimRecord] = []
 
     # ── extraction ──
@@ -129,20 +131,22 @@ class ClaimLedger:
                     verified_urls=[u for u in urls if u in verified_set],
                     hallucinated_urls=[u for u in urls if u in hallucinated_set],
                 )
-                self.records.append(record)
+                with self._lock:
+                    self.records.append(record)
 
     # ── persistence ──
 
     def persist(self) -> None:
         """Append this session's records to the global JSONL log."""
-        if not self.records:
-            return
-        try:
-            with open(self._global_log, "a", encoding="utf-8") as f:
-                for r in self.records:
-                    f.write(json.dumps(asdict(r)) + "\n")
-        except Exception:
-            pass
+        with self._lock:
+            if not self.records:
+                return
+            try:
+                with open(self._global_log, "a", encoding="utf-8") as f:
+                    for r in self.records:
+                        f.write(json.dumps(asdict(r)) + "\n")
+            except Exception:
+                pass
 
     def export_session_csv(self, session_id: str) -> Path | None:
         """Write just this session's records as a CSV, return the path."""
@@ -180,20 +184,21 @@ class ClaimLedger:
 
     def all_global_records(self) -> list[ClaimRecord]:
         """Load every claim ever recorded (across all sessions)."""
-        if not self._global_log.exists():
-            return []
-        out: list[ClaimRecord] = []
-        try:
-            with open(self._global_log, encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        data = json.loads(line)
-                        out.append(ClaimRecord(**data))
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-        return out
+        with self._lock:
+            if not self._global_log.exists():
+                return []
+            out: list[ClaimRecord] = []
+            try:
+                with open(self._global_log, encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            data = json.loads(line)
+                            out.append(ClaimRecord(**data))
+                        except Exception:
+                            continue
+            except Exception:
+                pass
+            return out
 
     @staticmethod
     def new_session_id() -> str:

@@ -19,9 +19,23 @@ will still fetch and verify any explicit ``[Label](url)`` citations.
 from __future__ import annotations
 
 import os
+import time
 from typing import Iterator
 
 from .base import Provider, ProviderError
+
+
+def _is_transient(exc: Exception) -> bool:
+    """True for server-side / rate-limit errors that often succeed on retry."""
+    msg = str(exc).lower()
+    return any(
+        marker in msg
+        for marker in (
+            "503", "unavailable", "500", "502", "504",
+            "overloaded", "temporarily", "deadline",
+            "429", "rate_limit", "quota",
+        )
+    )
 
 
 # Family aliases → resolved dynamically from OpenAI's model list
@@ -78,35 +92,67 @@ class OpenAIProvider(Provider):
 
     # ── public ────────────────────────────────────────────
 
+    _RETRY_DELAYS = [2, 5, 10]
+
     def stream(self, system: str, user: str, model: str, max_tokens: int) -> Iterator[str]:
+        """Stream with retry-on-transient (3 attempts, 2s/5s/10s backoff).
+
+        Retry is only attempted BEFORE any chunks have been yielded;
+        mid-stream failures raise immediately.
+        """
         kwargs = self._call_kwargs(system, user, model, max_tokens, streaming=True)
-        try:
-            stream = self._client.chat.completions.create(**kwargs)
-            for chunk in stream:
-                try:
-                    delta = chunk.choices[0].delta
-                    content = getattr(delta, "content", None)
-                    if content:
-                        yield content
-                except (IndexError, AttributeError):
-                    continue
-        except Exception as exc:
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                got_any = False
+                stream = self._client.chat.completions.create(**kwargs)
+                for chunk in stream:
+                    try:
+                        delta = chunk.choices[0].delta
+                        content = getattr(delta, "content", None)
+                        if content:
+                            got_any = True
+                            yield content
+                    except (IndexError, AttributeError):
+                        continue
+                return
+            except Exception as exc:
+                last_exc = exc
+                if got_any or not _is_transient(exc):
+                    raise ProviderError(
+                        f"OpenAI ({_resolve_model(model)}) call failed: {str(exc)[:300]}"
+                    ) from exc
+                if attempt < 2:
+                    time.sleep(self._RETRY_DELAYS[attempt])
+        if last_exc is not None:
             raise ProviderError(
-                f"OpenAI ({_resolve_model(model)}) call failed: {str(exc)[:300]}"
-            ) from exc
+                f"OpenAI ({_resolve_model(model)}) call failed after 3 retries: {str(last_exc)[:300]}"
+            ) from last_exc
 
     def complete(self, system: str, user: str, model: str, max_tokens: int) -> str:
+        """Complete with retry-on-transient (3 attempts, 2s/5s/10s backoff)."""
         kwargs = self._call_kwargs(system, user, model, max_tokens, streaming=False)
-        try:
-            resp = self._client.chat.completions.create(**kwargs)
-        except Exception as exc:
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                resp = self._client.chat.completions.create(**kwargs)
+                try:
+                    return resp.choices[0].message.content or ""
+                except (IndexError, AttributeError):
+                    return ""
+            except Exception as exc:
+                last_exc = exc
+                if not _is_transient(exc):
+                    raise ProviderError(
+                        f"OpenAI ({_resolve_model(model)}) call failed: {str(exc)[:300]}"
+                    ) from exc
+                if attempt < 2:
+                    time.sleep(self._RETRY_DELAYS[attempt])
+        if last_exc is not None:
             raise ProviderError(
-                f"OpenAI ({_resolve_model(model)}) call failed: {str(exc)[:300]}"
-            ) from exc
-        try:
-            return resp.choices[0].message.content or ""
-        except (IndexError, AttributeError):
-            return ""
+                f"OpenAI ({_resolve_model(model)}) call failed after 3 retries: {str(last_exc)[:300]}"
+            ) from last_exc
+        return ""
 
     # ── call construction ────────────────────────────────
 

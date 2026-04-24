@@ -9,12 +9,15 @@ v0.6 adds:
 
 from __future__ import annotations
 
+import json as _json
 import os
 import shutil
 import subprocess
+import threading
 import time as _time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime
+from pathlib import Path
 
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -72,6 +75,7 @@ class Orchestrator:
         self._goal: str = ""
         self._team: TeamConfig | None = None
         self._start_time: float = 0.0
+        self._transcript_lock = threading.Lock()
 
     # ── public ────────────────────────────────────────────
 
@@ -305,26 +309,50 @@ class Orchestrator:
                 self._execute_deliberation_round(team, round_num=message_count)
 
             # Audit: Verifier pass — surfaces what Skeptic missed
-            self._render_audit_panel(user_input, round_num=message_count)
+            try:
+                self._render_audit_panel(user_input, round_num=message_count)
+            except Exception as exc:
+                self.console.print(f"  [dim]🔎 Audit unavailable — {type(exc).__name__}[/]")
 
             # Plain-Language Translator — translates synthesis for non-specialists
-            self._render_plain_translator_panel(user_input, round_num=message_count)
+            try:
+                self._render_plain_translator_panel(user_input, round_num=message_count)
+            except Exception as exc:
+                self.console.print(f"  [dim]🎓 Translator unavailable — {type(exc).__name__}[/]")
 
             # Pedagogical wrap-up: Learning Recap panel
-            self._render_learning_recap(team, round_num=message_count)
+            try:
+                self._render_learning_recap(team, round_num=message_count)
+            except Exception as exc:
+                self.console.print(f"  [dim]📘 Recap unavailable — {type(exc).__name__}[/]")
 
             # Reliability: Citationist — fetch + verify the cited URLs
-            self._render_citations_panel(round_num=message_count)
+            try:
+                self._render_citations_panel(round_num=message_count)
+            except Exception as exc:
+                self.console.print(f"  [dim]🔗 Citation check unavailable — {type(exc).__name__}[/]")
 
             # Persistence: save this deliberation for future sessions
             if self._memory is not None:
-                self._save_to_memory(team, user_input, round_num=message_count)
+                try:
+                    self._save_to_memory(team, user_input, round_num=message_count)
+                except Exception:
+                    self.console.print("  [dim]🧠 Memory save failed[/]")
+
+            # Checkpoint: save transcript so a crash doesn't lose this round
+            self._checkpoint()
 
             # After 3+ messages, summarize the earliest one to keep context focused
             if message_count >= 3:
                 oldest_unsum = message_count - 2
                 if not self.bus.get_round_summary(oldest_unsum):
                     self._generate_and_store_round_summary(oldest_unsum)
+
+            # Transcript pagination: compress old rounds to keep scans fast.
+            # Keep the last 3 rounds at full fidelity; older rounds get their
+            # content truncated to a short summary to prevent O(n²) growth.
+            if message_count > 4:
+                self._paginate_transcript(keep_recent=3, current_round=message_count)
 
         self._print_chat_goodbye()
 
@@ -355,7 +383,7 @@ class Orchestrator:
             "Reference prior context where relevant."
         )
         resp = agent.respond(prompt, round_num=turn, is_final_round=False)
-        self._transcript.append({
+        self._record({
             "round": turn,
             "agent": target,
             "role": agent.role,
@@ -383,35 +411,35 @@ class Orchestrator:
         # Verifier
         try:
             self._render_audit_panel(goal, round_num=None)
-        except Exception:
-            pass
+        except Exception as exc:
+            self.console.print(f"  [dim]🔎 Audit unavailable — {type(exc).__name__}[/]")
         # Plain-Language Translator — closes the 'I don't understand shit' gap
         try:
             self._render_plain_translator_panel(goal, round_num=None)
-        except Exception:
-            pass
+        except Exception as exc:
+            self.console.print(f"  [dim]🎓 Translator unavailable — {type(exc).__name__}[/]")
         # Learning Recap (new for classic sessions)
         try:
             self._render_learning_recap(team, round_num=None)
-        except Exception:
-            pass
+        except Exception as exc:
+            self.console.print(f"  [dim]📘 Recap unavailable — {type(exc).__name__}[/]")
         # Citationist
         try:
             self._render_citations_panel(round_num=None)
-        except Exception:
-            pass
+        except Exception as exc:
+            self.console.print(f"  [dim]🔗 Citation check unavailable — {type(exc).__name__}[/]")
         # Memory save
         if self._memory is not None:
             try:
                 self._save_to_memory(team, goal, round_num=None)
             except Exception:
-                pass
+                self.console.print("  [dim]🧠 Memory save failed[/]")
         # Evidence ledger extraction + persist
         if self._ledger is not None:
             try:
                 self._extract_and_persist_ledger(team, goal)
             except Exception:
-                pass
+                self.console.print("  [dim]📒 Ledger save failed[/]")
 
     def _inject_prior_memory(self, user_question: str) -> None:
         """Pull top-N relevant prior sessions from memory and post them as system context."""
@@ -513,7 +541,8 @@ class Orchestrator:
             round_entries = [e for e in self._transcript if e.get("round") == round_num]
         try:
             audit = audit_deliberation(round_entries, user_question)
-        except Exception:
+        except Exception as exc:
+            self.console.print(f"  [dim]🔎 Audit generation failed — {type(exc).__name__}[/]")
             return
         if audit.is_empty():
             return
@@ -570,7 +599,8 @@ class Orchestrator:
         )
         try:
             results = verify_citations_parallel(tagged, max_workers=3)
-        except Exception:
+        except Exception as exc:
+            self.console.print(f"  [dim]🔗 Citation verification failed — {type(exc).__name__}[/]")
             return
         if not results:
             return
@@ -920,6 +950,9 @@ class Orchestrator:
             # Generate round summary for context compression in future rounds
             self._generate_and_store_round_summary(round_num)
 
+            # Checkpoint after each round
+            self._checkpoint()
+
             # Between-round interaction
             if round_num < team.max_rounds:
                 action = self._between_rounds(team, round_num)
@@ -956,7 +989,7 @@ class Orchestrator:
                 "Reference findings briefly, don't restate them. End with [COMPLETE]."
             )
             resp = leader.respond(prompt, round_num=team.max_rounds, is_final_round=True)
-            self._transcript.append({
+            self._record({
                 "round": team.max_rounds,
                 "agent": leader.name,
                 "role": leader.role,
@@ -1201,16 +1234,13 @@ class Orchestrator:
             padding=(1, 2),
         ))
 
-        syntheses: list[str] = []
-        for i in range(n_runs):
-            self.console.print()
-            self.console.print(
-                f"  [bold magenta]═══ Draft {i+1} of {n_runs} ═══[/]"
-            )
-            # Use a distinct round number per draft so bus messages don't
-            # collide with each other, and so per-round helpers still work.
-            draft_round = base_round_num * 100 + i  # unique but derived
-            # Post the user's question under the draft's round id
+        import threading
+
+        syntheses: list[str] = [None] * n_runs  # type: ignore[list-item]
+        draft_errors: list[str] = [""] * n_runs
+
+        def _run_draft(idx: int) -> None:
+            draft_round = base_round_num * 100 + idx
             self.bus.post(Message(
                 sender="Human",
                 content=question,
@@ -1220,17 +1250,37 @@ class Orchestrator:
             try:
                 self._execute_deliberation_round(team, round_num=draft_round)
             except Exception as exc:
-                self.console.print(
-                    f"  [red]Draft {i+1} failed: {exc}[/]"
-                )
-                continue
-            # Pull this draft's leader synthesis
+                draft_errors[idx] = str(exc)
+                return
             draft_entries = [
                 e for e in self._transcript if e.get("round") == draft_round
             ]
             leader_turns = [e for e in draft_entries if e.get("role") == "leader"]
             if leader_turns:
-                syntheses.append(leader_turns[-1]["content"])
+                syntheses[idx] = leader_turns[-1]["content"]
+
+        # Run all drafts in parallel threads
+        self.console.print(
+            f"  [dim]Running {n_runs} drafts in parallel...[/]"
+        )
+        threads = []
+        for i in range(n_runs):
+            t = threading.Thread(target=_run_draft, args=(i,), daemon=True)
+            threads.append(t)
+            t.start()
+        for t in threads:
+            t.join(timeout=300)
+
+        # Report results
+        for i in range(n_runs):
+            if draft_errors[i]:
+                self.console.print(f"  [red]Draft {i+1} failed: {draft_errors[i]}[/]")
+            elif syntheses[i]:
+                self.console.print(f"  [green]Draft {i+1} complete[/]")
+            else:
+                self.console.print(f"  [yellow]Draft {i+1} produced no synthesis[/]")
+
+        syntheses = [s for s in syntheses if s is not None]
 
         if not syntheses:
             self.console.print("  [red]Ensemble produced no syntheses.[/]")
@@ -1251,7 +1301,7 @@ class Orchestrator:
         # Record the consensus under the user's canonical round so
         # downstream finalization (audit/recap/citations/ledger) treats it
         # as the session's output.
-        self._transcript.append({
+        self._record({
             "round": base_round_num,
             "agent": "Ensemble",
             "role": "leader",
@@ -1360,7 +1410,7 @@ class Orchestrator:
         finally:
             critic.config.max_tokens = original_max
 
-        self._transcript.append({
+        self._record({
             "round": round_num,
             "agent": critic.name,
             "role": critic.role,
@@ -1659,9 +1709,29 @@ class Orchestrator:
                 )
                 for name in group
             }
-            responses: dict[str, AgentResponse] = {
-                name: fut.result() for name, fut in futures.items()
-            }
+            responses: dict[str, AgentResponse] = {}
+            for name, fut in futures.items():
+                try:
+                    responses[name] = fut.result(timeout=180)
+                except FuturesTimeoutError:
+                    self.console.print(f"  [yellow]⏱ {name} timed out after 180s[/]")
+                    from .bus import Message, MessageType
+                    responses[name] = AgentResponse(
+                        message=Message(
+                            sender=name, content="[ERROR] Agent timed out.",
+                            msg_type=MessageType.RESULT, round_num=round_num,
+                        ),
+                        scratchpad_writes=[], direct_requests=[],
+                    )
+                except Exception as exc:
+                    self.console.print(f"  [red]{name} failed: {type(exc).__name__}[/]")
+                    responses[name] = AgentResponse(
+                        message=Message(
+                            sender=name, content=f"[ERROR] {exc}",
+                            msg_type=MessageType.RESULT, round_num=round_num,
+                        ),
+                        scratchpad_writes=[], direct_requests=[],
+                    )
 
         # Display and post each result sequentially in group order
         for name in group:
@@ -1688,7 +1758,7 @@ class Orchestrator:
     ) -> str:
         """Record in transcript, handle human requests, trigger reactive turns."""
         content = resp.message.content
-        self._transcript.append({
+        self._record({
             "round": round_num,
             "agent": agent.name,
             "role": agent.role,
@@ -1763,7 +1833,7 @@ class Orchestrator:
             reactive = target.respond(
                 reactive_prompt, round_num=round_num, is_final_round=is_final,
             )
-            self._transcript.append({
+            self._record({
                 "round": round_num,
                 "agent": target.name,
                 "role": target.role,
@@ -1775,9 +1845,7 @@ class Orchestrator:
     def _check_convergence(self, round_num: int) -> bool:
         """Detect whether critics/judges signal the work is done.
 
-        Converged if EITHER:
-        - Any critic/judge emits [APPROVED], OR
-        - A critic rates the work "Exceptional" with no flagged remaining gaps.
+        Converged if any critic/judge emits the exact [APPROVED] token.
         """
         for m in self.bus.get_round_messages(round_num):
             agent = self.agents.get(m.sender)
@@ -1786,14 +1854,6 @@ class Orchestrator:
             content = m.content.upper()
             if "[APPROVED]" in content:
                 return True
-            if "VERDICT: EXCEPTIONAL" in content or "EXCEPTIONAL" in content.split("\n")[0]:
-                gaps = "REMAINING GAPS"
-                if gaps not in content:
-                    return True
-                # Check if the gaps section effectively says "none"
-                after = content.split(gaps, 1)[1][:200]
-                if "NONE" in after or "NO REMAINING" in after:
-                    return True
         return False
 
     # ── learning recap (pedagogical wrap-up) ──────────────
@@ -2310,12 +2370,57 @@ class Orchestrator:
             f"This is a follow-up, so reference your earlier work where relevant."
         )
         resp = agent.respond(prompt, round_num=round_num, is_final_round=False)
-        self._transcript.append({
+        self._record({
             "round": round_num,
             "agent": agent_name,
             "role": agent.role,
             "content": f"[Follow-up Q: {question}]\n\n{resp.message.content}",
         })
+
+    # ── transcript management ────────────────────────────────
+
+    def _record(self, entry: dict) -> None:
+        """Thread-safe append to the session transcript."""
+        with self._transcript_lock:
+            self._record(entry)
+
+    def _paginate_transcript(self, keep_recent: int, current_round: int) -> None:
+        """Compress old transcript entries so citation/audit scans stay fast.
+
+        Entries from rounds older than ``current_round - keep_recent`` have
+        their content truncated to the first 300 chars.  The full content is
+        already persisted in the checkpoint file and bus round summaries.
+        """
+        cutoff = current_round - keep_recent
+        for entry in self._transcript:
+            r = entry.get("round", 0)
+            if r > 0 and r <= cutoff and len(entry.get("content", "")) > 300:
+                entry["content"] = entry["content"][:300] + "\n[...truncated for performance]"
+
+    def _checkpoint(self) -> None:
+        """Write the current transcript to a JSON checkpoint file.
+
+        Called after each deliberation round / chat message so a crash
+        doesn't lose everything.  The file is overwritten each time (not
+        appended) so it's always a complete snapshot.
+        """
+        if not self._transcript:
+            return
+        try:
+            ckpt_dir = Path.home() / ".agent_forge" / "checkpoints"
+            ckpt_dir.mkdir(parents=True, exist_ok=True)
+            ckpt_file = ckpt_dir / "last_session.json"
+            data = {
+                "goal": self._goal,
+                "team": self._team.name if self._team else "",
+                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "transcript": self._transcript,
+            }
+            tmp = ckpt_file.with_suffix(".tmp")
+            tmp.write_text(_json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+            tmp.replace(ckpt_file)
+        except Exception:
+            pass  # Checkpoint is best-effort — never block the session
 
     def _end_session(self, goal: str, team: TeamConfig, round_num: int) -> None:
         """End-of-session: show stats, offer export/follow-up."""
@@ -2364,7 +2469,7 @@ class Orchestrator:
                     resp = agent.respond(
                         prompt, round_num=round_num + 1, is_final_round=True
                     )
-                    self._transcript.append({
+                    self._record({
                         "round": round_num + 1,
                         "agent": agent_name,
                         "role": agent.role,

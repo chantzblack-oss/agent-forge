@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,7 @@ from typing import Callable
 _CACHE_DIR = Path.home() / ".agent_forge"
 _CACHE_FILE = _CACHE_DIR / "model_cache.json"
 _CACHE_TTL_SECONDS = 24 * 60 * 60   # 24 hours
+_CACHE_LOCK = threading.Lock()
 
 
 def _load_cache() -> dict:
@@ -60,12 +62,13 @@ def _cached_or_fetch(
     fallback: str,
 ) -> str:
     """Check cache first; if stale or missing, fetch; always return something."""
-    cache = _load_cache()
-    key = _cache_key(provider, family)
-    entry = cache.get(key)
-    now = time.time()
-    if entry and (now - entry.get("ts", 0)) < _CACHE_TTL_SECONDS:
-        return entry.get("model") or fallback
+    with _CACHE_LOCK:
+        cache = _load_cache()
+        key = _cache_key(provider, family)
+        entry = cache.get(key)
+        now = time.time()
+        if entry and (now - entry.get("ts", 0)) < _CACHE_TTL_SECONDS:
+            return entry.get("model") or fallback
 
     try:
         resolved = fetcher()
@@ -73,8 +76,10 @@ def _cached_or_fetch(
         resolved = None
 
     model = resolved or fallback
-    cache[key] = {"model": model, "ts": now, "via": "api" if resolved else "fallback"}
-    _save_cache(cache)
+    with _CACHE_LOCK:
+        cache = _load_cache()
+        cache[key] = {"model": model, "ts": now, "via": "api" if resolved else "fallback"}
+        _save_cache(cache)
     return model
 
 

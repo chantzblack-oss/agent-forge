@@ -1,4 +1,7 @@
-"""Text-to-speech narrator — generates natural spoken summaries of agent output."""
+"""Text-to-speech narrator — generates natural spoken summaries of agent output.
+
+Optional dependency: edge-tts (pip install edge-tts)
+"""
 
 from __future__ import annotations
 
@@ -6,6 +9,7 @@ import asyncio
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import queue
@@ -186,31 +190,62 @@ class Narrator:
         import edge_tts
 
         tmp_path = os.path.join(self._tmp_dir, "chunk.mp3")
-        communicate = edge_tts.Communicate(text, voice, rate="+8%")
-        await communicate.save(tmp_path)
+        try:
+            communicate = edge_tts.Communicate(text, voice, rate="+8%")
+            await asyncio.wait_for(communicate.save(tmp_path), timeout=30)
 
-        if os.path.getsize(tmp_path) > 0:
-            self._play_audio(tmp_path)
+            if os.path.getsize(tmp_path) > 0:
+                self._play_audio(tmp_path)
+        finally:
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except OSError:
+                pass
 
     def _play_audio(self, path: str) -> None:
-        uri = path.replace("\\", "/")
-        ps_script = f"""
-Add-Type -AssemblyName PresentationCore
-$p = New-Object System.Windows.Media.MediaPlayer
-$p.Open([Uri]::new('{uri}'))
-$p.Play()
-while ($p.NaturalDuration.HasTimeSpan -eq $false) {{ Start-Sleep -Milliseconds 100 }}
-$duration = $p.NaturalDuration.TimeSpan.TotalMilliseconds
-Start-Sleep -Milliseconds ($duration + 150)
-$p.Close()
-"""
         try:
-            subprocess.run(
-                ["powershell", "-NoProfile", "-Command", ps_script],
-                capture_output=True,
-                timeout=120,
-            )
-        except (subprocess.TimeoutExpired, Exception):
+            if sys.platform == "darwin":
+                # macOS — afplay is built-in
+                subprocess.run(
+                    ["afplay", path],
+                    capture_output=True,
+                    timeout=120,
+                )
+            elif sys.platform == "win32":
+                # Windows — PowerShell with WPF MediaPlayer
+                uri = path.replace("\\", "/")
+                ps_script = (
+                    "Add-Type -AssemblyName PresentationCore\n"
+                    "$p = New-Object System.Windows.Media.MediaPlayer\n"
+                    f"$p.Open([Uri]::new('{uri}'))\n"
+                    "$p.Play()\n"
+                    "while ($p.NaturalDuration.HasTimeSpan -eq $false) "
+                    "{ Start-Sleep -Milliseconds 100 }\n"
+                    "$duration = $p.NaturalDuration.TimeSpan.TotalMilliseconds\n"
+                    "Start-Sleep -Milliseconds ($duration + 150)\n"
+                    "$p.Close()\n"
+                )
+                subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", ps_script],
+                    capture_output=True,
+                    timeout=120,
+                )
+            else:
+                # Linux — try mpv first, fall back to ffplay
+                if shutil.which("mpv"):
+                    subprocess.run(
+                        ["mpv", "--no-video", path],
+                        capture_output=True,
+                        timeout=120,
+                    )
+                elif shutil.which("ffplay"):
+                    subprocess.run(
+                        ["ffplay", "-nodisp", "-autoexit", path],
+                        capture_output=True,
+                        timeout=120,
+                    )
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             pass
 
     def _summarize_for_speech(self, text: str, agent_name: str, agent_role: str) -> str:

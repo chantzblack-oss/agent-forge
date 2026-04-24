@@ -217,8 +217,8 @@ CROSS_MODEL_DELIBERATION = TeamConfig(
     category="Cross-Model",
     max_rounds=1,
     deliberation_mode=True,
-    max_deliberation_turns=16,
-    deliberation_turn_tokens=2000,
+    max_deliberation_turns=10,
+    deliberation_turn_tokens=1500,
     agents=[
         AgentConfig(
             name="Chair", role="leader", icon="\U0001f3af",

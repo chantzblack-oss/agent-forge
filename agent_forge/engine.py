@@ -1920,14 +1920,29 @@ class Orchestrator:
         reads: list[tuple[str, str]] = []
         watches: list[tuple[str, str]] = []
 
+        _SEARCH_URL_PATTERNS = (
+            "scholar.google.com/scholar?q=",
+            "youtube.com/results?search_query=",
+            "google.com/search?q=",
+            "bing.com/search?q=",
+            "search.yahoo.com/search",
+        )
+
         def _split_item_url(text: str) -> tuple[str, str]:
-            """Split a ``<label> :: <url>`` line. Returns (label, url) with url='' if missing or invalid."""
+            """Split a ``<label> :: <url>`` line. Returns (label, url) with url='' if missing or invalid.
+
+            Rejects search-results URLs — those are fabricated by the model
+            instead of using WebSearch to find a real source.
+            """
             if "::" not in text:
                 return text.strip(), ""
             label, _, url = text.partition("::")
             url = url.strip()
             if not (url.startswith("http://") or url.startswith("https://")):
                 return label.strip(), ""
+            for pat in _SEARCH_URL_PATTERNS:
+                if pat in url:
+                    return label.strip(), ""
             return label.strip(), url
 
         section = None

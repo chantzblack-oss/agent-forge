@@ -135,7 +135,7 @@ class Orchestrator:
                     max_repair_attempts = 2
                     attempt = 0
                     while True:
-                        ok, issues = self._meets_completion_quality(msg.content)
+                        ok, issues = self._gate_check()
                         if ok:
                             break
                         if attempt >= max_repair_attempts:
@@ -237,17 +237,49 @@ class Orchestrator:
         self._end_session(goal, team, team.max_rounds)
 
 
-    def _meets_completion_quality(self, content: str) -> tuple[bool, list[str]]:
-        """Quality gate for leader completion messages."""
+    def _effective_stale_threshold(self) -> int:
+        """Use the strictest stale-evidence threshold among critic/judge configs."""
+        if not self._team:
+            return 24
+
+        thresholds = [
+            getattr(ac, "stale_evidence_months", 24)
+            for ac in self._team.agents
+            if ac.role in ("critic", "judge")
+        ]
+        return min(thresholds) if thresholds else 24
+
+    def _gate_check(self) -> tuple[bool, list[str]]:
+        """Claim-graph quality gate for accepting leader [COMPLETE]."""
+        g = self.bus.claims
         issues: list[str] = []
-        low = content.lower()
-        if "what to do this week" not in low:
-            issues.append("Missing 'WHAT TO DO THIS WEEK' section.")
-        if "](http" not in low and "[source" not in low:
-            issues.append("Missing source citations.")
-        if len(content.strip()) < 500:
-            issues.append("Final deliverable is too brief.")
-        return (len(issues) == 0, issues)
+
+        threshold = self._effective_stale_threshold()
+
+        stale = g.stale(threshold)
+        if stale:
+            issues.append(f"{len(stale)} stale evidence claim(s) (>{threshold}mo)")
+
+        unsup = g.unsupported()
+        if unsup:
+            issues.append(f"{len(unsup)} evidence claim(s) missing url or date")
+
+        evidence = g.evidence_claims()
+        if not evidence:
+            issues.append("zero structured Evidence claims emitted by team")
+        else:
+            density = g.citation_density()
+            if density < 0.7:
+                issues.append(f"citation density {density:.0%} below 70%")
+
+        leader_finals = [
+            c for c in g.leader_claims()
+            if "[COMPLETE]" in c.raw_excerpt
+        ]
+        if leader_finals and leader_finals[-1].confidence is None:
+            issues.append("Leader [COMPLETE] missing Confidence: line")
+
+        return (not issues, issues)
 
     # ── prompt construction ───────────────────────────────
 

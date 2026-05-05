@@ -125,7 +125,7 @@ class Agent:
             msg_type=MessageType.FEEDBACK if self.role == "critic" else MessageType.RESULT,
             round_num=round_num,
         )
-        self.bus.post(msg)
+        self.bus.post(msg, role=self.role)
         return msg
 
     # ── prompt construction ──────────────────────────────

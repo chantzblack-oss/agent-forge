@@ -741,6 +741,14 @@ class Orchestrator:
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
+        # Sidecar: structured claims JSON, harness-ready.
+        try:
+            claims_path = path[:-3] + ".claims.json"
+            with open(claims_path, "w", encoding="utf-8") as f:
+                f.write(self.bus.claims.to_json())
+        except Exception:
+            pass  # sidecar export is best-effort; never fail the markdown export
+
         return path
 
     # ── display ───────────────────────────────────────────

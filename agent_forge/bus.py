@@ -78,9 +78,22 @@ class MessageBus:
 
     def __init__(self) -> None:
         self.messages: list[Message] = []
+        # Lazily populated to avoid circular import at module load.
+        self._claims = None  # type: ignore[assignment]
 
-    def post(self, message: Message) -> None:
+    @property
+    def claims(self):  # type: ignore[no-untyped-def]
+        if self._claims is None:
+            from .claims import ClaimGraph
+            self._claims = ClaimGraph()
+        return self._claims
+
+    def post(self, message: Message, *, role: str | None = None) -> None:
         self.messages.append(message)
+        if role:
+            from .claims import parse_message
+            for claim in parse_message(message, role):
+                self.claims.add(claim)
 
     def get_for(self, agent_name: str, limit: int = 30) -> list[Message]:
         """Messages relevant to a specific agent (broadcasts + directs)."""

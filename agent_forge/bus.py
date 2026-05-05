@@ -36,16 +36,40 @@ class Message:
 
 
 def extract_requests(text: str) -> list[tuple[str, str]]:
-    """Find [REQUEST @AgentName: question] patterns in agent output."""
-    return re.findall(r'\[REQUEST\s+@(\w+):\s*(.+?)\]', text)
+    """Find [REQUEST @AgentName: question] patterns in agent output.
+
+    Supports names with spaces and punctuation up to the request colon.
+    Example: ``[REQUEST @Data Analyst: Validate assumptions]``.
+    """
+    requests: list[tuple[str, str]] = []
+    for m in re.finditer(r"\[REQUEST\s+@([^:\]\n]+?)\s*:\s*(.+?)\]", text, flags=re.DOTALL):
+        target = m.group(1).strip()
+        question = m.group(2).strip()
+        if target and question:
+            requests.append((target, question))
+    return requests
+
+
+def _name_patterns(name: str) -> list[str]:
+    """Build mention variants for a roster name.
+
+    Supports exact form and a canonicalized underscore variant so a teammate
+    named ``Data Analyst`` can be mentioned as ``@Data_Analyst``.
+    """
+    canonical = re.sub(r"\s+", "_", name.strip())
+    variants = {name.strip(), canonical}
+    return [v for v in variants if v]
 
 
 def extract_mentions(text: str, valid_names: list[str]) -> list[str]:
     """Find @AgentName mentions in text, returning names that exist in roster."""
-    mentioned = []
+    mentioned: list[str] = []
     for name in valid_names:
-        if f"@{name}" in text:
-            mentioned.append(name)
+        for variant in _name_patterns(name):
+            pattern = rf"(?<!\w)@{re.escape(variant)}(?![\w-])"
+            if re.search(pattern, text):
+                mentioned.append(name)
+                break
     return mentioned
 
 

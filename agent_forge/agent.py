@@ -50,6 +50,7 @@ class AgentConfig:
     icon: str = ""
     max_tokens: int = 0  # 0 = use role-based defaults
     tagline: str = ""  # one-liner shown during team assembly
+    stale_evidence_months: int = 24  # tunable stale-source threshold by domain
 
 
 class Agent:
@@ -153,6 +154,8 @@ COLLABORATION
 - After a critic reviews your work, you may get a brief rebuttal turn. Use it wisely:
   concede valid points, defend with evidence where they're wrong, clarify misunderstandings.
 - Reference teammates by @Name when building on or responding to their work.
+- CROSS-MODEL RECONCILIATION: If two teammates conflict, explicitly do: (1) list conflicting claims,
+  (2) identify source quality for each, (3) resolve with a confidence level, (4) note what would falsify your conclusion.
 
 RULES
 - Stay in character as {self.name}. Contribute real analytical/creative value.
@@ -171,16 +174,21 @@ RULES
                 "- Opening: Use ## headers. Give numbered assignments with specific deliverables.\n"
                 "- Synthesis: Lead with the key insight the team missed. Resolve contradictions.\n"
                 "- Final deliverable: Executive Summary > Key Findings > Decision Framework > "
-                "Action Items (with owners, timelines, success metrics)."
+                "Action Items (with owners, timelines, success metrics).\n"
+                "- Include: Confidence: <low|med|high>\n"
+                "- Include: Top Unknowns That Could Overturn This: (bullet list)."
             )
         if self.role in ("worker", "debater"):
             return (
                 "OUTPUT FORMAT (specialist)\n"
-                "- Lead with your single most important finding — don't bury it.\n"
-                "- Use ## headers to structure sections.\n"
-                "- Evidence first, then interpretation. Every claim needs a source.\n"
-                "- End with 2-3 specific, actionable recommendations.\n"
-                "- Depth over breadth. 3 thorough points beat 10 shallow ones."
+                "- Use exactly these sections with ## headers:\n"
+                "  1) Key Finding\n"
+                "  2) Evidence\n"
+                "  3) Conflict Check\n"
+                "  4) Recommendations\n"
+                "- In Evidence, every evidentiary claim must include source URL + publication date.\n"
+                "- Conflict Check must identify contradictory evidence and explain your resolution.\n"
+                "- End Recommendations with 2-3 specific, actionable steps."
             )
         if self.role in ("critic", "judge"):
             return (
@@ -188,6 +196,7 @@ RULES
                 "- Structure: Verdict > Strengths (2-3 specific) > Issues with Fixes (2-3) > Evidence Check.\n"
                 "- For each issue, give the SPECIFIC fix — not just the problem.\n"
                 "- Spot-check at least one key claim with your own web search.\n"
+                f"- Flag stale evidence older than {self.config.stale_evidence_months} months unless stability is justified.\n"
                 "- Rate: Exceptional / Strong / Adequate / Weak — with justification."
             )
         return "Deliver substantive, well-structured content with ## headers."

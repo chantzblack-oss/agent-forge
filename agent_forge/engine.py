@@ -39,6 +39,7 @@ class Orchestrator:
         self._start_time: float = 0.0
         self._in_reactive: bool = False  # prevent recursive reactive chains
         self._reactive_count_this_round: int = 0  # cap reactive turns per round
+        self._end_session_depth: int = 0  # guard against recursive end-session loops
 
     # ── public ────────────────────────────────────────────
 
@@ -50,6 +51,7 @@ class Orchestrator:
         self._goal = goal
         self._team = team
         self._start_time = _time.time()
+        self._end_session_depth = 0
         self.narrator = Narrator(mode=self.narrate_mode)
 
         try:
@@ -130,6 +132,26 @@ class Orchestrator:
                     self._handle_human_request(msg, round_num)
 
                 if "[COMPLETE]" in msg.content and agent.role == "leader":
+                    ok, issues = self._meets_completion_quality(msg.content)
+                    if not ok:
+                        self.console.print("  [bold yellow]Leader marked COMPLETE but quality gate failed:[/]")
+                        for issue in issues:
+                            self.console.print(f"    - [yellow]{issue}[/]")
+                        repair_prompt = (
+                            "Your final deliverable failed quality checks: "
+                            + "; ".join(issues)
+                            + " Rewrite now with stronger evidence, explicit citations, and a concrete 'WHAT TO DO THIS WEEK' section. End with [COMPLETE]."
+                        )
+                        repaired = agent.respond(repair_prompt, round_num=round_num, is_final_round=True)
+                        self._transcript.append({
+                            "round": round_num,
+                            "agent": agent_name,
+                            "role": agent.role,
+                            "content": repaired.content,
+                        })
+                        if "[COMPLETE]" not in repaired.content:
+                            continue
+                        msg = repaired
                     self._print_round_recap(round_num)
                     self._print_complete()
                     self._end_session(goal, team, round_num)
@@ -189,6 +211,19 @@ class Orchestrator:
             })
         self._print_complete()
         self._end_session(goal, team, team.max_rounds)
+
+
+    def _meets_completion_quality(self, content: str) -> tuple[bool, list[str]]:
+        """Quality gate for leader completion messages."""
+        issues: list[str] = []
+        low = content.lower()
+        if "what to do this week" not in low:
+            issues.append("Missing 'WHAT TO DO THIS WEEK' section.")
+        if "](http" not in low and "[source" not in low:
+            issues.append("Missing source citations.")
+        if len(content.strip()) < 500:
+            issues.append("Final deliverable is too brief.")
+        return (len(issues) == 0, issues)
 
     # ── prompt construction ───────────────────────────────
 
@@ -571,6 +606,13 @@ class Orchestrator:
 
     def _end_session(self, goal: str, team: TeamConfig, round_num: int) -> None:
         """End-of-session: show stats, offer export/follow-up."""
+        self._end_session_depth += 1
+        if self._end_session_depth > 12:
+            self.console.print("  [bold yellow]Reached end-session interaction limit; exiting.[/]")
+            self._end_session_depth = max(0, self._end_session_depth - 1)
+            self._print_done()
+            return
+
         self._print_session_stats()
         self.console.print()
         self.console.print(
@@ -628,6 +670,7 @@ class Orchestrator:
                 self._end_session(goal, team, round_num + 1)
                 return
 
+        self._end_session_depth = max(0, self._end_session_depth - 1)
         self._print_done()
 
     # ── session export ────────────────────────────────────

@@ -132,8 +132,24 @@ class Orchestrator:
                     self._handle_human_request(msg, round_num)
 
                 if "[COMPLETE]" in msg.content and agent.role == "leader":
-                    ok, issues = self._meets_completion_quality(msg.content)
-                    if not ok:
+                    max_repair_attempts = 2
+                    attempt = 0
+                    while True:
+                        ok, issues = self._meets_completion_quality(msg.content)
+                        if ok:
+                            break
+                        if attempt >= max_repair_attempts:
+                            marker = "[QUALITY_GATE_FAILED] Final deliverable failed quality gate after retries."
+                            self._transcript.append({
+                                "round": round_num,
+                                "agent": "System",
+                                "role": "system",
+                                "content": marker,
+                            })
+                            self.console.print(f"  [bold red]{marker}[/]")
+                            self._end_session(goal, team, round_num)
+                            return
+                        attempt += 1
                         self.console.print("  [bold yellow]Leader marked COMPLETE but quality gate failed:[/]")
                         for issue in issues:
                             self.console.print(f"    - [yellow]{issue}[/]")
@@ -142,16 +158,24 @@ class Orchestrator:
                             + "; ".join(issues)
                             + " Rewrite now with stronger evidence, explicit citations, and a concrete 'WHAT TO DO THIS WEEK' section. End with [COMPLETE]."
                         )
-                        repaired = agent.respond(repair_prompt, round_num=round_num, is_final_round=True)
+                        msg = agent.respond(repair_prompt, round_num=round_num, is_final_round=True)
                         self._transcript.append({
                             "round": round_num,
                             "agent": agent_name,
                             "role": agent.role,
-                            "content": repaired.content,
+                            "content": msg.content,
                         })
-                        if "[COMPLETE]" not in repaired.content:
-                            continue
-                        msg = repaired
+                        if "[COMPLETE]" not in msg.content:
+                            marker = "[QUALITY_GATE_FAILED] Leader rewrite omitted [COMPLETE]."
+                            self._transcript.append({
+                                "round": round_num,
+                                "agent": "System",
+                                "role": "system",
+                                "content": marker,
+                            })
+                            self.console.print(f"  [bold red]{marker}[/]")
+                            self._end_session(goal, team, round_num)
+                            return
                     self._print_round_recap(round_num)
                     self._print_complete()
                     self._end_session(goal, team, round_num)

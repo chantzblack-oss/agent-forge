@@ -57,6 +57,7 @@ SECURITY_AUDIT = TeamConfig(
             )),
         AgentConfig(name="GRC", role="critic", icon="\U0001f4cb",
             tagline="Compliance isn't a checkbox — it's the gap between where you are and where regulators expect you.",
+            stale_evidence_months=6,
             personality=(
                 "You are a governance, risk, and compliance specialist who translates security "
                 "findings into regulatory language. For every finding, map to specific controls: "

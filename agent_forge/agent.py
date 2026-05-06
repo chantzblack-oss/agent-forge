@@ -130,12 +130,40 @@ class Agent:
 
     # ── prompt construction ──────────────────────────────
 
+    def _hard_output_contract(self) -> str:
+        """Top-of-prompt schema lock. Workers and debaters must use the four
+        canonical headers verbatim or the gate rejects the output."""
+        if self.role in ("worker", "debater"):
+            return (
+                "OUTPUT CONTRACT (HARD):\n"
+                "Your response MUST contain these four markdown headers in this "
+                "exact order and spelled exactly:\n"
+                "\n"
+                "## Key Finding\n"
+                "\n"
+                "## Evidence\n"
+                "\n"
+                "## Conflict Check\n"
+                "\n"
+                "## Recommendations\n"
+                "\n"
+                "Any response missing these headers, using different header names, "
+                "or changing the order will be treated as invalid and may be "
+                "discarded by the quality gate. This requirement is non-negotiable.\n"
+                "Do not use any other ## headers.\n"
+                "Put all citations only under ## Evidence."
+            )
+        return ""
+
     def _build_system(self) -> str:
         """Short, focused system prompt — personality + rules only."""
         teammates = [n for n in self.team_roster if n != self.name]
         roster_str = ", ".join(teammates) if teammates else "(solo)"
 
-        return f"""{self.config.personality}
+        contract = self._hard_output_contract()
+        prefix = f"{contract}\n\n" if contract else ""
+
+        return f"""{prefix}{self.config.personality}
 
 IDENTITY: {self.name} ({self.role})
 TEAM: {roster_str}

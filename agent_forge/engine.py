@@ -40,6 +40,13 @@ class Orchestrator:
         self._in_reactive: bool = False  # prevent recursive reactive chains
         self._reactive_count_this_round: int = 0  # cap reactive turns per round
         self._end_session_depth: int = 0  # guard against recursive end-session loops
+        self._consensus = None  # type: ignore[assignment]  # opt-in ConsensusEngine
+        self._consensus_results: list = []  # populated when consensus is enabled
+
+    def attach_consensus(self, engine) -> None:  # type: ignore[no-untyped-def]
+        """Opt-in: attach a ConsensusEngine. When set, the gate verifies
+        Evidence claims across providers before accepting [COMPLETE]."""
+        self._consensus = engine
 
     # ── public ────────────────────────────────────────────
 
@@ -278,6 +285,24 @@ class Orchestrator:
         ]
         if leader_finals and leader_finals[-1].confidence is None:
             issues.append("Leader [COMPLETE] missing Confidence: line")
+
+        # Cross-provider consensus check (opt-in via attach_consensus).
+        if self._consensus is not None and g.evidence_claims():
+            try:
+                results = self._consensus.verify_evidence(g, context=self._goal)
+                self._consensus_results = list(results)
+                disagreed = [r for r in results if r.escalated]
+                low_conf = [r for r in results if r.adjusted_confidence == "low"]
+                if len(low_conf) / max(1, len(results)) > 0.3:
+                    issues.append(
+                        f"consensus rejected {len(low_conf)}/{len(results)} evidence claims (low confidence post-verification)"
+                    )
+                if len(disagreed) / max(1, len(results)) > 0.5:
+                    issues.append(
+                        f"consensus disagreement on {len(disagreed)}/{len(results)} claims (>50% needed judge escalation)"
+                    )
+            except Exception as exc:
+                issues.append(f"consensus verification failed: {type(exc).__name__}: {exc}")
 
         return (not issues, issues)
 

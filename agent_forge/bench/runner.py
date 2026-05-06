@@ -95,8 +95,14 @@ def run_task(
     live: bool = False,
     model_call: ModelCallable | None = None,
     score_fn: Callable[..., ScoreBreakdown] = score_task,
+    consensus=None,  # type: ignore[no-untyped-def]
 ) -> BenchResult:
-    """Execute one task on one team. Returns a scored BenchResult."""
+    """Execute one task on one team. Returns a scored BenchResult.
+
+    If `consensus` is a ConsensusEngine instance, it's attached to the
+    orchestrator and Evidence claims get cross-provider verified before the
+    leader's [COMPLETE] is accepted.
+    """
     if live and model_call is not None:
         raise ValueError("live=True is incompatible with a custom model_call")
     if not live and model_call is None:
@@ -106,9 +112,13 @@ def run_task(
 
     if live:
         orch = Orchestrator(narrate_mode="off")
+        if consensus is not None:
+            orch.attach_consensus(consensus)
         orch.run(task.prompt, team)
     else:
         orch = Orchestrator(narrate_mode="off")
+        if consensus is not None:
+            orch.attach_consensus(consensus)
         # Mock mode: patch CLI + skip the interactive end-session prompt so the
         # harness never blocks on stdin under pytest capture.
         with patch("agent_forge.agent._CLAUDE_PATH", "/usr/bin/claude"), patch(
@@ -154,5 +164,9 @@ def run_suite(
     live: bool = False,
     model_call: ModelCallable | None = None,
     score_fn: Callable[..., ScoreBreakdown] = score_task,
+    consensus=None,  # type: ignore[no-untyped-def]
 ) -> list[BenchResult]:
-    return [run_task(t, team, live=live, model_call=model_call, score_fn=score_fn) for t in tasks]
+    return [
+        run_task(t, team, live=live, model_call=model_call, score_fn=score_fn, consensus=consensus)
+        for t in tasks
+    ]

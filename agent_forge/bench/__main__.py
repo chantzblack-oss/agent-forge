@@ -49,6 +49,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--n", type=int, default=None, help="Limit number of tasks")
     p.add_argument("--seed", type=int, default=None, help="Random seed for task subsetting")
     p.add_argument("--out", default=None, help="Path to write the markdown report (default: stdout)")
+    p.add_argument(
+        "--consensus",
+        nargs="+",
+        default=None,
+        metavar="MODEL",
+        help="Enable cross-provider consensus on Evidence claims. Pass 2-3 model names "
+             "(e.g. --consensus opus gpt-4o gemini-2.5-pro). The first 'higher-tier' "
+             "model also serves as the judge on disagreement.",
+    )
+    p.add_argument(
+        "--judge-model",
+        default=None,
+        help="Override the consensus judge model (default: first --consensus model)",
+    )
     args = p.parse_args(argv)
 
     team = _resolve_team(args.team)
@@ -60,7 +74,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.n is not None:
         tasks = tasks[: args.n]
 
-    results = run_suite(tasks, team, live=args.live)
+    consensus = None
+    if args.consensus:
+        from ..consensus import ConsensusEngine
+        judge = args.judge_model or args.consensus[0]
+        consensus = ConsensusEngine(models=args.consensus, judge_model=judge)
+        print(f"Consensus enabled: models={args.consensus} judge={judge}", flush=True)
+
+    results = run_suite(tasks, team, live=args.live, consensus=consensus)
     report = render_full_report(results)
 
     if args.out:

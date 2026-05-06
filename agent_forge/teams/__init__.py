@@ -38,6 +38,7 @@ from .business import LEGAL_ANALYSIS, FINANCIAL_PLANNING, CRISIS_COMMS, PRODUCT_
 from .education import STUDY_GROUP, LANGUAGE_LAB
 from .personal import LIFE_STRATEGY, CAREER_BOARD
 from .science import SCIENCE_LAB, INVESTIGATIVE_UNIT
+from .multi_provider import TRI_MODEL_RESEARCH_LAB, CROSS_PROVIDER_RESEARCH_LAB
 
 
 CATEGORIES: list[TeamCategory] = [

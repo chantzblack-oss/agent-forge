@@ -225,6 +225,52 @@ YOUR TASK THIS TURN
     CLI_TIMEOUT: int = 600  # 10 minutes
 
     def _call_cli(self, system: str, user_prompt: str) -> str:
+        """Run a single agent turn, routing through the provider registry.
+
+        Claude models use the rich CLI flow with spinner + streaming border.
+        Other providers (OpenAI, Gemini) call their SDKs directly and return
+        a single block of text without streaming UX (v1 limitation).
+        """
+        model_l = self.config.model.lower()
+        is_claude = model_l.startswith(("opus", "sonnet", "haiku", "claude"))
+
+        if not is_claude:
+            return self._call_via_provider(system, user_prompt)
+
+        return self._call_claude_cli(system, user_prompt)
+
+    def _call_via_provider(self, system: str, user_prompt: str) -> str:
+        """Route to a non-Claude provider (OpenAI, Gemini, mocks)."""
+        from .providers import get_provider, ProviderError
+
+        spinner_style = self.color.replace("bold ", "")
+        status = self.console.status(
+            f"  {self.icon} [{self.color}]{self.name}[/] [dim]thinking via {self.config.model}...[/]",
+            spinner="dots",
+            spinner_style=spinner_style,
+        )
+        status.start()
+        try:
+            provider = get_provider(self.config.model)
+            text, _stats = provider.complete(
+                model=self.config.model,
+                system=system,
+                user=user_prompt,
+                timeout_s=float(self.CLI_TIMEOUT),
+            )
+        except ProviderError as exc:
+            status.stop()
+            return f"[ERROR] {exc}"
+        finally:
+            status.stop()
+
+        ansi_color = _ROLE_ANSI.get(self.role, "\033[37m")
+        for line in (text or "").splitlines():
+            sys.stdout.write(f"  {ansi_color}│{_ANSI_RESET} {line}\n")
+        sys.stdout.flush()
+        return (text or "").strip() or "[ERROR] Empty response from provider."
+
+    def _call_claude_cli(self, system: str, user_prompt: str) -> str:
         """Call Claude CLI with animated spinner, timeout protection, and streaming output."""
         args = [
             _CLAUDE_PATH,

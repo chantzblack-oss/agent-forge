@@ -33,7 +33,7 @@ def render_comparison(results: list[BenchResult]) -> str:
             _fmt(s.total),
             _fmt(s.accuracy),
             _fmt(s.citation_quality),
-            _fmt(s.hallucination_pen),
+            _fmt(s.hallucination),
             _fmt(s.actionability),
             _fmt(s.efficiency),
             _fmt(r.latency_s),
@@ -62,7 +62,7 @@ def render_team_aggregates(results: list[BenchResult]) -> str:
             _fmt(mean(r.total for r in rs)),
             _fmt(mean(r.score.accuracy for r in rs)),
             _fmt(mean(r.score.citation_quality for r in rs)),
-            _fmt(mean(r.score.hallucination_pen for r in rs)),
+            _fmt(mean(r.score.hallucination for r in rs)),
             _fmt(sum(1 for r in rs if r.completed) / n),
             _fmt(sum(1 for r in rs if r.quality_gate_failed) / n),
         ]) + " |")

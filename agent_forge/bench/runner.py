@@ -14,7 +14,7 @@ from ..agent import Agent
 from ..engine import Orchestrator
 from ..teams import TeamConfig
 from .tasks import BenchTask
-from .scorer import ScoreBreakdown, score as default_score
+from .scorer import ScoreBreakdown, score_task
 
 ModelCallable = Callable[[Agent, str, str], str]
 """(agent, system_prompt, user_prompt) -> model output text"""
@@ -94,7 +94,7 @@ def run_task(
     *,
     live: bool = False,
     model_call: ModelCallable | None = None,
-    score_fn: Callable[..., ScoreBreakdown] = default_score,
+    score_fn: Callable[..., ScoreBreakdown] = score_task,
 ) -> BenchResult:
     """Execute one task on one team. Returns a scored BenchResult."""
     if live and model_call is not None:
@@ -128,7 +128,12 @@ def run_task(
     )
     completed = any("[COMPLETE]" in e.get("content", "") for e in orch._transcript)
 
-    breakdown = score_fn(task, transcript_text, orch.bus.claims, latency_s=latency_s)
+    breakdown = score_fn(
+        task=task,
+        claims=orch.bus.claims,
+        transcript_text=transcript_text,
+        latency_s=latency_s,
+    )
 
     return BenchResult(
         task_id=task.id,
@@ -148,6 +153,6 @@ def run_suite(
     *,
     live: bool = False,
     model_call: ModelCallable | None = None,
-    score_fn: Callable[..., ScoreBreakdown] = default_score,
+    score_fn: Callable[..., ScoreBreakdown] = score_task,
 ) -> list[BenchResult]:
     return [run_task(t, team, live=live, model_call=model_call, score_fn=score_fn) for t in tasks]

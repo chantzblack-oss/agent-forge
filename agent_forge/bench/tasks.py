@@ -145,7 +145,7 @@ def _handwritten_tasks() -> list[BenchTask]:
                 RubricCheck(
                     id="c1",
                     description="Must present both sides charitably",
-                    required_phrases=("for", "against", "decision framework"),
+                    required_phrases=("argument for", "argument against", "decision framework"),
                 ),
                 RubricCheck(
                     id="c2",
@@ -170,7 +170,7 @@ def _handwritten_tasks() -> list[BenchTask]:
                 RubricCheck(
                     id="c1",
                     description="Must request clarifying info before hard recommendation",
-                    required_phrases=("need", "clarify", "assumption"),
+                    required_phrases=("need clarification", "assumptions"),
                 ),
                 RubricCheck(
                     id="c2",

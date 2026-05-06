@@ -90,14 +90,28 @@ def test_multi_agent_team_run_complex_prompt() -> None:
 
     def fake_call(self, system: str, user_prompt: str) -> str:
         if self.role == "leader":
-            if "FINAL ROUND" in user_prompt or "FINAL DELIVERABLE" in user_prompt:
-                return "## Synthesis\nGrid transition can work with phased storage buildout and market reform. [COMPLETE]"
+            if "FINAL ROUND" in user_prompt or "FINAL DELIVERABLE" in user_prompt or "End with [COMPLETE]" in user_prompt:
+                return (
+                    "## Synthesis\nGrid transition can work with phased storage buildout and "
+                    "market reform.\n\nConfidence: med\n"
+                    "Top Unknowns That Could Overturn This:\n- Storage cost trajectory.\n"
+                    "- Regulatory ruling timing.\n\n"
+                    "## WHAT TO DO THIS WEEK\n1. Greenlight Tier-1 RFP.\n[COMPLETE]"
+                )
             return "## Plan\n@Analyst quantify costs. @Contrarian risks. @Synthesizer integrate. @Reviewer audit. [DONE]"
-        return "## Findings\n- Simulated evidence and tradeoffs. [DONE]"
+        if self.role in ("worker", "debater"):
+            return (
+                "## Key Finding\nTradeoff bounded.\n\n"
+                "## Evidence\n- Lazard 2024 (2026-01-15) [Lazard](https://www.lazard.com/x).\n"
+                "- IEA report (February 2026) [IEA](https://www.iea.org/y).\n\n"
+                "## Conflict Check\n- Reconciled by phased buildout. (January 2026) [NREL](https://www.nrel.gov/z).\n\n"
+                "## Recommendations\n1. Greenlight RFP.\n[DONE]"
+            )
+        return "Verdict: Strong.\nStrengths: thorough.\nIssues: none.\nEvidence Check: ok.\nRate: Strong. [DONE]"
 
     with patch("agent_forge.agent._CLAUDE_PATH", "/usr/bin/claude"), patch(
         "agent_forge.agent.Agent._call_cli", new=fake_call
-    ):
+    ), patch("agent_forge.engine.Prompt.ask", new=lambda *a, **kw: "done"):
         orch = Orchestrator(narrate_mode="off")
         orch.run(
             "Should the US transition its entire electric grid to 100% renewables by 2035 while maintaining affordability and reliability?",

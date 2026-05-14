@@ -5,8 +5,19 @@ Agent Forge — Multi-agent orchestration engine.
 Assemble AI teams that collaborate, debate, and create.
 """
 
+import os
 import sys
 import time
+from pathlib import Path
+
+# Load .env file (no dependency required)
+_env_path = Path(__file__).parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 # Ensure UTF-8 output on Windows for emoji support
 if sys.platform == "win32":

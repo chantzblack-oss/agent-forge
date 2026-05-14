@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
 from ..agent import AgentConfig
 
 
@@ -16,7 +15,30 @@ class TeamConfig:
     agents: list[AgentConfig]
     round_order: list[str]
     max_rounds: int = 3
-    quickstart_goals: list[str] = field(default_factory=list)
+    # Optional explicit execution plan: list of groups, where each group runs
+    # in parallel and groups run sequentially. e.g.
+    #   [["Principal"], ["Analyst", "Contrarian"], ["Synthesizer"], ["Reviewer"], ["Principal"]]
+    # If None, the orchestrator runs round_order fully sequentially.
+    execution_plan: list[list[str]] | None = None
+
+    # ── live deliberation mode ──────────────────────────
+    # When True, a "round" is a dynamic back-and-forth conversation with
+    # short turns and speaker selection based on @-mentions, [DIRECT @X]
+    # requests, and leader moderation — instead of fixed round_order iteration.
+    # Feels like a live meeting; different agents jump in as they have things
+    # to add.  Default False (classic fixed-order rounds).
+    deliberation_mode: bool = False
+    # Max turns within a single deliberation "round" before forcing synthesis.
+    max_deliberation_turns: int = 12
+    # Per-turn soft budget — keeps turns short so the conversation flows.
+    deliberation_turn_tokens: int = 800
+
+    # ── chat mode ───────────────────────────────────────
+    # When True, the team runs as a persistent conversation loop: user types
+    # a question, the team deliberates and answers, the session loops until
+    # the user exits.  Conversation history (bus messages) persists across
+    # all user turns so context compounds naturally.
+    chat_mode: bool = False
 
 
 @dataclass
@@ -29,22 +51,28 @@ class TeamCategory:
 # Import teams AFTER TeamConfig is defined to avoid circular imports
 from .core import STORYTELLER, RESEARCH_LAB, DEBATE_CLUB, STARTUP_SIM, CODE_SHOP
 from .healthcare import CLINICAL_CASE, PRACTICE_GROWTH, BEHAVIORAL_HEALTH
-from .creative import (
-    WRITERS_ROOM, PHILOSOPHY_SALON, DND_CAMPAIGN, COMEDY_WRITERS,
-    MUSIC_STUDIO, GAME_DESIGN,
-)
-from .technical import SECURITY_AUDIT, DATA_SCIENCE, SYSTEM_DESIGN, DEVOPS_WAR_ROOM
-from .business import LEGAL_ANALYSIS, FINANCIAL_PLANNING, CRISIS_COMMS, PRODUCT_LAUNCH
-from .education import STUDY_GROUP, LANGUAGE_LAB
-from .personal import LIFE_STRATEGY, CAREER_BOARD
-from .science import SCIENCE_LAB, INVESTIGATIVE_UNIT
+from .creative import WRITERS_ROOM, PHILOSOPHY_SALON, DND_CAMPAIGN, COMEDY_WRITERS
+from .technical import SECURITY_AUDIT, DATA_SCIENCE, SYSTEM_DESIGN
+from .business import LEGAL_ANALYSIS, FINANCIAL_PLANNING, CRISIS_COMMS
+from .cross_model import CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DEBATE, CROSS_MODEL_DELIBERATION, TRIPLE_MODEL_BRAINTRUST
+from .polymath import POLYMATH, POLYMATH_CLAUDE, POLYMATH_TRI
 
 
 CATEGORIES: list[TeamCategory] = [
     TeamCategory(
+        name="Chat",
+        icon="\U0001f4ac",
+        teams=[POLYMATH_CLAUDE, POLYMATH, POLYMATH_TRI],
+    ),
+    TeamCategory(
+        name="Cross-Model",
+        icon="\U0001f9e0",
+        teams=[TRIPLE_MODEL_BRAINTRUST, CROSS_MODEL_BRAINTRUST, CROSS_MODEL_DELIBERATION, CROSS_MODEL_DEBATE],
+    ),
+    TeamCategory(
         name="Work",
         icon="\U0001f4bc",
-        teams=[RESEARCH_LAB, STARTUP_SIM, CODE_SHOP, PRODUCT_LAUNCH],
+        teams=[RESEARCH_LAB, STARTUP_SIM, CODE_SHOP],
     ),
     TeamCategory(
         name="Healthcare",
@@ -54,12 +82,12 @@ CATEGORIES: list[TeamCategory] = [
     TeamCategory(
         name="Creative",
         icon="\U0001f3a8",
-        teams=[STORYTELLER, WRITERS_ROOM, MUSIC_STUDIO, DND_CAMPAIGN, GAME_DESIGN, COMEDY_WRITERS],
+        teams=[STORYTELLER, WRITERS_ROOM, DND_CAMPAIGN, COMEDY_WRITERS],
     ),
     TeamCategory(
         name="Technical",
         icon="\u2699\ufe0f",
-        teams=[SECURITY_AUDIT, DATA_SCIENCE, SYSTEM_DESIGN, DEVOPS_WAR_ROOM],
+        teams=[SECURITY_AUDIT, DATA_SCIENCE, SYSTEM_DESIGN],
     ),
     TeamCategory(
         name="Debate & Ideas",
@@ -70,21 +98,6 @@ CATEGORIES: list[TeamCategory] = [
         name="Business",
         icon="\U0001f4c8",
         teams=[LEGAL_ANALYSIS, FINANCIAL_PLANNING, CRISIS_COMMS],
-    ),
-    TeamCategory(
-        name="Education",
-        icon="\U0001f393",
-        teams=[STUDY_GROUP, LANGUAGE_LAB],
-    ),
-    TeamCategory(
-        name="Personal & Life",
-        icon="\U0001f9ed",
-        teams=[LIFE_STRATEGY, CAREER_BOARD],
-    ),
-    TeamCategory(
-        name="Science & Investigation",
-        icon="\U0001f52c",
-        teams=[SCIENCE_LAB, INVESTIGATIVE_UNIT],
     ),
 ]
 

@@ -1,9 +1,21 @@
 [project]
 name = "agent-forge"
-version = "0.6.0"
+version = "0.9.4"
 description = "Multi-agent orchestration framework — assemble AI teams that collaborate, debate, and create"
 requires-python = ">=3.10"
 dependencies = [
     "rich>=13.0.0",
     "edge-tts>=7.0.0",
 ]
+
+# By default Agent Forge uses the subscription-authenticated CLIs
+# (`claude` and `gemini`) — no API keys required. Install the optional
+# deps below only if you want to use an API-key path instead.
+[project.optional-dependencies]
+anthropic-api = ["anthropic>=0.40.0"]
+google-api = ["google-genai>=1.0.0"]
+openai-api = ["openai>=1.50.0"]
+all-api = ["anthropic>=0.40.0", "google-genai>=1.0.0", "openai>=1.50.0"]
+# Persistent cross-session memory with semantic search (Chroma + embeddings).
+# Optional — falls back to a JSON keyword-overlap log if not installed.
+memory = ["chromadb>=0.4.0"]

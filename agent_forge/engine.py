@@ -488,6 +488,14 @@ class Orchestrator:
             if sticky:
                 parts.append(f"[bold bright_white]If you remember one thing[/]\n[italic]{sticky}[/]")
 
+        self._plain_translation = {
+            "gist": gist,
+            "example": example,
+            "why_care": why_care,
+            "sticky": sticky,
+            "raw": translation,
+        }
+
         body = "\n\n".join(parts)
         self.console.print()
         self.console.print(Panel(
@@ -2405,13 +2413,40 @@ class Orchestrator:
         lines.append(f"**Duration:** {mins}m {secs}s")
         lines += ["", "---", ""]
 
+        pt = getattr(self, "_plain_translation", None)
+        if pt and (pt.get("gist") or pt.get("raw")):
+            lines += ["## 🎓 In Plain Language", ""]
+            if pt.get("gist"):
+                lines += ["### The Gist", "", pt["gist"], ""]
+            if pt.get("example"):
+                lines += ["### Concrete Example", "", pt["example"], ""]
+            if pt.get("why_care"):
+                lines += ["### Why You Care", "", pt["why_care"], ""]
+            if pt.get("sticky"):
+                lines += ["### If You Remember One Thing", "", f"> *{pt['sticky']}*", ""]
+            lines += ["---", ""]
+
+        leader_entries = [e for e in self._transcript if e.get("role") == "leader"]
+        if leader_entries:
+            final_synthesis = leader_entries[-1].get("content", "")
+            if final_synthesis and len(final_synthesis) > 200:
+                lines += ["## 📋 Final Deliverable", ""]
+                lines.append(final_synthesis)
+                lines += ["", "---", ""]
+
+        lines += ["## 🔬 Working Transcript", ""]
+        lines += [
+            "*The full agent-by-agent deliberation that produced the deliverable above.*",
+            "",
+        ]
+
         current_round = -1
         for entry in self._transcript:
             if entry["round"] != current_round:
                 current_round = entry["round"]
-                lines += [f"## Round {current_round}", ""]
+                lines += [f"### Round {current_round}", ""]
 
-            lines.append(f"### {entry['agent']} ({entry['role']})")
+            lines.append(f"#### {entry['agent']} ({entry['role']})")
             lines.append("")
             lines.append(entry["content"])
             lines.append("")

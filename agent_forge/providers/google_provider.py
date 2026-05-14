@@ -54,12 +54,12 @@ def _reraise_with_hint(exc: Exception, model: str) -> None:
 
     # Quota exhausted (very common: free-tier pro has limit=0)
     if "429" in msg or "resource_exhausted" in low or "quota" in low:
-        if model.startswith("gemini-2.5-pro") or model == "gemini-pro":
+        if "pro" in model:
             raise ProviderError(
                 "Gemini quota exceeded for "
                 + model
-                + ". Free-tier Studio keys often have limit=0 for 2.5-pro "
-                "(it's paid-tier only). Use model='flash' instead — it has a "
+                + ". Free-tier Studio keys often have limit=0 for pro models "
+                "(paid-tier only). Use model='flash' instead — it has a "
                 "real free-tier quota. To switch: edit your team config or let "
                 "Agent Forge's default kick in."
             ) from exc

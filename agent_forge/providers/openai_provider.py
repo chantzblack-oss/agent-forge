@@ -40,7 +40,7 @@ def _resolve_model(model: str) -> str:
     if not model or model == "default":
         model = DEFAULT_MODEL
     # Shortcut aliases that users commonly type but aren't family names
-    if model in ("gpt5", "gpt-5.4"):
+    if model in ("gpt5", "gpt-5.4", "gpt-5.5"):
         model = "gpt"
     if model == "4o":
         model = "gpt-4o"

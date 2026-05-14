@@ -159,12 +159,12 @@ _OPENAI_FAMILIES = {
 }
 
 _OPENAI_FALLBACKS = {
-    "gpt":      "gpt-5.4",
-    "gpt-5":    "gpt-5.4",
+    "gpt":      "gpt-5.5",
+    "gpt-5":    "gpt-5.5",
     "gpt-4":    "gpt-4o",
     "gpt-4o":   "gpt-4o",
     "o1":       "o1",
-    "o3":       "o3-mini",
+    "o3":       "o3",
     "o4":       "o4-mini",
 }
 
@@ -222,9 +222,9 @@ _GOOGLE_FAMILIES = {
 }
 
 _GOOGLE_FALLBACKS = {
-    "pro":         "gemini-2.5-pro",
+    "pro":         "gemini-3.1-pro-preview",
     "flash":       "gemini-2.5-flash",
-    "flash-lite":  "gemini-2.5-flash-lite",
+    "flash-lite":  "gemini-3.1-flash-lite",
 }
 
 _GOOGLE_SUFFIX = {
@@ -251,15 +251,18 @@ def resolve_google(family: str) -> str:
         client = genai.Client()
         models = list(client.models.list())
         matching: list[str] = []
+        _EXCLUDE = ("-image", "-audio", "-tts", "-live", "customtools")
         for m in models:
             name = getattr(m, "name", "")
-            # Strip leading "models/" namespace if present
             if name.startswith("models/"):
                 name = name[len("models/"):]
-            if (name.startswith(prefix) and suffix in name
-                    and "flash-lite" in name if family == "flash-lite"
-                    else name.startswith(prefix) and name.endswith(suffix)):
-                matching.append(name)
+            if not name.startswith(prefix) or suffix not in name:
+                continue
+            if any(ex in name for ex in _EXCLUDE):
+                continue
+            if family == "flash" and "flash-lite" in name:
+                continue
+            matching.append(name)
         if not matching:
             return None
         matching.sort(key=_version_tuple, reverse=True)

@@ -28,10 +28,10 @@ from .base import Provider, ProviderError
 _GEMINI_PATH: str | None = shutil.which("gemini")
 
 _MODEL_ALIASES: dict[str, str] = {
-    "default":    "gemini-2.5-pro",
-    "pro":        "gemini-2.5-pro",
+    "default":    "gemini-3.1-pro-preview",
+    "pro":        "gemini-3.1-pro-preview",
     "flash":      "gemini-2.5-flash",
-    "flash-lite": "gemini-2.5-flash-lite",
+    "flash-lite": "gemini-3.1-flash-lite",
 }
 
 _AUTH_HINT = (
@@ -44,7 +44,7 @@ _AUTH_HINT = (
 
 
 def _resolve_model(model: str) -> str:
-    return _MODEL_ALIASES.get(model, model or "gemini-2.5-pro")
+    return _MODEL_ALIASES.get(model, model or "gemini-3.1-pro-preview")
 
 
 def _is_auth_error(stderr: str) -> bool:

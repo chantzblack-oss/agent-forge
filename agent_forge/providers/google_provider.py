@@ -106,13 +106,15 @@ class GoogleProvider(Provider):
 
     # ── public ────────────────────────────────────────────
 
+    _FALLBACK_MODELS = ["gemini-3.1-pro-preview", "gemini-3.5-flash", "gemini-2.5-pro"]
+
     def stream(self, system: str, user: str, model: str, max_tokens: int) -> Iterator[str]:
-        """Stream with retry-on-transient and fallback to flash if pro is overloaded.
+        """Stream with retry-on-transient and multi-tier fallback.
 
         Strategy: up to 3 attempts with exponential backoff (3s, 8s, 15s).  If
-        all retries of the requested model fail with transient errors AND the
-        model was pro, one final attempt on flash.  Retry is only attempted
-        BEFORE any chunks have been yielded; mid-stream failures raise.
+        all retries fail, walk the fallback chain (stable pro → flash → older
+        flash).  Retry is only attempted BEFORE any chunks have been yielded;
+        mid-stream failures raise.
         """
         config = self._config(system, max_tokens)
         resolved = _resolve_model(model)
@@ -138,23 +140,25 @@ class GoogleProvider(Provider):
                 if attempt < 2:
                     time.sleep([3, 8, 15][attempt])
 
-        # All retries on the requested model exhausted — try flash as a fallback
-        if resolved != "gemini-2.5-flash" and last_exc is not None:
-            try:
-                for chunk in self._client.models.generate_content_stream(
-                    model="gemini-2.5-flash", contents=user, config=config,
-                ):
-                    text = getattr(chunk, "text", None)
-                    if text:
-                        yield text
-                return
-            except Exception as fallback_exc:
-                _reraise_with_hint(fallback_exc, "gemini-2.5-flash (fallback)")
+        # All retries exhausted — walk fallback chain
         if last_exc is not None:
+            for fb in self._FALLBACK_MODELS:
+                if fb == resolved:
+                    continue
+                try:
+                    for chunk in self._client.models.generate_content_stream(
+                        model=fb, contents=user, config=config,
+                    ):
+                        text = getattr(chunk, "text", None)
+                        if text:
+                            yield text
+                    return
+                except Exception:
+                    continue
             _reraise_with_hint(last_exc, resolved)
 
     def complete(self, system: str, user: str, model: str, max_tokens: int) -> str:
-        """complete() with same retry + flash-fallback strategy as stream()."""
+        """complete() with same retry + multi-tier fallback as stream()."""
         config = self._config(system, max_tokens)
         resolved = _resolve_model(model)
 
@@ -172,15 +176,17 @@ class GoogleProvider(Provider):
                 if attempt < 2:
                     time.sleep([3, 8, 15][attempt])
 
-        if resolved != "gemini-2.5-flash" and last_exc is not None:
-            try:
-                response = self._client.models.generate_content(
-                    model="gemini-2.5-flash", contents=user, config=config,
-                )
-                return getattr(response, "text", "") or ""
-            except Exception as fallback_exc:
-                _reraise_with_hint(fallback_exc, "gemini-2.5-flash (fallback)")
         if last_exc is not None:
+            for fb in self._FALLBACK_MODELS:
+                if fb == resolved:
+                    continue
+                try:
+                    response = self._client.models.generate_content(
+                        model=fb, contents=user, config=config,
+                    )
+                    return getattr(response, "text", "") or ""
+                except Exception:
+                    continue
             _reraise_with_hint(last_exc, resolved)
         return ""
 

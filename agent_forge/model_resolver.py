@@ -223,7 +223,7 @@ _GOOGLE_FAMILIES = {
 
 _GOOGLE_FALLBACKS = {
     "pro":         "gemini-3.1-pro-preview",
-    "flash":       "gemini-2.5-flash",
+    "flash":       "gemini-3.5-flash",
     "flash-lite":  "gemini-3.1-flash-lite",
 }
 

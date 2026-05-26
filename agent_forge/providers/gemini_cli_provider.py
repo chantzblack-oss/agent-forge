@@ -30,7 +30,7 @@ _GEMINI_PATH: str | None = shutil.which("gemini")
 _MODEL_ALIASES: dict[str, str] = {
     "default":    "gemini-3.1-pro-preview",
     "pro":        "gemini-3.1-pro-preview",
-    "flash":      "gemini-2.5-flash",
+    "flash":      "gemini-3.5-flash",
     "flash-lite": "gemini-3.1-flash-lite",
 }
 

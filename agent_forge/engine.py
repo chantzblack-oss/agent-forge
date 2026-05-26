@@ -1394,7 +1394,8 @@ class Orchestrator:
           1. Explicit [DIRECT @X: ...] request
           2. Last-resort inline @mention of a teammate (other than self)
           3. Leader gets the floor back every ~3 turns to moderate
-          4. Round-robin through non-leaders, skipping the last speaker
+          4. Agents who haven't spoken yet (full-team participation)
+          5. True round-robin — least-recently-spoken non-leader
         """
         import re as _re
 
@@ -1414,11 +1415,25 @@ class Orchestrator:
         recent = [e for e in self._transcript if e.get("role")][-3:]
         if last_speaker != leader_name and all(e["agent"] != leader_name for e in recent):
             return leader_name
-        # 4. Round-robin (skip last speaker)
+        # 4. Unspoken agents — every team member speaks at least once
+        spoken = {e["agent"] for e in self._transcript}
+        unspoken = [
+            n for n in team.round_order
+            if n != leader_name and n not in spoken
+        ]
+        if unspoken:
+            return unspoken[0]
+        # 5. True round-robin — pick whoever spoke least recently
         non_leader = [
             n for n in team.round_order if n != leader_name and n != last_speaker
         ]
         if non_leader:
+            def _last_turn(name: str) -> int:
+                for i in range(len(self._transcript) - 1, -1, -1):
+                    if self._transcript[i]["agent"] == name:
+                        return i
+                return -1
+            non_leader.sort(key=_last_turn)
             return non_leader[0]
         return leader_name
 
@@ -1445,11 +1460,25 @@ class Orchestrator:
         )
 
         if is_opening and agent.role == "leader":
+            _team = self._team
+            workers = [
+                a.name for a in (getattr(_team, "agents", None) or [])
+                if a.role != "leader" and a.role != "critic"
+            ]
+            if len(workers) > 1:
+                worker_list = ", ".join(workers)
+                return (
+                    f"{r} You are OPENING the deliberation.  Read {focus} and "
+                    f"frame the question sharply.  Then give EACH analyst a "
+                    f"DIFFERENT task using [DIRECT @Name: task] — one per "
+                    f"analyst ({worker_list}).  Every analyst must get an "
+                    f"assignment.  Under 200 words."
+                )
             return (
                 f"{r} You are OPENING the deliberation.  Read {focus} and "
                 f"frame the question sharply — if it's vague, reframe it into "
                 f"something the team can actually answer well.  Then call on "
-                f"ONE teammate using [DIRECT @Name: specific task] to kick "
+                f"a teammate using [DIRECT @Name: specific task] to kick "
                 f"things off.  Under 150 words."
             )
 

@@ -913,8 +913,10 @@ class Orchestrator:
             # Round recap
             self._print_round_recap(round_num)
 
-            # Convergence detection — stop early if critics approve + leader implicit consensus
-            if round_num < team.max_rounds and self._check_convergence(round_num):
+            # Convergence detection — stop early if critics approve + leader implicit consensus.
+            # Never converge on round 1 of a multi-round team — force at least 2 rounds.
+            min_rounds_before_converge = min(2, team.max_rounds)
+            if round_num >= min_rounds_before_converge and round_num < team.max_rounds and self._check_convergence(round_num):
                 self.console.print(
                     "\n  [bold bright_green]✓ Team converged — stopping early.[/]"
                 )
@@ -2170,8 +2172,9 @@ class Orchestrator:
                 f"Instead:\n"
                 f"- Identify patterns across contributions that no single agent surfaced\n"
                 f"- Resolve contradictions with evidence-based judgment calls\n"
-                f"- Note the 1-2 specific gaps remaining for next round\n"
-                f"Under 600 words. If the result is strong enough, say [COMPLETE]."
+                f"- List the 2-3 specific gaps or weaknesses the team must address next round\n\n"
+                f"Do NOT say [COMPLETE] — there are more rounds remaining and the team "
+                f"has not gone deep enough yet. Under 600 words."
             )
 
         # ── WORKERS ──
@@ -2221,6 +2224,11 @@ class Orchestrator:
                     f"4. If you spot any unsourced claims, verify them with a quick web search\n\n"
                     f"Do NOT ask for more rounds. Say [APPROVED]. Under 300 words."
                 )
+            no_approve = (
+                f"\n\nDo NOT say [APPROVED] yet — there are {max_rounds - round_num} "
+                f"round(s) remaining. Push the team harder."
+                if round_num < max_rounds else ""
+            )
             return (
                 f"{r} Review the team's work with the rigor of a top-tier peer reviewer.\n\n"
                 f"Structure your review:\n"
@@ -2229,7 +2237,7 @@ class Orchestrator:
                 f"2. LOGIC CHECK: Flag reasoning gaps, unsupported leaps, or strawman arguments\n"
                 f"3. CONSTRUCTIVE FIXES: For each problem, give a specific fix direction\n"
                 f"4. STRENGTHS: Acknowledge what's genuinely strong — specifics, not flattery\n\n"
-                f"Limit to the 3-4 most impactful improvements. Under 400 words."
+                f"Limit to the 3-4 most impactful improvements. Under 400 words.{no_approve}"
             )
 
         return f"{r} Contribute to the team's goal."

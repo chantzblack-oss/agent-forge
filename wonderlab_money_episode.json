@@ -1,0 +1,1241 @@
+{
+  "run_id": "wonderlab_money_20260608_133305",
+  "topic": "Money",
+  "mode": "deep",
+  "stages": [
+    {
+      "stage": "topic-intake",
+      "agent_role": "Narrative Director",
+      "summary": "Converted the topic into a central mystery and episode promise.",
+      "artifact_ids": [
+        "central_mystery"
+      ]
+    },
+    {
+      "stage": "research-dossier",
+      "agent_role": "Research Swarm",
+      "summary": "Loaded a seeded Money dossier with claims, sources, concepts, and controversies.",
+      "artifact_ids": [
+        "claim-money-social-technology",
+        "claim-barter-origin-disputed",
+        "claim-states-shape-currency",
+        "claim-bank-deposit-creation",
+        "claim-bank-runs-speed-trust",
+        "claim-inflation-system",
+        "claim-crypto-protocol-trust"
+      ]
+    },
+    {
+      "stage": "source-verification",
+      "agent_role": "Citation Auditor",
+      "summary": "1 access-blocked, 1 manual-packet, 2 verified, 1 verified-pdf",
+      "artifact_ids": [
+        "src-imf-what-is-money",
+        "src-boe-money-creation",
+        "src-fed-money-supply",
+        "src-graeber-debt",
+        "src-bitcoin-whitepaper"
+      ]
+    },
+    {
+      "stage": "scene-compiler",
+      "agent_role": "Interaction Designer",
+      "summary": "Compiled dossier claims into documentary scenes and simulation blueprints.",
+      "artifact_ids": [
+        "scene-intro",
+        "scene-barter-game",
+        "scene-debt-ledgers",
+        "scene-states-armies",
+        "scene-banking-trust",
+        "scene-bank-run",
+        "scene-inflation-lab",
+        "scene-debate",
+        "scene-crypto-debate",
+        "scene-source-lens",
+        "scene-synthesis"
+      ]
+    },
+    {
+      "stage": "eval-gauntlet",
+      "agent_role": "Citation Auditor",
+      "summary": "Checked claim-source-scene linkage and flagged source verification as the next gate.",
+      "artifact_ids": [
+        "eval_report"
+      ]
+    }
+  ],
+  "dossier": {
+    "topic": "Money",
+    "central_mystery": "Why do paper, metal, and database entries command real labor, power, and belief?",
+    "one_sentence_thesis": "Money works because societies continually convert trust into shared accounting systems.",
+    "key_questions": [
+      "What problem does money solve better than barter?",
+      "Why do debt, states, and banks matter as much as coins?",
+      "When does monetary trust break?",
+      "What changes when money becomes software?"
+    ],
+    "timeline": [
+      {
+        "id": "time-barter-puzzle",
+        "label": "The barter puzzle",
+        "period": "Teaching model",
+        "description": "A simple market shows why direct trade can fail.",
+        "claim_ids": [
+          "claim-barter-origin-disputed"
+        ]
+      },
+      {
+        "id": "time-ledgers",
+        "label": "Debt and ledgers",
+        "period": "Ancient to modern",
+        "description": "Accounts, obligations, and credit make exchange possible without immediate barter.",
+        "claim_ids": [
+          "claim-barter-origin-disputed",
+          "claim-states-shape-currency"
+        ]
+      },
+      {
+        "id": "time-modern-banking",
+        "label": "Modern bank money",
+        "period": "Modern era",
+        "description": "Banks expand money-like deposits through lending and trust.",
+        "claim_ids": [
+          "claim-bank-deposit-creation",
+          "claim-bank-runs-speed-trust"
+        ]
+      },
+      {
+        "id": "time-digital-money",
+        "label": "Protocol money",
+        "period": "2008 onward",
+        "description": "Crypto shifts the trust question toward code, networks, and governance.",
+        "claim_ids": [
+          "claim-crypto-protocol-trust"
+        ]
+      }
+    ],
+    "core_concepts": [
+      {
+        "id": "concept-unit-account",
+        "label": "Unit of account",
+        "explanation": "A shared measuring stick for prices, debts, and economic memory.",
+        "claim_ids": [
+          "claim-money-social-technology"
+        ]
+      },
+      {
+        "id": "concept-liquidity",
+        "label": "Liquidity",
+        "explanation": "How quickly an asset can become spendable without a painful discount.",
+        "claim_ids": [
+          "claim-bank-runs-speed-trust"
+        ]
+      },
+      {
+        "id": "concept-expectations",
+        "label": "Expectations",
+        "explanation": "Beliefs about future prices can change behavior now.",
+        "claim_ids": [
+          "claim-inflation-system"
+        ]
+      }
+    ],
+    "misconceptions": [
+      "Money is just valuable because the material is valuable.",
+      "Banks only lend out cash that savers already deposited.",
+      "Inflation has one simple cause in every context.",
+      "Crypto removes trust from money."
+    ],
+    "controversies": [
+      "Barter-first origin story versus credit/debt-first accounts.",
+      "How much state power versus private exchange explains money's rise.",
+      "Whether protocol trust can outperform institutional trust."
+    ],
+    "claim_ledger": [
+      {
+        "id": "claim-money-social-technology",
+        "text": "Money is a social technology for storing value, moving value through time, and coordinating trust among strangers.",
+        "claim_type": "definition",
+        "confidence": "high",
+        "sources": [
+          "src-imf-what-is-money"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-imf-what-is-money",
+            "summary": "IMF Back to Basics explains money through store-of-value, unit-of-account, and medium-of-exchange functions.",
+            "quote": "money can be anything that can serve as a",
+            "locator": "IMF F&D Back to Basics, opening definition",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "Institutional explanations commonly define money through store-of-value, medium-of-exchange, and unit-of-account functions."
+        ],
+        "counterpoints": [],
+        "used_in_scenes": [
+          "scene-intro",
+          "scene-source-lens",
+          "scene-synthesis"
+        ]
+      },
+      {
+        "id": "claim-barter-origin-disputed",
+        "text": "The simple story that money naturally emerged from barter is useful as a teaching device but disputed as a universal history.",
+        "claim_type": "controversial",
+        "confidence": "medium",
+        "sources": [
+          "src-imf-what-is-money",
+          "src-graeber-debt"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-imf-what-is-money",
+            "summary": "IMF presents barter as a teaching model for why money helps indirect exchange.",
+            "quote": "",
+            "locator": "IMF F&D Back to Basics, barter section",
+            "verification_status": "seeded"
+          },
+          {
+            "source_id": "src-graeber-debt",
+            "summary": "Manual packet lane: Graeber is used for the debt/credit critique of simple barter-origin stories.",
+            "quote": "",
+            "locator": "",
+            "verification_status": "manual-packet"
+          }
+        ],
+        "supporting_evidence": [
+          "Textbook explanations often begin with barter, while anthropological critiques emphasize debt, credit, and obligation."
+        ],
+        "counterpoints": [
+          "Barter can still appear in specific settings, especially where money is scarce or institutions break down."
+        ],
+        "used_in_scenes": [
+          "scene-barter-game",
+          "scene-debt-ledgers",
+          "scene-debate"
+        ]
+      },
+      {
+        "id": "claim-states-shape-currency",
+        "text": "States, taxation, military logistics, and legal authority have often helped standardize and enforce monetary systems.",
+        "claim_type": "historical",
+        "confidence": "medium",
+        "sources": [
+          "src-graeber-debt"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-graeber-debt",
+            "summary": "Manual packet lane: this interpretive claim needs page-level book evidence before public release.",
+            "quote": "",
+            "locator": "",
+            "verification_status": "manual-packet"
+          }
+        ],
+        "supporting_evidence": [
+          "The episode treats state power as one major driver, not the only origin story."
+        ],
+        "counterpoints": [
+          "Private credit, commodity money, and local exchange networks can also generate monetary practices."
+        ],
+        "used_in_scenes": [
+          "scene-debt-ledgers",
+          "scene-states-armies",
+          "scene-debate"
+        ]
+      },
+      {
+        "id": "claim-bank-deposit-creation",
+        "text": "In modern banking systems, commercial banks create deposits when they issue loans; lending is not simply relending existing cash.",
+        "claim_type": "economic",
+        "confidence": "high",
+        "sources": [
+          "src-boe-money-creation"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-boe-money-creation",
+            "summary": "Bank of England explains that commercial-bank lending creates deposits in modern money systems.",
+            "quote": "commercial banks create money, in the form of bank deposits",
+            "locator": "Bank of England Quarterly Bulletin 2014 Q1",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "Central bank educational material explicitly describes bank lending as creating deposits."
+        ],
+        "counterpoints": [],
+        "used_in_scenes": [
+          "scene-banking-trust",
+          "scene-bank-run"
+        ]
+      },
+      {
+        "id": "claim-bank-runs-speed-trust",
+        "text": "A bank run is a trust and liquidity crisis: withdrawals can outpace liquid reserves even when a bank owns longer-term assets.",
+        "claim_type": "economic",
+        "confidence": "high",
+        "sources": [
+          "src-boe-money-creation"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-boe-money-creation",
+            "summary": "Bank of England material distinguishes bank deposits, central-bank money, and liquidity constraints.",
+            "quote": "",
+            "locator": "Bank of England Quarterly Bulletin 2014 Q1",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "The simulation separates liquid reserves from longer-term assets so the timing problem becomes visible."
+        ],
+        "counterpoints": [],
+        "used_in_scenes": [
+          "scene-bank-run",
+          "scene-synthesis"
+        ]
+      },
+      {
+        "id": "claim-inflation-system",
+        "text": "Inflation is better taught as a system involving money supply, goods supply, spending velocity, shocks, and expectations.",
+        "claim_type": "economic",
+        "confidence": "medium",
+        "sources": [
+          "src-fed-money-supply"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-fed-money-supply",
+            "summary": "Federal Reserve material defines money supply concepts used as one input in the educational inflation model.",
+            "quote": "",
+            "locator": "Federal Reserve money supply FAQ",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "The episode uses a simplified slider model to show interacting pressures rather than one-cause explanations."
+        ],
+        "counterpoints": [
+          "Different schools of economics weight monetary, supply-side, and expectation channels differently."
+        ],
+        "used_in_scenes": [
+          "scene-inflation-lab",
+          "scene-debate",
+          "scene-synthesis"
+        ]
+      },
+      {
+        "id": "claim-crypto-protocol-trust",
+        "text": "Crypto reframes the money question from institutional trust to protocol trust, but it does not eliminate trust altogether.",
+        "claim_type": "interpretive",
+        "confidence": "medium",
+        "sources": [
+          "src-bitcoin-whitepaper"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-bitcoin-whitepaper",
+            "summary": "The Bitcoin whitepaper frames the system as peer-to-peer electronic cash, supporting the protocol-trust scene.",
+            "quote": "peer-to-peer version of electronic cash",
+            "locator": "Bitcoin whitepaper abstract",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "The white paper proposes a peer-to-peer payment system, while users still rely on software, governance, exchanges, wallets, and social consensus."
+        ],
+        "counterpoints": [
+          "Crypto advocates and skeptics disagree over whether protocol trust is a stronger or weaker foundation than institutional trust."
+        ],
+        "used_in_scenes": [
+          "scene-crypto-debate",
+          "scene-synthesis"
+        ]
+      }
+    ],
+    "source_graph": [
+      {
+        "id": "src-imf-what-is-money",
+        "title": "Money: At the Center of Transactions",
+        "source_type": "institutional",
+        "publisher": "International Monetary Fund",
+        "year": "2012",
+        "url": "https://www.imf.org/en/Publications/fandd/issues/Series/Back-to-Basics/Money",
+        "notes": "Seed reference for money functions and basic monetary concepts.",
+        "verification_status": "access-blocked",
+        "verified_title": "",
+        "verification_excerpt": "",
+        "verification_error": "URL returned HTTP 403; automated verifier could not read it.",
+        "checked_at": "2026-06-08T13:33:03"
+      },
+      {
+        "id": "src-boe-money-creation",
+        "title": "Money creation in the modern economy",
+        "source_type": "institutional",
+        "publisher": "Bank of England Quarterly Bulletin",
+        "year": "2014",
+        "url": "https://www.bankofengland.co.uk/quarterly-bulletin/2014/q1/money-creation-in-the-modern-economy",
+        "notes": "Seed reference for bank deposit creation.",
+        "verification_status": "verified",
+        "verified_title": "Money creation in the modern economy | Bank of England",
+        "verification_excerpt": "Money creation in the modern economy | Bank of England Our use of cookies We use necessary cookies to make our site work. We’d also like to use some non-essential cookies (including third-party cookies) to help us improve the site. By clicking ‘Accept recommended settings’ on this banner, you accept our use of analytics cookies. For more information on how t",
+        "verification_error": "",
+        "checked_at": "2026-06-08T13:33:03"
+      },
+      {
+        "id": "src-fed-money-supply",
+        "title": "Federal Reserve money supply FAQ",
+        "source_type": "institutional",
+        "publisher": "Federal Reserve",
+        "year": "",
+        "url": "https://www.federalreserve.gov/faqs/money_12845.htm",
+        "notes": "Seed reference for money supply concepts.",
+        "verification_status": "verified",
+        "verified_title": "The Fed - What is the money supply? Is it important?",
+        "verification_excerpt": "﻿ The Fed - What is the money supply? Is it important? Skip to main content An official website of the United States Government Here's how you know Official websites use .gov A .gov website belongs to an official government organization in the United States. Secure .gov websites use HTTPS A lock ( Lock Locked padlock icon ) or https:// means you've safely co",
+        "verification_error": "",
+        "checked_at": "2026-06-08T13:33:03"
+      },
+      {
+        "id": "src-graeber-debt",
+        "title": "Debt: The First 5,000 Years",
+        "source_type": "book",
+        "publisher": "Melville House",
+        "year": "2011",
+        "url": "",
+        "notes": "Seed reference for the debt/credit critique of simple barter-origin stories.",
+        "verification_status": "manual-packet",
+        "verified_title": "Debt: The First 5,000 Years",
+        "verification_excerpt": "Manual source packet scaffold. Add page-level excerpts from the book before publishing claims that rely on Graeber's barter/debt critique.",
+        "verification_error": "Book source requires curator-entered page evidence.",
+        "checked_at": "2026-06-08T13:33:03"
+      },
+      {
+        "id": "src-bitcoin-whitepaper",
+        "title": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+        "source_type": "primary",
+        "publisher": "Satoshi Nakamoto",
+        "year": "2008",
+        "url": "https://bitcoin.org/bitcoin.pdf",
+        "notes": "Seed primary source for protocol-trust framing.",
+        "verification_status": "verified-pdf",
+        "verified_title": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+        "verification_excerpt": "â·j7wûÏ·ßÛ} ôK¸eÈ~ \u000f¶\u0002ñÀ±D²-ÎOÖÆ\u0016\"Ù¤0ôs%¨Þ\u001bs­º?_ÓÛ.8ÄÜd\u0017sU§pÔ\\_ÁlCöX\u0018òÜ ½|¯\u0000±îÛh8ºè a 1»'ñZ©÷¶\u0004BÙ¨° nÖ n²÷\u0019Ëf'& }¬O\u0011$V·¶ÂÅÙÑé]TÊµnü½\u0000¥´ ô\b®Pwî {«\u0010HÇ\u000e\u0007¨9_±!\u0013ù_BfËCDQ!I\"Y%Û^\u0017'ÈÅý]i\u0017ì$ßø\"ÇK~[æ²9\u0010 Åî¡åÙ½UÕ´0ÕÙxòç\"\u0014X{\u000e+Wwv»yz!ÅdÚ\u0011;¾\u0015E}¬ß}\u001a´ë/RtÁ¨¦uÄ©¥\u0019Pp  '©ÐD× ÿKÈ¬nZ¿S§Ê j T>iJçdxk7Å2[2g¨$Vy\u000eàô¤ò¯kÔ&\u0003nÂ+8×ÞrH@ÇLY÷>¾X;àóAû",
+        "verification_error": "",
+        "checked_at": "2026-06-08T13:33:03"
+      }
+    ],
+    "disagreements": [
+      {
+        "claim_id": "claim-barter-origin-disputed",
+        "disagreement_type": "framing",
+        "model_positions": [
+          {
+            "model": "GeminiScout",
+            "position": "Use barter as the opening intuition because users recognize the coordination problem.",
+            "evidence": [
+              "src-imf-what-is-money"
+            ]
+          },
+          {
+            "model": "ClaudeCritic",
+            "position": "Do not imply barter is the established historical origin; show debt and obligation early.",
+            "evidence": [
+              "src-graeber-debt"
+            ]
+          },
+          {
+            "model": "ChatGPTDirector",
+            "position": "Turn the disagreement into a playable myth-vs-reality sequence.",
+            "evidence": [
+              "claim-barter-origin-disputed"
+            ]
+          }
+        ],
+        "resolution": "shown-as-controversy",
+        "summary": "The episode starts with barter as a puzzle, then immediately complicates it."
+      },
+      {
+        "claim_id": "claim-inflation-system",
+        "disagreement_type": "emphasis",
+        "model_positions": [
+          {
+            "model": "GeminiScout",
+            "position": "Foreground central-bank and money-supply explanations.",
+            "evidence": [
+              "src-fed-money-supply"
+            ]
+          },
+          {
+            "model": "ClaudeCritic",
+            "position": "Prevent the slider from implying a single universal inflation formula.",
+            "evidence": [
+              "claim-inflation-system"
+            ]
+          },
+          {
+            "model": "ChatGPTDirector",
+            "position": "Use the lab as a mental model, not a prediction engine.",
+            "evidence": [
+              "claim-inflation-system"
+            ]
+          }
+        ],
+        "resolution": "downgraded",
+        "summary": "The scene labels the simulation as educational and keeps uncertainty visible."
+      }
+    ],
+    "visual_opportunities": [
+      "A dark museum-like wall of price tags becoming a ledger.",
+      "A market map where failed barter links light up red.",
+      "A bank balance sheet that drains as confidence falls.",
+      "An inflation control board with linked sliders and visible tradeoffs."
+    ],
+    "interaction_opportunities": [
+      "Barter mini-game",
+      "Bank-run reserve runway model",
+      "Inflation pressure slider lab",
+      "Trust-type debate chamber"
+    ],
+    "recommended_episode_structure": [
+      "Cinematic mystery",
+      "Barter puzzle",
+      "Debt and ledgers",
+      "States and armies",
+      "Banking and trust",
+      "Bank-run simulator",
+      "Inflation lab",
+      "Crypto debate",
+      "Source lens",
+      "Final synthesis challenge"
+    ]
+  },
+  "episode": {
+    "id": "episode-money-shared-fiction",
+    "title": "Money: The Shared Fiction That Runs the World",
+    "subtitle": "A playable documentary about trust, ledgers, banks, inflation, and protocol money.",
+    "topic": "Money",
+    "central_mystery": "Why do paper, metal, and database entries command real labor, power, and belief?",
+    "mode": "deep",
+    "scenes": [
+      {
+        "id": "scene-intro",
+        "title": "The Shared Fiction",
+        "scene_type": "cinematic-intro",
+        "learning_goal": "Make money feel strange before explaining it.",
+        "hook": "A number on a screen can move a ship, hire a surgeon, or start a war.",
+        "narration": [
+          "Why do paper, metal, and database entries command real labor, power, and belief?",
+          "The episode follows money as a trust machine: symbol, ledger, institution, and protocol."
+        ],
+        "visual_direction": "Full-bleed macro shots of coins, receipts, bank ledgers, payment terminals, and database rows cutting into a glowing account balance.",
+        "claims_used": [
+          "claim-money-social-technology"
+        ],
+        "source_refs": [
+          "src-imf-what-is-money"
+        ],
+        "estimated_reading_time_seconds": 55,
+        "interaction": null
+      },
+      {
+        "id": "scene-barter-game",
+        "title": "The Barter Trap",
+        "scene_type": "interactive-simulation",
+        "learning_goal": "Show why direct exchange breaks when wants do not align.",
+        "hook": "You have fish. You need shoes. The shoemaker wants grain.",
+        "narration": [
+          "Barter is a useful puzzle, but it is not the whole origin story.",
+          "The real lesson is coordination: money makes indirect exchange easier."
+        ],
+        "visual_direction": "A network of traders where successful matches glow and failed wants fade.",
+        "claims_used": [
+          "claim-barter-origin-disputed"
+        ],
+        "source_refs": [
+          "src-imf-what-is-money",
+          "src-graeber-debt"
+        ],
+        "estimated_reading_time_seconds": 90,
+        "interaction": {
+          "type": "barter-mini-game",
+          "title": "Find a trade path",
+          "variables": [
+            {
+              "id": "wants_overlap",
+              "label": "Wants overlap",
+              "min": 0,
+              "max": 1,
+              "default": 0.22,
+              "explanation": "How often two traders want what the other has."
+            },
+            {
+              "id": "trust",
+              "label": "Trust",
+              "min": 0,
+              "max": 1,
+              "default": 0.35,
+              "explanation": "How willing traders are to accept delayed or indirect value."
+            },
+            {
+              "id": "market_size",
+              "label": "Market size",
+              "min": 2,
+              "max": 100,
+              "default": 18,
+              "explanation": "How many possible counterparties exist."
+            }
+          ],
+          "outputs": {
+            "label": "Trade success",
+            "value": 25.0,
+            "unit": "percent",
+            "explanation": "Barter works when wants overlap, trust is high, and the market is large enough to find a counterparty."
+          },
+          "learning_reveal": "Money does not merely replace barter; it expands who can trade with whom.",
+          "renderer_hint": "Use a force-directed exchange graph with pathfinding feedback."
+        }
+      },
+      {
+        "id": "scene-debt-ledgers",
+        "title": "Before Coins, There Were Ledgers",
+        "scene_type": "scroll-story",
+        "learning_goal": "Introduce credit, debt, and accounting as monetary foundations.",
+        "hook": "A debt written down can move value before a coin ever changes hands.",
+        "narration": [
+          "Money is also memory: who owes what, to whom, and under whose authority.",
+          "This is why the barter-first story becomes more interesting when debt enters the room."
+        ],
+        "visual_direction": "Clay-tablet inspired entries transforming into modern database rows.",
+        "claims_used": [
+          "claim-barter-origin-disputed",
+          "claim-states-shape-currency"
+        ],
+        "source_refs": [
+          "src-imf-what-is-money",
+          "src-graeber-debt"
+        ],
+        "estimated_reading_time_seconds": 110,
+        "interaction": null
+      },
+      {
+        "id": "scene-states-armies",
+        "title": "Taxes, Armies, and Standard Coins",
+        "scene_type": "timeline",
+        "learning_goal": "Show how authority can standardize monetary systems.",
+        "hook": "A state can make money matter by demanding it back as taxes.",
+        "narration": [
+          "Markets matter, but so do laws, taxes, wages, armies, and courts.",
+          "Money becomes more powerful when institutions make it the official language of obligation."
+        ],
+        "visual_direction": "A horizontal timeline connecting minting, taxation, payroll, and legal tender.",
+        "claims_used": [
+          "claim-states-shape-currency"
+        ],
+        "source_refs": [
+          "src-graeber-debt"
+        ],
+        "estimated_reading_time_seconds": 85,
+        "interaction": null
+      },
+      {
+        "id": "scene-banking-trust",
+        "title": "The Money Banks Create",
+        "scene_type": "systems-diagram",
+        "learning_goal": "Make deposit creation legible without pretending banks are magic.",
+        "hook": "A loan can create a deposit before anyone prints new cash.",
+        "narration": [
+          "Modern money is partly created through bank balance sheets.",
+          "That makes trust, regulation, and liquidity part of the monetary machine."
+        ],
+        "visual_direction": "Split balance-sheet animation: loan asset appears as deposit liability.",
+        "claims_used": [
+          "claim-bank-deposit-creation"
+        ],
+        "source_refs": [
+          "src-boe-money-creation"
+        ],
+        "estimated_reading_time_seconds": 100,
+        "interaction": null
+      },
+      {
+        "id": "scene-bank-run",
+        "title": "How Trust Breaks Fast",
+        "scene_type": "interactive-simulation",
+        "learning_goal": "Let users feel the speed of a liquidity crisis.",
+        "hook": "The danger is not only how much money leaves. It is how fast.",
+        "narration": [
+          "A bank run compresses trust failure into hours or days.",
+          "Liquid reserves buy time; panic spends it."
+        ],
+        "visual_direction": "A reserve tank draining into withdrawal streams while long-term assets stay locked.",
+        "claims_used": [
+          "claim-bank-runs-speed-trust",
+          "claim-bank-deposit-creation"
+        ],
+        "source_refs": [
+          "src-boe-money-creation"
+        ],
+        "estimated_reading_time_seconds": 95,
+        "interaction": {
+          "type": "bank-run-model",
+          "title": "Reserve runway",
+          "variables": [
+            {
+              "id": "reserve_ratio",
+              "label": "Reserve ratio",
+              "min": 0.01,
+              "max": 0.5,
+              "default": 0.12,
+              "explanation": "Liquid reserves as a share of deposits."
+            },
+            {
+              "id": "daily_withdrawal_rate",
+              "label": "Daily withdrawals",
+              "min": 0.01,
+              "max": 0.4,
+              "default": 0.08,
+              "explanation": "Share of deposits customers try to withdraw each day."
+            },
+            {
+              "id": "confidence_shock",
+              "label": "Confidence shock",
+              "min": 0,
+              "max": 1,
+              "default": 0.6,
+              "explanation": "Panic multiplier on normal withdrawals."
+            }
+          ],
+          "outputs": {
+            "label": "Reserve runway",
+            "value": 0.9,
+            "unit": "days",
+            "explanation": "A bank run is a speed problem: even a bank with assets can fail if liquid reserves leave faster than assets can be sold or financed."
+          },
+          "learning_reveal": "Liquidity is time. Trust decides how quickly time disappears.",
+          "renderer_hint": "Use a balance-sheet panel beside an animated reserve gauge."
+        }
+      },
+      {
+        "id": "scene-inflation-lab",
+        "title": "Inflation Is a System",
+        "scene_type": "interactive-simulation",
+        "learning_goal": "Replace one-cause inflation stories with a multi-variable mental model.",
+        "hook": "Move one slider and prices twitch. Move four and the system starts talking.",
+        "narration": [
+          "This lab is not a forecast; it is a map of pressures.",
+          "Money, goods, velocity, shocks, and expectations push on prices together."
+        ],
+        "visual_direction": "A control room with four sliders feeding a pressure gauge and price index trail.",
+        "claims_used": [
+          "claim-inflation-system"
+        ],
+        "source_refs": [
+          "src-fed-money-supply"
+        ],
+        "estimated_reading_time_seconds": 100,
+        "interaction": {
+          "type": "inflation-pressure-model",
+          "title": "Price pressure board",
+          "variables": [
+            {
+              "id": "money_growth",
+              "label": "Money growth",
+              "min": -0.05,
+              "max": 0.25,
+              "default": 0.08,
+              "explanation": "How quickly the money supply expands."
+            },
+            {
+              "id": "goods_growth",
+              "label": "Goods growth",
+              "min": -0.05,
+              "max": 0.15,
+              "default": 0.02,
+              "explanation": "How quickly goods and services supply expands."
+            },
+            {
+              "id": "velocity_change",
+              "label": "Velocity",
+              "min": -0.1,
+              "max": 0.2,
+              "default": 0.03,
+              "explanation": "How quickly money changes hands."
+            },
+            {
+              "id": "expectations_shock",
+              "label": "Expectations",
+              "min": -0.1,
+              "max": 0.2,
+              "default": 0.04,
+              "explanation": "How strongly people expect prices to rise."
+            }
+          ],
+          "outputs": {
+            "label": "Inflation pressure",
+            "value": 0.11,
+            "unit": "index",
+            "explanation": "The model keeps the key lesson visible: prices respond to money, goods, spending speed, and expectations together."
+          },
+          "learning_reveal": "Inflation debates are often fights over which pressure deserves the most weight.",
+          "renderer_hint": "Use linked sliders, a gauge, and a small uncertainty band."
+        }
+      },
+      {
+        "id": "scene-debate",
+        "title": "Why Smart People Disagree",
+        "scene_type": "debate",
+        "learning_goal": "Make disagreement legible instead of smoothing it away.",
+        "hook": "The history of money is partly a fight over which story gets to be called obvious.",
+        "narration": [
+          "Wonderlab does not hide interpretive conflict.",
+          "This room separates factual disputes, framing disputes, and emphasis disputes."
+        ],
+        "visual_direction": "Three debate lanes for source scout, research critic, and synthesis director, with the resolved episode choice highlighted at the bottom.",
+        "claims_used": [
+          "claim-barter-origin-disputed",
+          "claim-states-shape-currency",
+          "claim-inflation-system"
+        ],
+        "source_refs": [
+          "src-imf-what-is-money",
+          "src-graeber-debt",
+          "src-fed-money-supply"
+        ],
+        "estimated_reading_time_seconds": 105,
+        "interaction": null
+      },
+      {
+        "id": "scene-crypto-debate",
+        "title": "Protocol Trust",
+        "scene_type": "debate",
+        "learning_goal": "Frame crypto as a trust tradeoff, not trustlessness.",
+        "hook": "What if the institution is replaced by code, but the code still needs people?",
+        "narration": [
+          "Crypto changes who or what users trust.",
+          "The debate is whether that substitution solves more problems than it creates."
+        ],
+        "visual_direction": "Two-column debate chamber: institutional trust versus protocol trust.",
+        "claims_used": [
+          "claim-crypto-protocol-trust"
+        ],
+        "source_refs": [
+          "src-bitcoin-whitepaper"
+        ],
+        "estimated_reading_time_seconds": 95,
+        "interaction": null
+      },
+      {
+        "id": "scene-source-lens",
+        "title": "Show Me the Evidence",
+        "scene_type": "source-gallery",
+        "learning_goal": "Expose claims, confidence, and sources without derailing the story.",
+        "hook": "Every glowing claim has wiring behind the wall.",
+        "narration": [
+          "The source lens lets users inspect what the episode asserts, what supports it, and what remains disputed."
+        ],
+        "visual_direction": "Claim cards connected to source cards and controversy markers.",
+        "claims_used": [
+          "claim-money-social-technology",
+          "claim-barter-origin-disputed",
+          "claim-states-shape-currency",
+          "claim-bank-deposit-creation",
+          "claim-bank-runs-speed-trust",
+          "claim-inflation-system",
+          "claim-crypto-protocol-trust"
+        ],
+        "source_refs": [
+          "src-imf-what-is-money",
+          "src-boe-money-creation",
+          "src-fed-money-supply",
+          "src-graeber-debt",
+          "src-bitcoin-whitepaper"
+        ],
+        "estimated_reading_time_seconds": 120,
+        "interaction": null
+      },
+      {
+        "id": "scene-synthesis",
+        "title": "What Money Really Buys",
+        "scene_type": "synthesis-challenge",
+        "learning_goal": "Ask the user to synthesize money as trust, memory, power, and protocol.",
+        "hook": "Design a new money. What do people have to believe for it to work?",
+        "narration": [
+          "Money works because societies continually convert trust into shared accounting systems.",
+          "The final challenge asks users to choose which trust failures their money system can survive."
+        ],
+        "visual_direction": "A final design board where the user's choices light up risks and tradeoffs.",
+        "claims_used": [
+          "claim-money-social-technology",
+          "claim-bank-runs-speed-trust",
+          "claim-inflation-system",
+          "claim-crypto-protocol-trust"
+        ],
+        "source_refs": [
+          "src-imf-what-is-money",
+          "src-boe-money-creation",
+          "src-fed-money-supply",
+          "src-bitcoin-whitepaper"
+        ],
+        "estimated_reading_time_seconds": 120,
+        "interaction": null
+      }
+    ],
+    "claim_ledger": [
+      {
+        "id": "claim-money-social-technology",
+        "text": "Money is a social technology for storing value, moving value through time, and coordinating trust among strangers.",
+        "claim_type": "definition",
+        "confidence": "high",
+        "sources": [
+          "src-imf-what-is-money"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-imf-what-is-money",
+            "summary": "IMF Back to Basics explains money through store-of-value, unit-of-account, and medium-of-exchange functions.",
+            "quote": "money can be anything that can serve as a",
+            "locator": "IMF F&D Back to Basics, opening definition",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "Institutional explanations commonly define money through store-of-value, medium-of-exchange, and unit-of-account functions."
+        ],
+        "counterpoints": [],
+        "used_in_scenes": [
+          "scene-intro",
+          "scene-source-lens",
+          "scene-synthesis"
+        ]
+      },
+      {
+        "id": "claim-barter-origin-disputed",
+        "text": "The simple story that money naturally emerged from barter is useful as a teaching device but disputed as a universal history.",
+        "claim_type": "controversial",
+        "confidence": "medium",
+        "sources": [
+          "src-imf-what-is-money",
+          "src-graeber-debt"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-imf-what-is-money",
+            "summary": "IMF presents barter as a teaching model for why money helps indirect exchange.",
+            "quote": "",
+            "locator": "IMF F&D Back to Basics, barter section",
+            "verification_status": "seeded"
+          },
+          {
+            "source_id": "src-graeber-debt",
+            "summary": "Manual packet lane: Graeber is used for the debt/credit critique of simple barter-origin stories.",
+            "quote": "",
+            "locator": "",
+            "verification_status": "manual-packet"
+          }
+        ],
+        "supporting_evidence": [
+          "Textbook explanations often begin with barter, while anthropological critiques emphasize debt, credit, and obligation."
+        ],
+        "counterpoints": [
+          "Barter can still appear in specific settings, especially where money is scarce or institutions break down."
+        ],
+        "used_in_scenes": [
+          "scene-barter-game",
+          "scene-debt-ledgers",
+          "scene-debate"
+        ]
+      },
+      {
+        "id": "claim-states-shape-currency",
+        "text": "States, taxation, military logistics, and legal authority have often helped standardize and enforce monetary systems.",
+        "claim_type": "historical",
+        "confidence": "medium",
+        "sources": [
+          "src-graeber-debt"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-graeber-debt",
+            "summary": "Manual packet lane: this interpretive claim needs page-level book evidence before public release.",
+            "quote": "",
+            "locator": "",
+            "verification_status": "manual-packet"
+          }
+        ],
+        "supporting_evidence": [
+          "The episode treats state power as one major driver, not the only origin story."
+        ],
+        "counterpoints": [
+          "Private credit, commodity money, and local exchange networks can also generate monetary practices."
+        ],
+        "used_in_scenes": [
+          "scene-debt-ledgers",
+          "scene-states-armies",
+          "scene-debate"
+        ]
+      },
+      {
+        "id": "claim-bank-deposit-creation",
+        "text": "In modern banking systems, commercial banks create deposits when they issue loans; lending is not simply relending existing cash.",
+        "claim_type": "economic",
+        "confidence": "high",
+        "sources": [
+          "src-boe-money-creation"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-boe-money-creation",
+            "summary": "Bank of England explains that commercial-bank lending creates deposits in modern money systems.",
+            "quote": "commercial banks create money, in the form of bank deposits",
+            "locator": "Bank of England Quarterly Bulletin 2014 Q1",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "Central bank educational material explicitly describes bank lending as creating deposits."
+        ],
+        "counterpoints": [],
+        "used_in_scenes": [
+          "scene-banking-trust",
+          "scene-bank-run"
+        ]
+      },
+      {
+        "id": "claim-bank-runs-speed-trust",
+        "text": "A bank run is a trust and liquidity crisis: withdrawals can outpace liquid reserves even when a bank owns longer-term assets.",
+        "claim_type": "economic",
+        "confidence": "high",
+        "sources": [
+          "src-boe-money-creation"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-boe-money-creation",
+            "summary": "Bank of England material distinguishes bank deposits, central-bank money, and liquidity constraints.",
+            "quote": "",
+            "locator": "Bank of England Quarterly Bulletin 2014 Q1",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "The simulation separates liquid reserves from longer-term assets so the timing problem becomes visible."
+        ],
+        "counterpoints": [],
+        "used_in_scenes": [
+          "scene-bank-run",
+          "scene-synthesis"
+        ]
+      },
+      {
+        "id": "claim-inflation-system",
+        "text": "Inflation is better taught as a system involving money supply, goods supply, spending velocity, shocks, and expectations.",
+        "claim_type": "economic",
+        "confidence": "medium",
+        "sources": [
+          "src-fed-money-supply"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-fed-money-supply",
+            "summary": "Federal Reserve material defines money supply concepts used as one input in the educational inflation model.",
+            "quote": "",
+            "locator": "Federal Reserve money supply FAQ",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "The episode uses a simplified slider model to show interacting pressures rather than one-cause explanations."
+        ],
+        "counterpoints": [
+          "Different schools of economics weight monetary, supply-side, and expectation channels differently."
+        ],
+        "used_in_scenes": [
+          "scene-inflation-lab",
+          "scene-debate",
+          "scene-synthesis"
+        ]
+      },
+      {
+        "id": "claim-crypto-protocol-trust",
+        "text": "Crypto reframes the money question from institutional trust to protocol trust, but it does not eliminate trust altogether.",
+        "claim_type": "interpretive",
+        "confidence": "medium",
+        "sources": [
+          "src-bitcoin-whitepaper"
+        ],
+        "evidence": [
+          {
+            "source_id": "src-bitcoin-whitepaper",
+            "summary": "The Bitcoin whitepaper frames the system as peer-to-peer electronic cash, supporting the protocol-trust scene.",
+            "quote": "peer-to-peer version of electronic cash",
+            "locator": "Bitcoin whitepaper abstract",
+            "verification_status": "seeded"
+          }
+        ],
+        "supporting_evidence": [
+          "The white paper proposes a peer-to-peer payment system, while users still rely on software, governance, exchanges, wallets, and social consensus."
+        ],
+        "counterpoints": [
+          "Crypto advocates and skeptics disagree over whether protocol trust is a stronger or weaker foundation than institutional trust."
+        ],
+        "used_in_scenes": [
+          "scene-crypto-debate",
+          "scene-synthesis"
+        ]
+      }
+    ],
+    "source_graph": [
+      {
+        "id": "src-imf-what-is-money",
+        "title": "Money: At the Center of Transactions",
+        "source_type": "institutional",
+        "publisher": "International Monetary Fund",
+        "year": "2012",
+        "url": "https://www.imf.org/en/Publications/fandd/issues/Series/Back-to-Basics/Money",
+        "notes": "Seed reference for money functions and basic monetary concepts.",
+        "verification_status": "access-blocked",
+        "verified_title": "",
+        "verification_excerpt": "",
+        "verification_error": "URL returned HTTP 403; automated verifier could not read it.",
+        "checked_at": "2026-06-08T13:33:03"
+      },
+      {
+        "id": "src-boe-money-creation",
+        "title": "Money creation in the modern economy",
+        "source_type": "institutional",
+        "publisher": "Bank of England Quarterly Bulletin",
+        "year": "2014",
+        "url": "https://www.bankofengland.co.uk/quarterly-bulletin/2014/q1/money-creation-in-the-modern-economy",
+        "notes": "Seed reference for bank deposit creation.",
+        "verification_status": "verified",
+        "verified_title": "Money creation in the modern economy | Bank of England",
+        "verification_excerpt": "Money creation in the modern economy | Bank of England Our use of cookies We use necessary cookies to make our site work. We’d also like to use some non-essential cookies (including third-party cookies) to help us improve the site. By clicking ‘Accept recommended settings’ on this banner, you accept our use of analytics cookies. For more information on how t",
+        "verification_error": "",
+        "checked_at": "2026-06-08T13:33:03"
+      },
+      {
+        "id": "src-fed-money-supply",
+        "title": "Federal Reserve money supply FAQ",
+        "source_type": "institutional",
+        "publisher": "Federal Reserve",
+        "year": "",
+        "url": "https://www.federalreserve.gov/faqs/money_12845.htm",
+        "notes": "Seed reference for money supply concepts.",
+        "verification_status": "verified",
+        "verified_title": "The Fed - What is the money supply? Is it important?",
+        "verification_excerpt": "﻿ The Fed - What is the money supply? Is it important? Skip to main content An official website of the United States Government Here's how you know Official websites use .gov A .gov website belongs to an official government organization in the United States. Secure .gov websites use HTTPS A lock ( Lock Locked padlock icon ) or https:// means you've safely co",
+        "verification_error": "",
+        "checked_at": "2026-06-08T13:33:03"
+      },
+      {
+        "id": "src-graeber-debt",
+        "title": "Debt: The First 5,000 Years",
+        "source_type": "book",
+        "publisher": "Melville House",
+        "year": "2011",
+        "url": "",
+        "notes": "Seed reference for the debt/credit critique of simple barter-origin stories.",
+        "verification_status": "manual-packet",
+        "verified_title": "Debt: The First 5,000 Years",
+        "verification_excerpt": "Manual source packet scaffold. Add page-level excerpts from the book before publishing claims that rely on Graeber's barter/debt critique.",
+        "verification_error": "Book source requires curator-entered page evidence.",
+        "checked_at": "2026-06-08T13:33:03"
+      },
+      {
+        "id": "src-bitcoin-whitepaper",
+        "title": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+        "source_type": "primary",
+        "publisher": "Satoshi Nakamoto",
+        "year": "2008",
+        "url": "https://bitcoin.org/bitcoin.pdf",
+        "notes": "Seed primary source for protocol-trust framing.",
+        "verification_status": "verified-pdf",
+        "verified_title": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+        "verification_excerpt": "â·j7wûÏ·ßÛ} ôK¸eÈ~ \u000f¶\u0002ñÀ±D²-ÎOÖÆ\u0016\"Ù¤0ôs%¨Þ\u001bs­º?_ÓÛ.8ÄÜd\u0017sU§pÔ\\_ÁlCöX\u0018òÜ ½|¯\u0000±îÛh8ºè a 1»'ñZ©÷¶\u0004BÙ¨° nÖ n²÷\u0019Ëf'& }¬O\u0011$V·¶ÂÅÙÑé]TÊµnü½\u0000¥´ ô\b®Pwî {«\u0010HÇ\u000e\u0007¨9_±!\u0013ù_BfËCDQ!I\"Y%Û^\u0017'ÈÅý]i\u0017ì$ßø\"ÇK~[æ²9\u0010 Åî¡åÙ½UÕ´0ÕÙxòç\"\u0014X{\u000e+Wwv»yz!ÅdÚ\u0011;¾\u0015E}¬ß}\u001a´ë/RtÁ¨¦uÄ©¥\u0019Pp  '©ÐD× ÿKÈ¬nZ¿S§Ê j T>iJçdxk7Å2[2g¨$Vy\u000eàô¤ò¯kÔ&\u0003nÂ+8×ÞrH@ÇLY÷>¾X;àóAû",
+        "verification_error": "",
+        "checked_at": "2026-06-08T13:33:03"
+      }
+    ],
+    "disagreements": [
+      {
+        "claim_id": "claim-barter-origin-disputed",
+        "disagreement_type": "framing",
+        "model_positions": [
+          {
+            "model": "GeminiScout",
+            "position": "Use barter as the opening intuition because users recognize the coordination problem.",
+            "evidence": [
+              "src-imf-what-is-money"
+            ]
+          },
+          {
+            "model": "ClaudeCritic",
+            "position": "Do not imply barter is the established historical origin; show debt and obligation early.",
+            "evidence": [
+              "src-graeber-debt"
+            ]
+          },
+          {
+            "model": "ChatGPTDirector",
+            "position": "Turn the disagreement into a playable myth-vs-reality sequence.",
+            "evidence": [
+              "claim-barter-origin-disputed"
+            ]
+          }
+        ],
+        "resolution": "shown-as-controversy",
+        "summary": "The episode starts with barter as a puzzle, then immediately complicates it."
+      },
+      {
+        "claim_id": "claim-inflation-system",
+        "disagreement_type": "emphasis",
+        "model_positions": [
+          {
+            "model": "GeminiScout",
+            "position": "Foreground central-bank and money-supply explanations.",
+            "evidence": [
+              "src-fed-money-supply"
+            ]
+          },
+          {
+            "model": "ClaudeCritic",
+            "position": "Prevent the slider from implying a single universal inflation formula.",
+            "evidence": [
+              "claim-inflation-system"
+            ]
+          },
+          {
+            "model": "ChatGPTDirector",
+            "position": "Use the lab as a mental model, not a prediction engine.",
+            "evidence": [
+              "claim-inflation-system"
+            ]
+          }
+        ],
+        "resolution": "downgraded",
+        "summary": "The scene labels the simulation as educational and keeps uncertainty visible."
+      }
+    ],
+    "source_lens_enabled": true
+  },
+  "eval_report": {
+    "factual_accuracy": 79,
+    "citation_coverage": 100,
+    "claim_scene_coverage": 100,
+    "source_quality": 75,
+    "conceptual_depth": 84,
+    "narrative_arc": 88,
+    "interaction_value": 91,
+    "accessibility": 76,
+    "performance_risk": 28,
+    "hallucination_risk": 35,
+    "publish_decision": "human-review",
+    "required_fixes": [
+      "Sources requiring human review: src-imf-what-is-money, src-graeber-debt"
+    ],
+    "notes": []
+  }
+}

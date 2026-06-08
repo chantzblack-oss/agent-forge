@@ -55,10 +55,9 @@ def _thinking_budget(max_tokens: int) -> int:
     reply. For larger calls we use ~40% of max_tokens with a ceiling that
     always leaves at least 512 tokens for the actual response.
     """
-    if max_tokens <= 2048:
-        # Use the API minimum; gives output max_tokens - 1024
+    if max_tokens <= 3072:
         return 1024
-    budget = max(1024, (max_tokens * 4) // 10)
+    budget = max(1024, (max_tokens * 6) // 10)
     ceiling = max_tokens - 512
     return min(budget, ceiling)
 
@@ -145,12 +144,12 @@ class AnthropicProvider(Provider):
             tools.append({
                 "type": "web_search_20250305",
                 "name": "web_search",
-                "max_uses": 5,
+                "max_uses": 15,
             })
         if self._enable_web_fetch:
             tools.append({
                 "type": "web_fetch_20250910",
                 "name": "web_fetch",
-                "max_uses": 5,
+                "max_uses": 15,
             })
         return tools

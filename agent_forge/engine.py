@@ -1362,7 +1362,7 @@ class Orchestrator:
         )
         # Give Skeptic a fresh small budget for this audit
         original_max = critic.config.max_tokens
-        critic.config.max_tokens = 500
+        critic.config.max_tokens = 2000
         try:
             audit_resp = critic.respond(
                 audit_prompt, round_num=round_num, is_final_round=is_final,

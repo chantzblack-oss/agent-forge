@@ -210,17 +210,13 @@ class GoogleProvider(Provider):
         except Exception:
             pass
 
-        # Extended thinking. Gemini 2.5 Pro enables this by default; thinking
-        # tokens count against max_output_tokens. A modest budget (~25%) gives
-        # the model room to reason without starving output. Higher than our
-        # previous 10% cap — with the token budget also raised (2000+), 25%
-        # is sustainable without the clipping we saw before.
+        # Extended thinking — 50% of max_tokens for deep reasoning.
         thinking_cfg = None
         try:
             ThinkingConfig = getattr(types, "ThinkingConfig", None)
             if ThinkingConfig is not None:
                 thinking_cfg = ThinkingConfig(
-                    thinking_budget=max(256, max_tokens // 4),
+                    thinking_budget=max(256, max_tokens // 2),
                     include_thoughts=False,
                 )
         except Exception:

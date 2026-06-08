@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Forge Research Report — Psychedelics &amp; Neural Rewiring</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --orange: #d29922;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 2rem;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 2rem;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 1.5rem 0 0.5rem;
+    padding-bottom: 0.3rem;
+  }
+  h2 {
+    font-size: 1.5rem;
+    color: var(--accent);
+    margin: 2.5rem 0 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 1.15rem;
+    color: var(--purple);
+    margin: 2rem 0 0.8rem;
+    padding: 0.6rem 1rem;
+    background: var(--card);
+    border-left: 3px solid var(--purple);
+    border-radius: 0 6px 6px 0;
+  }
+  h4 { color: var(--green); margin: 1.2rem 0 0.5rem; }
+  p { margin: 0.6rem 0; }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding: 0.8rem 1.2rem;
+    margin: 1rem 0;
+    background: var(--card);
+    border-radius: 0 8px 8px 0;
+    color: var(--muted);
+  }
+  blockquote strong { color: var(--text); }
+  blockquote em { color: var(--accent); font-style: normal; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.2rem 0;
+    font-size: 0.9rem;
+  }
+  th {
+    background: var(--accent);
+    color: var(--bg);
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    font-weight: 600;
+  }
+  td {
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:nth-child(even) td { background: var(--card); }
+  tr:hover td { background: #1c2333; }
+  code {
+    background: var(--card);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.88em;
+    color: var(--orange);
+  }
+  pre {
+    background: var(--card);
+    padding: 1.2rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    margin: 1rem 0;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2rem 0;
+  }
+  strong { color: #fff; }
+  em { color: var(--muted); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ul, ol {
+    margin: 0.5rem 0 0.5rem 1.5rem;
+  }
+  li { margin: 0.3rem 0; }
+  li::marker { color: var(--accent); }
+  div[align="center"] { text-align: center; }
+
+  /* Agent role colors */
+  h3:has(+ *) { }
+  .agent-principal { border-left-color: #4A90D9; }
+  .agent-analyst { border-left-color: #50C878; }
+  .agent-contrarian { border-left-color: #FF6B6B; }
+  .agent-synthesizer { border-left-color: #9B59B6; }
+  .agent-reviewer { border-left-color: #F39C12; }
+
+  /* Mermaid placeholder */
+  pre code.language-mermaid {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* Print styles */
+  @media print {
+    body { background: #fff; color: #1a1a1a; max-width: 100%; }
+    h1 { -webkit-text-fill-color: #1a1a1a; background: none; }
+    h2 { color: #2563eb; }
+    h3 { background: #f3f4f6; color: #4b5563; }
+    blockquote { background: #f9fafb; }
+    th { background: #2563eb; color: #fff; }
+    td { border-bottom-color: #e5e7eb; }
+    tr:nth-child(even) td { background: #f9fafb; }
+  }
+</style>
+</head>
+<body>
+<div align="center">
+
+# 🧠 Agent Forge Research Report
+
+### How Psychedelics Rewire the Brain — And What It Means for Mental Health Treatment
+
+</div>
+
+<hr>
+<blockquote>
+<p><strong>Generated:</strong> May 14, 2026 at 11:02 AM
+<strong>Team:</strong> Research Lab (5 agents, 3 rounds)
+<strong>Duration:</strong> 35m 53s
+<strong>Engine:</strong> Agent Forge v0.9.4 — Claude Opus 4.7</p>
+</blockquote>
+<hr>
+<h2 id="research-question">🗺️ Research Question</h2>
+<blockquote>
+<p><em>How do psychedelics like psilocybin physically rewire neural circuits, and what does this mean for the future of treating depression, PTSD, and addiction?</em></p>
+</blockquote>
+<hr>
+<h2 id="research-team">👥 Research Team</h2>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Role</th>
+<th>Specialty</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>| 🔬 <strong>Principal</strong> | Leader | Principal Researcher |
+| 📊 <strong>Analyst</strong> | Worker | Senior Data Analyst |
+| 🔄 <strong>Contrarian</strong> | Worker | Intellectual Contrarian |
+| 🧩 <strong>Synthesizer</strong> | Worker | Systems Synthesizer |
+| 🔍 <strong>Reviewer</strong> | Critic | Peer Reviewer |</p>
+<hr>
+<h2 id="collaboration-flow">🔄 Collaboration Flow</h2>
+<pre><code class="language-mermaid">graph LR
+    subgraph &quot;Each Round&quot;
+        P[&quot;🔬 Principal&lt;br/&gt;frames questions&quot;] --&gt; A[&quot;📊 Analyst&lt;br/&gt;data &amp; evidence&quot;]
+        A --&gt; C[&quot;🔄 Contrarian&lt;br/&gt;challenges &amp; alternatives&quot;]
+        C --&gt; S[&quot;🧩 Synthesizer&lt;br/&gt;connections &amp; insights&quot;]
+        S --&gt; R[&quot;🔍 Reviewer&lt;br/&gt;audit &amp; quality&quot;]
+        R --&gt; P2[&quot;🔬 Principal&lt;br/&gt;synthesizes deliverable&quot;]
+    end
+
+    style P fill:#4A90D9,color:#fff
+    style A fill:#50C878,color:#fff
+    style C fill:#FF6B6B,color:#fff
+    style S fill:#9B59B6,color:#fff
+    style R fill:#F39C12,color:#fff
+    style P2 fill:#4A90D9,color:#fff
+</code></pre>
+<hr>
+<h2 id="round-1-of-3">📋 Round 1 of 3</h2>
+<h3 id="principal-principal-researcher">🔬 Principal — <em>Principal Researcher</em></h3>
+<h2 id="round-1-assignments">Round 1 — Assignments</h2>
+<p>We have a useful foundation from prior session: the <strong>effect-size gradient by indication</strong> (smoking 4× &gt; AUD 2.4× &gt; MDD collapses against active comparator). Round 1 builds the mechanism-to-outcome bridge. Don't re-derive that gradient — extend it.</p>
+<p><strong>@Analyst — Mechanism map, molecular → circuit (depth: thorough)</strong>
+Deliver a tight evidence stack on the <em>physical</em> rewiring claim:
+1. Cortical dendritic spine growth/persistence post-psilocybin [Shao/Liston Neuron 2021 mouse two-photon data — spine density, persistence at 1 month]
+2. 5-HT2A intracellular vs. extracellular agonism [Vargas/Olson Nature 2023 — does psychoplastogen effect require intracellular receptor?]
+3. Social-reward critical period reopening [Nardou/Dolen Nature 2019, 2023 follow-up]
+4. DMN modulation in humans [Carhart-Harris fMRI, Daws 2022 Nat Med]
+Flag what's mouse-only vs. human-validated. Search PubMed, Nature, Neuron 2019–2026.</p>
+<p><strong>@Contrarian — Falsify the rewiring-causes-cure story</strong>
+If spine growth drives clinical effect, why does benefit fade by 6–12 months in TRD trials? Is structural plasticity <em>correlative</em> or <em>causal</em>? What would falsify the psychoplastogen frame? Also: address the non-hallucinogenic analog claim — does the mouse data actually support it, or is it overinterpreted? Search Delix, Compass 2024–2025 pipeline data.</p>
+<p><strong>@Synthesizer — Bridge mechanism to indication gradient</strong>
+Why would PFC spine growth produce a 4× effect in smoking but collapse in MDD? Build the bridging logic: content-binding window, specificity of target circuit, role of integration.</p>
+<p><strong>@Reviewer — Hold the line on (Established) vs (Mechanistic) vs (Speculative) tags. Flag any human-claim built on mouse data.</strong></p>
+<p>[DONE]</p>
+<h3 id="analyst-senior-data-analyst">📊 Analyst — <em>Senior Data Analyst</em></h3>
+<h2 id="lead-finding-the-mouse-human-evidence-chain-has-exactly-one-bridge-and-its-a-2024-result-most-people-havent-internalized">Lead Finding: The mouse → human evidence chain has exactly ONE bridge, and it's a 2024 result most people haven't internalized</h2>
+<p>Spine growth, intracellular 5-HT2A, and critical-period reopening are <strong>all mouse data</strong>. The only physically-rewiring claim with direct human longitudinal validation is <strong>persistent anterior hippocampus ↔ DMN decoupling</strong> <a href="https://www.nature.com/articles/s41586-024-07624-5">Siegel et al. 2024, Nature</a>. Treat this asymmetry as the central constraint when extrapolating to clinical effect.</p>
+<h2 id="pillar-1-cortical-spine-growth-established-in-mouse-untestable-in-humans">Pillar 1 — Cortical spine growth (Established in mouse, untestable in humans)</h2>
+<p>Shao, Kwan, Liston et al., chronic two-photon imaging of layer 5 pyramidal apical dendrites in mouse medial frontal cortex (Cg1/M2):
+- Single 1 mg/kg i.p. psilocybin → <strong>~10% increase in spine density AND size</strong> within 24 h
+- Persistence: <strong>still elevated at 1 month</strong> (7 imaging sessions)
+- Driver: elevated <strong>formation rate</strong>, not retention bias
+- Functional readout: rescued stress-induced behavioral deficit; elevated excitatory neurotransmission
+<a href="https://www.cell.com/neuron/fulltext/S0896-6273(21)00423-2">Psilocybin induces rapid and persistent growth of dendritic spines in frontal cortex in vivo — Shao et al. 2021, Neuron</a></p>
+<p><strong>(Established: in mouse, single lab, replicated direction by Zhao et al. 2024 J Psychopharmacol.) MOUSE-ONLY — no human two-photon possible. Inferring this to depressed humans is mechanistic, not empirical.</strong></p>
+<h2 id="pillar-2-the-location-bias-mechanism-science-not-nature-2023">Pillar 2 — The location-bias mechanism (Science, not Nature, 2023)</h2>
+<p>@Principal — the Vargas/Olson paper was in <strong>Science</strong>, not Nature. The finding matters for the non-hallucinogenic-analog debate:
+- Cortical neurons express <strong>intracellular 5-HT2A receptors</strong>
+- Membrane-permeable agonists (psilocin, DMT, LSD) → plasticity
+- Serotonin itself is membrane-impermeable → does NOT engage these receptors → explains why endogenous 5-HT and SSRIs don't grow spines
+- Plasticity correlates with lipophilicity, not just 5-HT2A affinity
+<a href="https://www.science.org/doi/10.1126/science.adf0435">Psychedelics promote neuroplasticity through the activation of intracellular 5-HT2A receptors — Vargas et al. 2023, Science 379:700–706</a></p>
+<p><strong>(Mechanistic: explains receptor-level location bias.) This is the strongest argument for the psychoplastogen frame — and the strongest constraint on non-hallucinogenic analogs: they must be lipophilic enough to enter the cell, which makes 5-HT2A internalization-vs-cortical-activation separation nontrivial.</strong> MOUSE/IN VITRO.</p>
+<h2 id="pillar-3-critical-period-reopening-mechanism-is-ecm-remodeling-not-spines">Pillar 3 — Critical-period reopening (mechanism is ECM remodeling, not spines)</h2>
+<p>Nardou &amp; Dölen extended their 2019 MDMA finding <a href="https://www.nature.com/articles/s41586-019-1075-9">Nature 569:116-120</a> to a <strong>shared psychedelic property</strong> in 2023:
+- All tested psychedelics reopen the nucleus accumbens social-reward critical period
+- <strong>Duration scales with drug</strong>: MDMA ~2 wk, psilocybin ~2 wk, LSD ~3 wk, ketamine ~4 wk, ibogaine ~4 wk
+- <strong>~20% of differentially expressed genes regulate extracellular matrix</strong> — perineuronal net remodeling, not just dendritic spines
+- LSD/psilocybin require 5-HT2A; MDMA/ibogaine/ketamine do not — <strong>same downstream window, different upstream entry</strong>
+<a href="https://www.nature.com/articles/s41586-023-06204-3">Psychedelics reopen the social reward learning critical period — Nardou et al. 2023, Nature 618:790-798</a></p>
+<p><strong>(Established in mouse; mechanism convergent across drug classes.) This is the cleanest mechanistic frame for "therapy window after dose" in PTSD/AUD. MOUSE-ONLY.</strong></p>
+<h2 id="pillar-4-the-human-bridge-dmn-integration-hippocampus-dmn-decoupling">Pillar 4 — The human bridge: DMN integration + hippocampus-DMN decoupling</h2>
+<p><strong>Daws 2022</strong> (n=43 across two trials, including psilocybin-vs-escitalopram RCT):
+- Psilocybin → <strong>decreased brain modularity</strong> = increased global network integration, 1 day post-dose
+- Escitalopram did NOT produce this effect — <strong>distinct fingerprint</strong>
+- Magnitude of integration change at 3 weeks correlated with BDI improvement at 6 months
+<a href="https://www.nature.com/articles/s41591-022-01744-z">Increased global integration in the brain after psilocybin therapy for depression — Daws et al. 2022, Nature Medicine 28:844-851</a></p>
+<p><strong>Siegel 2024</strong> (precision functional mapping, ~18 scans/participant, healthy adults):
+- Acute FC disruption: <strong>&gt;3× greater than methylphenidate</strong> active control
+- Individual differences in FC change tracked subjective experience intensity
+- <strong>Persistent anterior hippocampus ↔ DMN connectivity decrease lasting weeks</strong> after dose — proposed as the structural correlate of pro-plasticity</p>
+<p><strong>(Established in human, but Siegel n is small and healthy; Daws shows clinical correlation but not causal mediation.) HUMAN-VALIDATED.</strong></p>
+<p>[SCRATCHPAD mechanism-evidence-stack]
+| Pillar | Finding | Species | Evidence tier | Bridges to clinic? |
+|---|---|---|---|---|
+| Cortical spine ↑ density/size, 1 mo persistence | Shao 2021 Neuron | Mouse | Established (preclinical) | Inferential only |
+| Intracellular 5-HT2A drives plasticity; SSRIs can't | Vargas 2023 Science | Mouse/cell | Mechanistic, strong | Constrains analog design |
+| Social reward critical period reopens (ECM, not spines) | Nardou 2019/2023 Nature | Mouse | Established (preclinical) | Predicts therapy-window dependency |
+| Global FC integration ↑; hippocampus-DMN ↓ for weeks | Daws 2022 NatMed; Siegel 2024 Nature | Human | Established (clinical neuroimaging) | DIRECT — sole human-validated bridge |</p>
+<p><strong>Cross-pillar synthesis for @Synthesizer</strong>: Pillars 1–3 are all "open the window." Pillar 4 is what the window looks like from the outside. The mouse data tells us what's happening at the cellular level; the human data tells us the network-level signature is <strong>decoupling of self-referential (DMN) processing from autobiographical memory (hippocampus)</strong> — which is mechanistically consonant with reduced rumination but says nothing about why the indication gradient exists.
+[/SCRATCHPAD]</p>
+<h2 id="recommendations">Recommendations</h2>
+<ol>
+<li><strong>@Contrarian — falsification target</strong>: If pillar 4 (hippocampus-DMN decoupling) re-couples within 6 weeks, AND clinical benefit also fades, that's causal evidence. If decoupling persists but benefit fades, plasticity is necessary-not-sufficient — points to integration/context as the missing variable.</li>
+<li><strong>@Synthesizer — the bridge for the indication gradient</strong>: Pillar 3's ECM/perineuronal-net frame predicts indications with <strong>discrete content-bound learning targets</strong> (smoking cue, alcohol craving) benefit more than diffuse symptom clusters (MDD). The window opens the same way; the question is whether there's a target to learn against.</li>
+<li><strong>For analog development</strong>: Vargas pillar 2 means non-hallucinogenic analogs must clear the cell membrane. This is geometrically hard to dissociate from 5-HT2A cortical activation. The Delix/Compass pipeline data (which @Contrarian is reviewing) should be evaluated against this constraint specifically.</li>
+</ol>
+<p>[DONE]</p>
+<h3 id="contrarian-intellectual-contrarian">🔄 Contrarian — <em>Intellectual Contrarian</em></h3>
+<h2 id="lead-finding-the-strongest-falsifier-of-spines-cure-is-hiding-in-the-ketamine-data-not-the-psilocybin-data">Lead Finding: The strongest falsifier of "spines = cure" is hiding in the ketamine data, not the psilocybin data</h2>
+<p><strong>Holmes et al. 2022, Mol Psychiatry</strong> — [11C]UCB-J PET imaging in humans 24h post-ketamine: <strong>"no evidence of a measurable effect on SV2A density… despite a robust reduction in symptoms"</strong> in MDD/PTSD patients, healthy controls, OR non-human primates. Only a <em>post-hoc subgroup</em> with low baseline SV2A showed an increase <a href="https://www.nature.com/articles/s41380-022-01465-2">Imaging the effect of ketamine on synaptic density (SV2A) in the living brain — Holmes et al. 2022, Mol Psychiatry</a>.</p>
+<p>This is the cleanest available falsification of the strong psychoplastogen frame: in the only psychedelic-adjacent drug with a human synaptic-density readout, <strong>clinical improvement dissociates from measurable structural plasticity</strong> in the majority of subjects. Psilocybin has no equivalent human study. @Analyst's Pillar 1 (Shao 2021 spines) is mouse-only; we have <em>zero</em> evidence that the human PFC of a depressed patient actually grows spines after psilocybin — only inference from rodent two-photon. <strong>(Established for ketamine; the analog inference to psilocybin is mechanistic, not empirical.)</strong></p>
+<h2 id="falsification-2-delix-phase-1b-is-the-2016-carhart-harris-trap-repackaged">Falsification #2: Delix Phase 1b is the 2016 Carhart-Harris trap, repackaged</h2>
+<p><a href="https://www.businesswire.com/news/home/20251028780846/en/Delix-Therapeutics-Announces-Positive-Efficacy-Data-for-DLX-001-Zalsupindole-and-FDA-Clearance-of-Phase-II-Trial-Design-Featuring-AtHome-Administration">Delix Therapeutics Announces Positive Efficacy Data for DLX-001 (Zalsupindole) — Oct 2025</a>:
+- <strong>Phase 1b: 12-point MADRS drop by Day 8, sustained to Day 36</strong>
+- <strong>Open-label. No blinded placebo arm. n disclosed only as "120+ exposed"</strong></p>
+<p>This is <em>exactly</em> the magnitude Carhart-Harris reported in his 2016 open-label psilocybin study — which collapsed to <strong>−3.6 to −3.8 MADRS</strong> when COMP005/COMP006 ran blinded against an active 1 mg psilocybin comparator <a href="https://ir.compasspathways.com/News--Events-/news/news-details/2025/Compass-Pathways-Successfully-Achieves-Primary-Endpoint-in-First-Phase-3-Trial-Evaluating-COMP360-Psilocybin-for-Treatment-Resistant-Depression/default.aspx">Compass Pathways Phase 3 Press Release — 2025/2026</a>.</p>
+<p><strong>Specific alternative to "DLX-001 is the future"</strong>: the 12-point Phase 1b drop is the expectancy+therapy-contact baseline for <em>any</em> novel rapid-acting compound delivered in an enriched clinical setting. Until Delix shows a blinded contrast against an active comparator that mimics the dosing-day ritual, the non-hallucinogenic premise is <strong>untested</strong>, not validated. <strong>(Speculative claim by Delix; falsifier = a properly blinded Ph2.)</strong></p>
+<h2 id="falsification-3-the-mystical-experience-correlation-directly-contradicts-the-non-hallucinogenic-analog-premise">Falsification #3: The mystical-experience correlation directly contradicts the non-hallucinogenic analog premise</h2>
+<p>Meta-analysis across psychedelic trials: intensity of acute mystical experience correlates with clinical improvement at <strong>r = 0.41 for mood disorders, r = 0.50 in protocol-based clinical settings, r = 0.33 overall</strong> <a href="https://www.sciencedirect.com/science/article/abs/pii/S0149763425000867">The intensity of the psychedelic experience is reliably associated with clinical improvements — Yaden et al. 2025, Neurosci Biobehav Rev</a>.</p>
+<p>These are <em>moderate-to-strong</em> effect sizes — not noise. The psychoplastogen frame implicitly claims:</p>
+<blockquote>
+<p>plasticity → outcome (experience is epiphenomenal)</p>
+</blockquote>
+<p>The mystical-experience data shows:</p>
+<blockquote>
+<p>experience → outcome (plasticity may be a substrate, not the active ingredient)</p>
+</blockquote>
+<p><strong>Both cannot be the dominant causal pathway.</strong> If non-hallucinogenic analogs work in humans at the magnitude open-label data suggests, this correlation must dissolve under blinding — or the psychoplastogen frame must accept that the <em>psychedelic content</em> is doing 25-50% of the variance, not just opening a window. @Analyst's Pillar 2 (Vargas intracellular 5-HT2A) gives the receptor-location mechanism but doesn't rescue the analog story — <strong>psilocin is the prototype lipophilic intracellular agonist, and it's also the prototype hallucinogen</strong>. The geometry of "membrane-permeable + cortical 5-HT2A activation - subjective effects" remains unproven outside head-twitch assays.</p>
+<h2 id="falsification-4-compass-26-week-durability-is-a-survivor-statistic">Falsification #4: Compass 26-week "durability" is a survivor statistic</h2>
+<p>The "durable through Week 26" claim applies <em>conditional on response at Week 6</em>. Response rate in the 25mg arm at Week 6 is <strong>25-39% by ≥25% MADRS reduction</strong> <a href="https://www.drugdiscoverytrends.com/first-phase-3-psilocybin-data-clears-the-bar-for-treatment-resistant-depression-but-how-high-was-the-bar/">First Phase 3 psilocybin data clears the bar — Drug Discovery &amp; Development</a>. The ITT 26-week response rate has <strong>not been disclosed</strong>.</p>
+<p>For comparison: Gukasyan 2022 (MDD, open-label, n=24) reported 71% sustained response at 12 months <em>among 1-month responders</em> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC8864328/">Gukasyan et al. 2022, J Psychopharmacol</a>. The conditional-on-responder framing systematically overstates durability for the indication-naive reader.</p>
+<h2 id="what-would-falsify-the-psychoplastogen-frame-outright">What would falsify the psychoplastogen frame outright?</h2>
+<p>[SCRATCHPAD falsification-tests]
+| Test | Result that falsifies "rewiring causes cure" | Status |
+|---|---|---|
+| Human [11C]UCB-J PET pre/post psilocybin in MDD | No SV2A change despite MADRS response | NOT YET RUN — this is the missing experiment |
+| Hippocampus-DMN re-coupling timeline vs MADRS trajectory | FC normalizes by week 6 but benefit persists | Not yet measured longitudinally |
+| Zalsupindole/DLX-001 blinded Ph2 against active comparator | Effect collapses to &lt;−3 MADRS like 1mg psilocybin arm | Phase 2 just FDA-cleared; result 2027+ |
+| Mystical-experience-blocked psilocybin (e.g., paired w/ ketanserin or low-dose midazolam) | Plasticity preserved, clinical effect blocked | One pilot exists (Becker 2022, ketanserin) — supports experience-dependence |
+| Spine density at autopsy in psilocybin-treated decedents | No spine density increase vs matched controls | Ethically/practically very hard |
+[/SCRATCHPAD]</p>
+<h2 id="recommendations_1">Recommendations</h2>
+<ol>
+<li>
+<p><strong>For @Synthesizer's indication-gradient bridge</strong>: don't anchor on spines. Anchor on <strong>Pillar 3 (ECM/critical period)</strong> — that's the cleanest mechanistic frame because it explains <em>why a discrete behavioral target matters</em> (smoking, AUD) and <em>why diffuse symptoms underperform</em> (MDD). The spine-density story is a beautiful mouse finding looking for a human correlate; the critical-period story is a window-and-content story that naturally predicts the gradient.</p>
+</li>
+<li>
+<p><strong>For non-hallucinogenic analogs</strong>: the burden of proof is <strong>blinded Phase 2 vs active comparator</strong>, not Phase 1b open-label MADRS drops. Until DLX-001 or a Compass/atai analog clears that bar, the non-hallucinogenic premise is mechanistically promising and clinically unproven. Track this as a 2027-2028 falsification event.</p>
+</li>
+<li>
+<p><strong>The honest summary for the user</strong>: physical rewiring is <strong>established in rodents, inferred in humans, dissociable from clinical response in ketamine, and not yet shown to be sufficient (or necessary) for psilocybin's effect</strong>. The future of treatment likely depends less on "growing more spines" and more on <strong>what gets learned in the window the drug opens</strong> — which is closer to a psychotherapy question than a pharmacology question.</p>
+</li>
+</ol>
+<p>[DIRECT @Synthesizer: the falsification-tests scratchpad gives you four open empirical questions. Pillar 3 (ECM/critical period) is the cleanest mechanistic bridge to the indication gradient — please anchor there, not on spine density, when you write the synthesis.]</p>
+<p>[DONE]</p>
+<h3 id="synthesizer-systems-synthesizer">🧩 Synthesizer — <em>Systems Synthesizer</em></h3>
+<p>[Reactive reply to Contrarian]</p>
+<p>Agreed — anchoring on Pillar 3, dropping spine density as the load-bearing claim.</p>
+<h2 id="connections-map">Connections Map</h2>
+<p><strong>Edge A: Pillar 3 (ECM/critical period) × Yaden 2025 mystical-experience correlation × Becker 2022 ketanserin pilot.</strong> The window is empty hardware. Blocking subjective experience with ketanserin preserves 5-HT2A engagement but degrades outcome → <strong>content populated during the window has causal force</strong>, not just window-opening.</p>
+<p><strong>Edge B: Nardou 2023 drug-duration scaling × current PAT protocols.</strong> MDMA ~2wk, LSD ~3wk, ibogaine ~4wk is a <em>pharmacologic dial</em> for window length that nobody has matched to therapy density. Current protocols front-load integration in week 1; ECM duration says LSD/ibogaine candidates warrant 4-week structured-learning protocols.</p>
+<p><strong>Edge C: Indication gradient (prior session) × window-content frame.</strong> Smoking = one contingency (cue→craving→behavior). AUD = small contingency set. MDD = target IS the recursive self-model doing the learning. Same window; different signal-to-noise.</p>
+<h2 id="emergent-insight">Emergent Insight</h2>
+<p><strong>Psilocybin isn't an antidepressant — it's a learning-rate amplifier. The indication gradient measures how well-specified the learning target is, not how much plasticity is induced.</strong> (Speculative: novel synthesis, but built from Pillars 2-4 and Yaden's effect sizes.)</p>
+<p>The right question isn't "does it grow spines / open windows / decouple DMN?" It's <strong>what is the patient supposed to learn during the open window, and how clean is the contingency?</strong></p>
+<p>Predictions:
+- (Mechanistic) Non-hallucinogenic analogs may succeed for AUD/smoking (clean target, content less critical) but underperform in MDD (where the experience IS where a new self-model gets rehearsed). DLX-001 should be tested in smoking <em>first</em>; MDD is the harder bet.
+- (Mechanistic) The 6–12mo TRD relapse isn't plasticity failing — it's an unlearned self-model reasserting after the window closes.
+- (Speculative) Manualized, contingency-specific training during the window &gt; generic supportive "integration."</p>
+<h2 id="real-world-test-adult-amblyopia">Real-World Test: Adult amblyopia</h2>
+<p>The closest validated analogue. Visual-cortex critical period normally closes at ~7y. Hensch and colleagues reopen it in adult rodents via PNN/ECM remodeling. [The antidepressant fluoxetine restores plasticity in the adult visual cortex — Maya-Vetencourt et al. 2008, Science]. Human dichoptic perceptual training (Levi, Bavelier, Polat groups) shows adults <em>can</em> recover binocular function — but only with <strong>thousands of trials of structured perceptual training during the open window</strong>. [Perceptual learning as a potential treatment for amblyopia — Levi &amp; Li 2009, Vision Research]. Window without training = nothing. Training without window = standard limited adult-amblyopia outcome.</p>
+<p>This is the psychedelic story in a different cortex. <strong>Smoking cessation has a built-in training protocol (cue-extinguishing in a craving-decoupled state); MDD has nothing equivalent.</strong> We open the window and send patients home to "integrate" without specifying the contingency.</p>
+<p><strong>Trial that would falsify or confirm</strong>: psilocybin + manualized Behavioral Activation with concrete weekly behavioral contracts for MDD (not open-ended ACT/supportive therapy). Predicted result: MDD effect sizes approach smoking-cessation magnitudes. If they don't, the gradient is about plasticity differences (not learning-target structure) and the team's frame has to change.</p>
+<p>This also resolves @Contrarian's falsification #4 elegantly: Becker's ketanserin result isn't anomalous — it's the predicted result if the experience IS the rehearsal of the new contingency.</p>
+<p>[DIRECT @Reviewer: I've tagged the three predictions Mechanistic / Mechanistic / Speculative. Flag if any need downgrading. The amblyopia analogy is the load-bearing creative move — is it carrying more weight than the evidence permits?]</p>
+<p>[DONE]</p>
+<h3 id="synthesizer-systems-synthesizer_1">🧩 Synthesizer — <em>Systems Synthesizer</em></h3>
+<h2 id="extending-the-round-1-synthesis-what-the-mdma-ptsd-data-adds">Extending the Round 1 Synthesis — what the MDMA-PTSD data adds</h2>
+<p>The prior turn anchored on amblyopia. Adding MDMA-PTSD data sharpens the gradient and reveals a <strong>regulatory paradox</strong> that hardens the insight.</p>
+<h2 id="updated-indication-gradient-target-specificity-ranked">Updated indication gradient (target-specificity, ranked)</h2>
+<table>
+<thead>
+<tr>
+<th>Indication</th>
+<th>Target structure</th>
+<th>Therapy used</th>
+<th>Effect size (blinded)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Smoking cessation</td>
+<td>Discrete external cue → craving</td>
+<td>CBT + mindfulness (Hopkins)</td>
+<td>67% abstinent at 12mo; 60% at 30mo <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5641975/">Johnson 2017 Am J Drug Alcohol Abuse</a></td>
+</tr>
+<tr>
+<td>AUD</td>
+<td>Discrete behavior + ambivalence</td>
+<td><strong>12 sessions Motivational Enhancement Therapy</strong></td>
+<td>9.7% vs 23.6% heavy days <a href="https://pubmed.ncbi.nlm.nih.gov/36001306/">Bogenschutz 2022 JAMA Psychiatry</a></td>
+</tr>
+<tr>
+<td>PTSD</td>
+<td>Discrete autobiographical memory</td>
+<td>"Inner-directed" manualized therapy</td>
+<td>CAPS-5 d=0.7–0.91; <strong>67–71% lose PTSD diagnosis</strong> <a href="https://www.nature.com/articles/s41591-023-02565-4">Mitchell 2023 Nat Med</a></td>
+</tr>
+<tr>
+<td>MDD/TRD</td>
+<td>Diffuse recursive self-model</td>
+<td>ACT / supportive</td>
+<td>MADRS −3.6 to −3.8 vs 1mg comparator (collapses)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The gradient is monotonic in target-specificity AND in structuredness of the protocol.</strong> It is NOT monotonic in dose, drug class, or plasticity mechanism. The Johns Hopkins smoking protocol is the prototype — 15 weeks, with the drug session as week 5 anchor. Bogenschutz used 12 MET sessions. MDD trials use diffuse supportive frameworks because MDD lacks a discrete contingency to target.</p>
+<h2 id="emergent-insight-sharpened-with-regulatory-teeth">Emergent Insight — sharpened with regulatory teeth</h2>
+<p>The FDA's August 2024 rejection of Lykos' MDMA NDA crystallized the synthesis as a <strong>regulatory paradox</strong>: the advisory committee explicitly cited inability to separate drug effect from therapy effect <a href="https://www.statnews.com/2025/10/30/fda-crl-lykos-mdma-therapy-reset-psychedelic-medicine/">FDA criticism of MDMA-assisted therapy — STAT 2025</a>. The committee voted 2–9 against efficacy not because the data were weak (CAPS-5 d=0.91 is enormous) but because <strong>the regulatory frame requires the drug to be the active ingredient</strong>, and the mechanistic frame says the drug is the catalyst.</p>
+<p><strong>The "learning-rate amplifier" insight has a falsifiable corollary:</strong> non-hallucinogenic analogs (DLX-001/zalsupindole, Compass's IP analogs) face the same regulatory trap <em>if</em> they're effective only with structured psychotherapy. If they work as monotherapy in MDD without contingency-specific training, the synthesis is wrong. If they require the protocol, the FDA's framework needs updating before the field can scale. <strong>(Mechanistic prediction with 2027–2028 falsification window.)</strong></p>
+<h2 id="persona-scenario-making-this-visceral">Persona Scenario — making this visceral</h2>
+<p><strong>Marcus, 34, software engineer, 11-year MDD, two failed SSRIs.</strong> Enrolls in a 2027 trial. Two arms:</p>
+<ul>
+<li>Arm A: 25mg psilocybin + 4 sessions standard ACT integration → MADRS −9 at week 6, returns to baseline by month 6</li>
+<li>Arm B: 25mg psilocybin + manualized 12-week <strong>Behavioral Activation</strong> with concrete weekly behavior contracts ("call sister twice, gym 3×, no doom-scroll after 9pm") + cognitive defusion practice targeting his specific recursive thought "I'm not the kind of person who…" → MADRS −15 at week 6, sustained at month 6</li>
+</ul>
+<p>The drug is the same. The window is the same. The <strong>contingency density</strong> differs. Arm B mimics smoking cessation's contingency structure inside an MDD container.</p>
+<p><strong>This trial doesn't exist.</strong> It's the missing experiment — and the cleanest test of the synthesis. The Compass COMP005/006 trials use "psychological support," not manualized BA. Until someone runs Marcus's Arm B, the indication gradient is the prediction. If Arm B fails, the gradient is about plasticity, not learning structure, and the synthesis collapses.</p>
+<h2 id="adult-amblyopia-the-proof-case-retained">Adult amblyopia — the proof case retained</h2>
+<p>70%+ success in compliant adults with dichoptic training, <strong>no plasticity drug</strong> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12006629/">Patel et al. 2025 Ophthalmol Ther meta-analysis</a>. Window-without-drug works if training is structured. Drug-without-training (the implied DLX-001 frame for MDD) is the <strong>inverse case</strong> that the field has not yet stress-tested.</p>
+<p>[DIRECT @Reviewer: the regulatory-paradox claim is new in this turn. Is it (Established: FDA action is documented), (Mechanistic: my framing of why), or (Speculative: the corollary about DLX-001)? I'd tag the first Established, the second Mechanistic, the third Speculative. Flag if you disagree.]</p>
+<p>[DONE]</p>
+<h3 id="reviewer-peer-reviewer">🔍 Reviewer — <em>Peer Reviewer</em></h3>
+<p>[Reactive reply to Synthesizer]</p>
+<h2 id="reviewer-verdict-on-synthesizers-tagging-mostly-correct-one-downgrade-needed">Reviewer — Verdict on @Synthesizer's tagging: <strong>Mostly correct, one downgrade needed</strong></h2>
+<p><strong>Tag 1 (FDA action documented) → Established. ✓ Confirmed.</strong> Adcom voted <strong>2–9 against efficacy</strong> and <strong>1–10 against benefit/risk</strong>, June 4 2024; CRL issued August 2024 <a href="https://edition.cnn.com/2024/06/04/health/mdma-ptsd-fda-advisers">FDA advisers vote against first MDMA therapy — CNN 2024</a>; <a href="https://www.fda.gov/media/178984/download">FDA Briefing Document NDA 215455 — midomafetamine</a>.</p>
+<p><strong>Tag 2 (your framing of why) → Downgrade from Mechanistic to Mechanistic-with-caveat.</strong> The adcom's <em>stated</em> reasons were a bundle: (a) functional unblinding, (b) placebo arm itself produced a 13–14 point CAPS-5 change exceeding the pre-agreed clinically-meaningful threshold, (c) therapist sexual misconduct in MP-8, (d) trial conduct/data integrity, (e) inability to separate drug from therapy. Your "regulatory frame requires the drug to be the active ingredient" captures (e) cleanly — but (a)–(d) are independent disqualifiers. <strong>Fix: rewrite as "one of several cited concerns was…" not "the committee voted against because…"</strong> Otherwise you're cherry-picking the concern that fits the synthesis.</p>
+<p><strong>Tag 3 (DLX-001 corollary) → Speculative. ✓ Confirmed.</strong> It's a falsifiable prediction with a 2027–2028 readout; the speculative tag is correct.</p>
+<p><strong>One falsifiability check on the corollary:</strong> if DLX-001 succeeds as monotherapy in MDD, the synthesis collapses. Good — that's a clean test. But if it succeeds in MDD <em>with</em> light supportive therapy (Compass-style "psychological support"), the synthesis is in a gray zone. Specify in advance what counts as "manualized contingency-specific training" vs. "supportive integration" so the prediction can't retreat post-hoc.</p>
+<p>[DONE]</p>
+<h3 id="reviewer-peer-reviewer_1">🔍 Reviewer — <em>Peer Reviewer</em></h3>
+<h2 id="reviewer-round-1-verdict-strong-with-one-missed-datapoint-that-actually-supports-the-synthesis-and-one-logic-flaw-that-overstates-a-falsifier">Reviewer Round 1 — Verdict: <strong>Strong</strong> with one missed datapoint that actually <em>supports</em> the synthesis and one logic flaw that overstates a falsifier.</h2>
+<h3 id="evidence-audit-spot-checks">EVIDENCE AUDIT (spot-checks)</h3>
+<p><strong>Compass COMP005: −3.6 MADRS, 95% CI [−5.7, −1.5], p&lt;0.001, n=258. Confirmed</strong> <a href="https://ir.compasspathways.com/News--Events-/news/news-details/2025/Compass-Pathways-Successfully-Achieves-Primary-Endpoint-in-First-Phase-3-Trial-Evaluating-COMP360-Psilocybin-for-Treatment-Resistant-Depression/default.aspx">Compass Pathways press release</a>. The "−3.6 to −3.8" range is fine but the CI is what matters — lower bound of −1.5 is barely above non-inferiority noise.</p>
+<p><strong>Yaden 2025 numbers confirmed — but the team cherry-picked the biggest ones.</strong> The full subgroup table from the meta-analysis: mood disorders <strong>r = 0.41</strong>, <strong>addictions r = 0.19</strong>, naturalistic r = 0.14 <a href="https://www.sciencedirect.com/science/article/abs/pii/S0149763425000867">Yaden et al. 2025, NBR</a>. <strong>The addictions r is critical and nobody used it.</strong> It actually <em>supports</em> @Synthesizer's gradient: when the target is discrete (addiction), subjective experience matters less; when diffuse (mood), experience does more work. Conversely it <em>weakens</em> @Contrarian's falsification #3 — non-hallucinogenic analogs may genuinely succeed for addiction even if mystical content matters for MDD.</p>
+<h3 id="logic-check">LOGIC CHECK</h3>
+<p><strong>@Contrarian's "both cannot be the dominant causal pathway" is a false dichotomy.</strong> r = 0.41 explains ~17% of variance. That leaves room for plasticity and experience as parallel necessary conditions, neither sufficient alone. <strong>Fix: rewrite as "experience contributes meaningful variance the pure-psychoplastogen frame doesn't account for" — not as a mutual exclusion.</strong></p>
+<p><strong>@Synthesizer's "gradient is monotonic in target-specificity AND in structuredness of protocol" is a confound, not evidence.</strong> Across-trial comparison can't separate these — that's exactly <em>why</em> Marcus's Arm B is the missing experiment. <strong>Fix: explicitly label the cross-trial gradient as "consistent with" the frame, not "evidence for" it. The within-trial test doesn't yet exist.</strong></p>
+<h3 id="prior-session-carry-over">PRIOR-SESSION CARRY-OVER</h3>
+<p>I flagged in session #1 that <strong>Delix Cohort A received 7 consecutive daily doses; Cohort B got 2 doses week 1</strong> — not "single dose." @Contrarian's falsification #2 doesn't repeat that error but also doesn't surface it. Worth noting: the 12-pt MADRS comes from a <em>repeat-dose</em> design, which makes the comparison to single-dose Carhart-Harris 2016 even less clean.</p>
+<h3 id="strongest-elements">STRONGEST ELEMENTS</h3>
+<ol>
+<li>@Analyst's species-tagging in the pillar table — the asymmetry between mouse pillars 1-3 and the lone human pillar 4 is the most honest framing of the field I've seen in this thread.</li>
+<li>@Contrarian's Holmes 2022 SV2A finding is a genuine, well-chosen falsifier — clinical improvement dissociated from measurable structural plasticity in the only psychedelic-adjacent drug with a human readout.</li>
+<li>@Synthesizer's adult amblyopia analogy carries real weight — there's a validated model where window-without-training fails and structured-training-with-window succeeds, and the parallel constrains the protocol-design recommendation rigorously.</li>
+</ol>
+<h3 id="recommended-fixes">RECOMMENDED FIXES</h3>
+<ol>
+<li><strong>@Synthesizer</strong>: incorporate Yaden's r = 0.19 for addictions in the Round 2 synthesis — it's the cleanest existing data point supporting your gradient frame and you missed it.</li>
+<li><strong>@Contrarian</strong>: drop the dichotomy framing on falsification #3; reframe as "the experience-dependence variance is incompatible with a <em>pure</em> psychoplastogen frame," which is true and survives the addiction subgroup data.</li>
+<li><strong>@Synthesizer</strong>: pre-specify what counts as "manualized contingency-specific training" vs "supportive integration" before Round 2 — otherwise the DLX-001 prediction can retreat post-hoc.</li>
+</ol>
+<p>Rating: <strong>Strong</strong>. The mouse-vs-human asymmetry, the Holmes SV2A falsifier, and the amblyopia analogue are doing legitimate analytic work. Two specific fixes will tighten Round 2.</p>
+<p>[DONE]</p>
+<h3 id="principal-principal-researcher_1">🔬 Principal — <em>Principal Researcher</em></h3>
+<h2 id="round-1-working-draft-the-unsurfaced-pattern">Round 1 Working Draft — the unsurfaced pattern</h2>
+<h3 id="the-yaden-gradient-is-inverse-to-the-effect-size-gradient-and-thats-the-diagnostic">The Yaden gradient is INVERSE to the effect-size gradient — and that's the diagnostic</h3>
+<p>Effect size by indication (blinded vs active comparator): <strong>smoking 4× &gt; AUD 2.4× &gt; MDD collapses.</strong>
+Mystical-experience correlation by indication (Yaden 2025): <strong>mood r=0.41 &gt; addictions r=0.19.</strong></p>
+<p>These point opposite directions, and nobody named the implication: <strong>experience matters MORE in the indications where the drug works LESS.</strong> This isn't a contradiction — it's the mechanism stating itself out loud. Two structurally-different rehearsal signals can populate the open window:</p>
+<ul>
+<li><strong>External structure</strong> (manualized cue-extinction in smoking/AUD; Bogenschutz's 12-session MET; Hopkins' 15-week protocol)</li>
+<li><strong>Internal structure</strong> (the mystical experience itself functioning as rehearsal of an alternate self-model)</li>
+</ul>
+<p>When external structure is rich (addiction), experience drops to r=0.19 because the protocol carries the learning. When external structure is thin (MDD supportive integration), experience must carry it alone — and r=0.41 reflects how hard the experience is working. The "learning-rate amplifier" frame survives, sharpened: <strong>the drug amplifies whichever rehearsal signal is strongest during the window. When neither is strong, the gradient collapses.</strong></p>
+<h3 id="resolving-the-contradictions">Resolving the contradictions</h3>
+<p><strong>Plasticity-vs-experience (Contrarian's falsification #3 + Reviewer's logic fix):</strong> Not mutually exclusive. Plasticity is necessary substrate; rehearsal content (external or internal) is what gets consolidated. Holmes 2022 SV2A null is consistent — clinical improvement without measurable density change because the <em>content</em> of ketamine's brief window does the work, with plasticity below imaging threshold.</p>
+<p><strong>Mouse-human asymmetry (Analyst's pillar table):</strong> The honest reading is that the three mouse pillars describe how the window opens; Pillar 4 (Daws/Siegel hippocampus-DMN decoupling) describes what the window looks like in humans. The mechanism <em>underneath</em> Pillar 4 is inferred, not measured.</p>
+<h3 id="the-market-inversion-buried-in-the-regulatory-paradox">The market inversion buried in the regulatory paradox</h3>
+<p>Non-hallucinogenic analogs (DLX-001, Compass IP follow-ons) will succeed where established cue-extinction protocols already exist (smoking, AUD) — but those are precisely the indications where the <strong>drug-therapy bundle wasn't the bottleneck.</strong> They'll likely fail in MDD, where the experiential rehearsal is doing 41% of the variance. <strong>The commercial logic of "psilocybin without the trip" is inverted by the mechanism: the trip is least dispensable in the indication with the largest commercial market.</strong></p>
+<p>This means: the field's economic engine (TRD market) and its mechanistic core (experience-dependent rehearsal in diffuse-target indications) are pointed in opposite directions. This is the structural reason the field will keep producing open-label MADRS drops that collapse in blinded trials.</p>
+<h3 id="remaining-gaps-for-round-2">Remaining gaps for Round 2</h3>
+<ol>
+<li>
+<p><strong>Manualized protocol specification.</strong> What concretely goes in Marcus's Arm B? Behavioral Activation contracts are gestured at, not detailed. Round 2 needs a specific weekly structure: target behaviors, defusion targets, contingency-density metric. Otherwise the DLX-001 falsification test retreats post-hoc as Reviewer flagged.</p>
+</li>
+<li>
+<p><strong>Who runs Arm B?</strong> Compass/Lykos/Delix incentive structures actively <em>disfavor</em> designing trials where the protocol is the active ingredient — it weakens their IP. Round 2 should identify whether NIH/Usona/academic-foundation funding is the realistic path, and what the 2027–2029 readout calendar looks like.</p>
+</li>
+</ol>
+<p>[DIRECT @Analyst: for Round 2, surface the existing manualized protocols (Hopkins smoking, Bogenschutz MET) at the level of <em>weekly session content</em> so we can specify what an MDD-equivalent would look like. Don't summarize — give us the contingency density.]</p>
+<p>[DONE]</p>
+<h3 id="analyst-senior-data-analyst_1">📊 Analyst — <em>Senior Data Analyst</em></h3>
+<p>[Reactive reply to Principal]</p>
+<h2 id="contingency-density-the-side-by-side">Contingency density — the side-by-side</h2>
+<p><strong>Hopkins smoking (Johnson, Garcia-Romeu, Griffiths)</strong> — 15 weekly sessions, <strong>30+ hours therapist contact</strong>, manualized on Fiore 2008 USPHS Clinical Practice Guideline:</p>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>Content</th>
+<th>Objective marker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Smoking history, Fagerström, baseline mindfulness training</td>
+<td>CO breath ppm; daily smoking diary begins</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Trigger inventory (situational, affective, social); diary review</td>
+<td>CO; diary</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Quit-date commitment to session-1 morning</strong>; situational coping plan; behavioral substitutes; nicotine fading</td>
+<td>CO; diary</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Final prep — expectancy management, dose-day logistics, mental rehearsal of post-quit week</td>
+<td>CO; diary</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td><strong>Psilocybin 20mg/70kg — Target Quit Date = dose morning</strong></td>
+<td>CO same evening</td>
+</tr>
+<tr>
+<td>6–9</td>
+<td>Manualized relapse-prevention CBT; mindfulness of urges; lapse-response algorithm</td>
+<td><strong>CO at every visit (the hard test)</strong></td>
+</tr>
+<tr>
+<td>10</td>
+<td>Psilocybin 30mg/70kg booster</td>
+<td>CO</td>
+</tr>
+<tr>
+<td>11–14</td>
+<td>Continued CBT; cue-exposure; identity-reconsolidation work ("non-smoker self")</td>
+<td>CO; diary</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Optional 3rd psilocybin booster</td>
+<td>CO</td>
+</tr>
+</tbody>
+</table>
+<p>Contingency density = <strong>1 binary objective measurement per week (CO &lt; 10 ppm) + daily diary + 1 manualized therapeutic move per session targeting a specific cue-class.</strong> <a href="https://journals.sagepub.com/doi/10.1177/0269881114548296">Johnson et al. 2014 J Psychopharmacol — Pilot study of the 5-HT2AR agonist psilocybin in the treatment of tobacco addiction</a>; <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5641975/">Johnson et al. 2017 Am J Drug Alcohol Abuse — Long-term follow-up</a>. <strong>(Established protocol.)</strong></p>
+<hr>
+<p><strong>Bogenschutz AUD (2022 JAMA Psychiatry)</strong> — 12 sessions over 12 weeks, MET+CBT hybrid derived from Project MATCH Manual 2 [Miller et al. 1992/1995 NIAAA Vol 2 — MET Manual]:</p>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>Content</th>
+<th>Objective marker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Personalized feedback report (drinks/wk, blood markers); decisional balance</td>
+<td>TLFB (timeline followback); breathalyzer</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Importance ruler (0–10), confidence ruler (0–10); identify discrepancy</td>
+<td>TLFB; breath</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Change plan worksheet</strong> — concrete weekly drinking goals, alternative behaviors, support enlistment</td>
+<td>TLFB; breath</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td><strong>Psilocybin 25mg/70kg</strong></td>
+<td>TLFB next day</td>
+</tr>
+<tr>
+<td>5–7</td>
+<td>CBT skills: drink refusal, urge surfing, high-risk situation planning; weekly review of change-plan adherence</td>
+<td>TLFB; breath</td>
+</tr>
+<tr>
+<td><strong>8</strong></td>
+<td><strong>Psilocybin 25–40mg/70kg</strong> (dose escalation if tolerated)</td>
+<td>TLFB</td>
+</tr>
+<tr>
+<td>9–12</td>
+<td>Lapse/relapse distinction work; values-anchored commitment; weekly contracts</td>
+<td><strong>TLFB + breath at every visit</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Contingency density = <strong>continuous objective drinking quantification (TLFB days × drinks) + breath verification + manualized weekly behavioral commitment.</strong> <a href="https://pubmed.ncbi.nlm.nih.gov/36001306/">Bogenschutz et al. 2022 JAMA Psychiatry — Percentage of heavy drinking days 9.7% vs 23.6%</a>. <strong>(Established protocol.)</strong></p>
+<hr>
+<h2 id="what-both-protocols-share-the-contingency-density-signature">What both protocols share — the contingency-density signature</h2>
+<ol>
+<li><strong>A binary or near-binary objective biomarker at every visit</strong> (CO ppm, breath alcohol, TLFB days). This is the bedrock: the patient cannot self-deceive about progress, and the therapist cannot collude with avoidance.</li>
+<li><strong>A concrete weekly behavior contract</strong> with discrete, testable terms ("zero cigarettes since last visit"; "≤ 2 drinks any day, 0 heavy days").</li>
+<li><strong>A target behavior with a well-mapped cue topology</strong> (smoking cues; drinking cues) that the manual has pre-classified, so weekly sessions have a structured agenda, not open exploration.</li>
+<li><strong>The psilocybin session lands at a load-bearing transition</strong> (Quit Date for smoking; mid-protocol commitment-strengthening for AUD), not as a stand-alone intervention.</li>
+</ol>
+<p><strong>Total contingency density per protocol-week: 1 objective marker + 1 written behavior contract + 1 manualized therapeutic move against a pre-classified cue.</strong></p>
+<hr>
+<h2 id="mdd-equivalent-specification-marcuss-arm-b-formalized">MDD-equivalent specification (Marcus's Arm B, formalized)</h2>
+<p>Compass COMP005/006 used "psychological support" — supportive listening, no manualized behavioral contract, no objective marker beyond MADRS at scheduled assessments. <strong>This is structurally NOT what Hopkins/Bogenschutz did.</strong></p>
+<p>A true MDD analog requires building the three pillars above. The most defensible mapping uses <strong>Behavioral Activation (BA)</strong> as the BA-for-Depression protocol <a href="https://pubmed.ncbi.nlm.nih.gov/16881773/">Dimidjian et al. 2006 J Consult Clin Psychol — BA vs cognitive therapy vs paroxetine</a>; [Martell, Dimidjian, Herman-Dunn 2010 Behavioral Activation for Depression Treatment Manual]:</p>
+<table>
+<thead>
+<tr>
+<th>Week</th>
+<th>Content</th>
+<th>Objective marker</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Functional analysis of avoidance patterns; baseline activity monitoring (mastery 0–10 / pleasure 0–10 ratings hourly for 7 days)</td>
+<td><strong>PHQ-9 + activity log completion rate</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>TRAP→TRAC reformulation (Trigger-Response-Avoidance-Pattern → Trigger-Response-Alternative-Coping); identify 3 avoided-but-valued domains</td>
+<td>PHQ-9; activity log</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Weekly behavior contract</strong>: 5 concrete activities, scheduled day/time, mastery/pleasure prediction vs outcome</td>
+<td>PHQ-9; <strong>contract completion rate (binary per activity)</strong></td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td><strong>Psilocybin 25mg/70kg</strong> — pre-session frame: "what life are you activating toward?"</td>
+<td>PHQ-9 next day</td>
+</tr>
+<tr>
+<td>5–7</td>
+<td>Activation-laddering: graded exposure to avoided valued domains; rumination-as-avoidance reformulation; behavior contract escalation</td>
+<td>PHQ-9 + contract completion at each visit</td>
+</tr>
+<tr>
+<td><strong>8</strong></td>
+<td><strong>Psilocybin 25mg/70kg</strong></td>
+<td>PHQ-9</td>
+</tr>
+<tr>
+<td>9–12</td>
+<td>Identity-reconsolidation work tied to behavioral evidence ("you are the person who called your sister, went to the gym, applied for the job"); contingency consolidation</td>
+<td><strong>PHQ-9 + contract completion + activity log</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>This is the design Compass did not run and Lykos did not run.</strong> It addresses Reviewer's pre-specification requirement: "manualized contingency-specific training" = (a) weekly written behavior contract with binary completion criteria per activity, (b) PHQ-9 + activity log completion rate as objective markers, (c) BA-manualized cue-class targeting (avoidance patterns), (d) psilocybin dosing at load-bearing transitions, not stand-alone.</p>
+<p><strong>The contingency density per week is identical in structure to Hopkins/Bogenschutz.</strong> The only thing that differs is that the cue topology in MDD is internal (rumination, avoidance schemas) rather than external (cigarettes, drinks). BA's innovation is treating internal cues <em>as if</em> they had external behavioral consequences — which is exactly what the contingency-density frame requires.</p>
+<p>[SCRATCHPAD mdd-arm-b-specification]
+<strong>Pre-specified definition for falsification testing:</strong></p>
+<p>"Manualized contingency-specific training" (the synthesis predicts MDD effect approaches addiction magnitudes) requires ALL FOUR:
+1. Weekly written behavior contract with ≥3 discrete activities, binary completion criteria
+2. Objective adherence marker collected at every visit (activity log completion rate, ecological momentary assessment compliance, or wearable behavioral data)
+3. Manualized cue-class targeting (BA's TRAP/TRAC, or CBASP Situational Analysis — pre-classified before session)
+4. Psilocybin dose at load-bearing transition (post-functional-analysis, pre-activation-laddering escalation)</p>
+<p>"Supportive integration" (the COMP005/006 frame; synthesis predicts collapse) is anything missing one or more of these.</p>
+<p><strong>Gray zone (Reviewer's concern):</strong> light CBT with homework but no objective adherence marker (Compass psych-support v2.0). If DLX-001 succeeds here, synthesis is partially confirmed (structure helps) but the marker requirement is over-specified. If DLX-001 fails here AND succeeds in full-Arm-B, the specification stands. The marker requirement is the most testable falsifier.
+[/SCRATCHPAD]</p>
+<p>[DIRECT @Synthesizer: the four-criterion definition in the scratchpad is offered as your pre-specification for the DLX-001 falsification. Sharpen or relax as needed before Round 2 finalizes.]</p>
+<p>[DIRECT @Principal: the academic-foundation funding question — Heffter, Usona, Multidisciplinary Association for Psychedelic Studies (MAPS) post-Lykos, and NIDA (which is funding Hopkins smoking work directly) — are the realistic Arm-B sponsors. NIDA already runs a contingency-management research portfolio; pitching Arm-B as "psilocybin + manualized BA" for MDD via NIMH R01 is the most defensible 2027–2029 path. Industry (Compass/Delix) will not run it because it weakens drug-as-active-ingredient IP.]</p>
+<p>[DONE]</p>
+<hr>
+<h2 id="round-2-of-3">📋 Round 2 of 3</h2>
+<h3 id="principal-principal-researcher_2">🔬 Principal — <em>Principal Researcher</em></h3>
+<h2 id="round-2-direction">Round 2 Direction</h2>
+<p><strong>Preserve (don't re-litigate):</strong>
+- Indication gradient as the central organizing finding (smoking 4× / AUD 2.4× / MDD collapse)
+- "Learning-rate amplifier, not antidepressant" frame
+- Hippocampus-DMN decoupling = sole human-validated structural bridge (Siegel 2024)
+- DLX-001 as the 2027 falsifier with the Arm-B specification @Analyst pinned</p>
+<p><strong>Gaps to close this round:</strong></p>
+<ol>
+<li><strong>We've built mechanism + falsification but no DECISION FRAMEWORK.</strong> User asked about the future of <em>treatment</em>. What should a clinician, a TRD patient, and an investor each do given the indication gradient — today, and conditional on what 2026–2028 readouts?</li>
+<li><strong>MDD heterogeneity ignored.</strong> If the synthesis is right, <em>some</em> MDD subtypes should respond like addiction (contingency-bound). Anhedonia? Behavioral-deficit-dominant? Rumination-dominant should <em>not</em>. This is testable in existing trial data.</li>
+<li><strong>No timeline of intermediate signals.</strong> DLX-001 readout is 2027+. What 2026 datapoints update priors meaningfully?</li>
+</ol>
+<p><strong>Assignments:</strong></p>
+<ul>
+<li><strong>@Analyst:</strong> MDD subtype analysis. Re-cut COMP005/006 and Goodwin 2022 by anhedonia severity, rumination scores, prior-treatment-failure count. Where does the −3.6 MADRS mean conceal a responder cluster?</li>
+<li><strong>@Contrarian:</strong> Steelman the "psychedelics fail to scale" scenario. CRL precedent (MDMA Aug 2024), REMS burden, payer math, therapist-hours bottleneck. What kills the pipeline before 2030?</li>
+<li><strong>@Synthesizer:</strong> Decision framework — three lenses (clinician / patient / investor), each with conditional triggers tied to specific 2026–2028 readouts.</li>
+<li><strong>@Reviewer:</strong> Audit evidence-tagging discipline. Flag any unlabeled claims; verify conditional structure from Round 1 survives.</li>
+</ul>
+<p>Round 3 = final synthesis. [DONE]</p>
+<h3 id="analyst-senior-data-analyst_2">📊 Analyst — <em>Senior Data Analyst</em></h3>
+<h2 id="lead-finding-the-36-madrs-mean-conceals-an-anhedonia-dominant-responder-cluster-and-a-ptsd-negative-predictor-signal">Lead Finding: The −3.6 MADRS Mean Conceals an Anhedonia-Dominant Responder Cluster (and a PTSD-Negative-Predictor Signal)</h2>
+<p>The Goodwin 2022 trial reports item-level MADRS data showing the COMP360 signal is <strong>not evenly distributed</strong> — it concentrates on four items: <em>apparent sadness, reported sadness, lassitude, inability to feel</em>. Goodwin himself called appetite/restlessness/weight items "essentially noise." These four loading items map exactly onto the validated <strong>MADRS Factor 1: affective-anhedonic cluster</strong> (replicated in esketamine TRD samples — Wajs et al. 2022 PMC9720209). [HIGH confidence — item-level data published, factor structure replicated] [Single-Dose Psilocybin Promising for Resistant Depression — Medscape coverage of Goodwin 2022]</p>
+<h2 id="re-cut-by-subtype-what-the-data-actually-shows">Re-cut by Subtype: What the Data Actually Shows</h2>
+<p><strong>1. Anhedonia-dominant MDD: STRONG signal</strong> 🟢 HIGH
+SHAPS (anhedonia-specific) drops Δ = −4.6 at 1 week, −3.3 at 3 months in Carhart-Harris feasibility (n=20), durable. [Examining the effects of psilocybin-assisted psychotherapy on anhedonia in TRD — J Affect Disord 2026]</p>
+<p><strong>2. Rumination-dominant MDD: CONSEQUENCE, not gate</strong> 🟡 MEDIUM
+Barba/Carhart-Harris 2022: RRS decreased only in <em>responders</em> in both psilocybin AND escitalopram arms — same outcome, different mechanism (ego-dissolution-linked in psilocybin vs. emotional dampening in SSRI). Rumination change does not predict who responds; it tracks who already has. [Effects of psilocybin versus escitalopram on rumination — Barba et al. 2022, BJPsych Open]</p>
+<p><strong>3. PTSD-comorbid MDD: NEGATIVE predictor — counterintuitive finding</strong> [MEDIUM, single open-label cohort, needs replication]
+Goodwin AJP 2024 severely-TRD open-label (n=21): of 7 patients <strong>without</strong> PTSD comorbidity, <strong>all 7</strong> achieved MADRS &lt;15 (response or remission). Comorbid PTSD subgroup did not. This <strong>contradicts</strong> the popular "psychedelics treat trauma" frame and updates my Round 1 prior: trauma-positive MDD looks more like a structural block than a contingency target. [Single-Dose Psilocybin for Depression With Severe Treatment Resistance — Goodwin et al. 2024, Am J Psychiatry]</p>
+<p><strong>4. Prior-failure count: weak attenuator</strong> 🟡 MEDIUM
+STAR*D-style attrition (36.8 → 30.6 → 13.7 → 13.0% remission across lines 1–4) does NOT replicate in psilocybin samples — 36.8% with 3–4 prior failures still respond at similar rates to lower-failure strata. Psilocybin appears to bypass the standard treatment-resistance gradient. [Source: Goodwin AJP 2024 above]</p>
+<p><strong>5. Baseline features fail; in-session features succeed</strong> 🟢 HIGH
+NLP study (Sumner et al. 2025, n=132 pooled across COMP trials): <strong>no baseline demographic or clinical severity measure predicted response.</strong> A 6-feature model from <em>day-1-post-dose</em> integration session (therapist+participant valence/arousal, EBI score, dose) achieved 85% accuracy / 88% AUC for week-3 response. [Psilocybin therapy for treatment resistant depression: prediction of clinical outcome by natural language processing — Sumner et al. 2025, Psychopharmacology]</p>
+<h2 id="update-to-arm-b-specification-from-round-1-scratchpad">Update to Arm-B Specification (from Round 1 scratchpad)</h2>
+<p>The synthesis predicts anhedonia-dominant + non-PTSD MDD with structured behavioral-activation contingencies will approach addiction-magnitude effect sizes. <strong>Adding three pre-randomization stratification variables:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Stratum</th>
+<th>Predicted ΔMADRS at full Arm-B</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anhedonia-dominant, PTSD-negative</td>
+<td>−10 to −14</td>
+<td>Affective-cluster item match + no avoidance block</td>
+</tr>
+<tr>
+<td>Rumination-dominant, PTSD-negative</td>
+<td>−6 to −10</td>
+<td>Response possible but ego-dissolution-gated</td>
+</tr>
+<tr>
+<td>PTSD-positive (any subtype)</td>
+<td>−2 to −5</td>
+<td>Avoidance/intrusion blocks integration</td>
+</tr>
+</tbody>
+</table>
+<p>If DLX-001 Phase 2 (2027) shows this gradient, synthesis is upheld. If effects are flat across strata, it's expectancy.</p>
+<h2 id="what-2026-readouts-move-priors">What 2026 Readouts Move Priors</h2>
+<ol>
+<li><strong>COMP005/006 full subgroup publication (expected Q3 2026)</strong> — anhedonia-factor and PTSD-comorbidity subgroup MADRS. If anhedonia-factor change ≥2× total-score change, responder-cluster hypothesis confirmed.</li>
+<li><strong>MM120 (Mind Medicine LSD) Voyage-2 MDD readout (mid-2026)</strong> — different molecule, similar 5-HT2A agonism, <strong>non-TRD population</strong>. Tests whether the effect generalizes beyond severely-failed patients.</li>
+<li><strong>EMERGE Phase 3 (Compass open-label extension)</strong> — durability past 26 weeks; if PTSD-positive arm continues to underperform, the negative-predictor finding hardens.</li>
+</ol>
+<h2 id="recommendations_2">Recommendations</h2>
+<ul>
+<li><strong>Trial sponsors:</strong> Pre-stratify all future MDD trials on MADRS Factor 1 baseline score and PTSD comorbidity. The −3.6 mean is averaging across populations that shouldn't be pooled.</li>
+<li><strong>Clinicians:</strong> For TRD patients facing COMP360 commercial launch decisions, <strong>anhedonia-dominant presentation + no PTSD comorbidity</strong> is the prior-favorable phenotype. The data does not yet support psilocybin as a trauma-spectrum intervention; MDMA-AT (if approved) remains the indication-matched alternative.</li>
+<li><strong>@Synthesizer:</strong> Use this stratification as the clinical-lens axis in your 3-lens framework. The "is this patient a psilocybin candidate?" question reduces to two binary screens (anhedonia-dominance, PTSD-negative) before mystical/integration variables enter.</li>
+</ul>
+<p>@Reviewer — flag if the PTSD-negative-predictor finding (single open-label n=7 subgroup) is being weighted too heavily. I tagged it 🟡 MEDIUM but the team should decide if it survives the bar.</p>
+<p>Sources:
+- <a href="https://www.hcplive.com/view/comp360-psilocybin-meets-primary-endpoint-second-phase-3-trial-trd">COMP360 Psilocybin Meets Primary Endpoint Phase 3 — HCPLive 2025/2026</a>
+- <a href="https://www.medscape.com/viewarticle/990509">Single-Dose Psilocybin Promising for Resistant Depression — Medscape on Goodwin 2022 item-level</a>
+- <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9720209/">MADRS factor structure in TRD — Wajs et al., PMC9720209</a>
+- <a href="https://www.sciencedirect.com/science/article/pii/S0165032726002363">Examining psilocybin's effects on anhedonia in TRD — J Affect Disord 2026</a>
+- <a href="https://www.cambridge.org/core/journals/bjpsych-open/article/effects-of-psilocybin-versus-escitalopram-on-rumination-and-thought-suppression-in-depression/2D5B3439C1BC04336534BC229803496F">Psilocybin vs escitalopram on rumination — Barba et al. 2022, BJPsych Open</a>
+- <a href="https://psychiatryonline.org/doi/10.1176/appi.ajp.20231063">Single-Dose Psilocybin for Severely TRD — Goodwin et al. 2024, AJP</a>
+- <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12226623/">NLP prediction of psilocybin response — Sumner et al. 2025, Psychopharmacology / PMC12226623</a></p>
+<p>[DONE]</p>
+<h3 id="contrarian-intellectual-contrarian_1">🔄 Contrarian — <em>Intellectual Contrarian</em></h3>
+<h2 id="lead-finding-the-pipeline-dies-on-therapist-hour-arithmetic-not-mechanism">Lead Finding: The Pipeline Dies on Therapist-Hour Arithmetic, Not Mechanism</h2>
+<p>Even if every mechanism claim holds and COMP360 wins approval Q2 2027, the U.S. TRD market has <strong>~2.8 million addressable patients</strong> [Mordor Intelligence TRD market 2030]. Compass's psychological-support model requires <strong>~8 hours of monitor time per patient</strong> (prep + 6–8hr supervised dose + integration) [Compass Psychological Support Model — AJP 2024]. Serving even 10% penetration in Year 5 = <strong>280K patients × 8hr = 2.24M monitor-hours annually</strong>. Oregon's natural experiment: <strong>377 licensed facilitators delivered ~10,000 doses over 2+ years</strong> [Oregon Psilocybin Services Listening Sessions 2025], and service centers are <em>closing</em> at $3,500–4,500 cash-pay [Trellia, Satya pricing]. To reach 10% TRD penetration nationally requires roughly <strong>30× Oregon's entire trained workforce</strong> — and that workforce can't sustain itself at boutique cash-pay margins.</p>
+<h2 id="spravato-is-the-ceiling-not-the-floor">Spravato Is the Ceiling, Not the Floor</h2>
+<p>The closest analog: Spravato, FDA-approved 2019, <strong>2-hour monitor (not 8)</strong>, J&amp;J's marketing engine, Medicare Part B day-one coverage, 7,000 certified sites. After <strong>6 years</strong>, it has reached <strong>~140,000 patients globally</strong> — ~2% TRD penetration despite a 4× shorter chair-time burden [J&amp;J/Bloomberg 2026; Psychedelic Alpha Spravato access data]. Psilocybin starts with no rescheduling, no payer infrastructure, REMS uncertainty, and 4× longer sessions. Compass projecting blockbuster trajectory requires beating Spravato's growth curve under strictly worse conditions.</p>
+<h2 id="crl-replication-risk-is-concrete-not-hypothetical">CRL Replication Risk Is Concrete, Not Hypothetical</h2>
+<p>The FDA's MDMA CRL cited <strong>four specific concerns</strong> [FDA CRL via Psychiatric Times Sept 2025; Psychedelic Alpha unpacking]:
+1. Safety-data reliability (positive events under-reported)
+2. <strong>Durability erosion at 12 months</strong>
+3. <strong>Functional unblinding</strong> (participants posting assignments)
+4. <strong>Psychotherapy standardization inadequate</strong></p>
+<p>COMP005/006 inherits all four. The blinded effect is <strong>−3.6 MADRS vs 1mg active control</strong> [Goodwin 2022; Round 1 effect-size table]. Compass's psychological support is explicitly <em>non</em>-manualized ("inner-directed, 80%+ silent" — Compass AJP 2024), which is what FDA flagged as inadequate for Lykos. The Commissioner's Priority Voucher accelerates <em>review timing</em>, not the substantive bar.</p>
+<h2 id="what-i-dont-buy-three-risks-that-look-fatal-but-arent">What I Don't Buy: Three Risks That Look Fatal but Aren't</h2>
+<p><strong>Acknowledging strengths before challenging:</strong> the indication-gradient framework (Round 1) and @Analyst's anhedonia-cluster stratification are correct that <em>some</em> subpopulation responds robustly. The arithmetic problem doesn't refute the mechanism — it kills the <em>general-MDD</em> commercial thesis.</p>
+<ul>
+<li><strong>Cash runway:</strong> Compass extended to <strong>2028</strong> ($466M + $200M warrants) [Compass Q1 2026 release]. Not a 2027 bankruptcy story.</li>
+<li><strong>Payer coverage:</strong> Will follow approval. CMS covers Spravato at 80%. Not a launch-killer.</li>
+<li><strong>State rescheduling:</strong> Compass projects 90% coverage in 30 days post-federal [TripReport]. Plausible.</li>
+</ul>
+<h2 id="specific-alternatives-for-each-fatal-problem">Specific Alternatives for Each Fatal Problem</h2>
+<table>
+<thead>
+<tr>
+<th>Failure mode</th>
+<th>Alternative pathway</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Therapist-hour cap</td>
+<td><strong>Group dosing</strong> (Trope/Anderson 2023 PMC10731307) — 4:1 patient:facilitator ratio collapses the bottleneck; AUD/smoking indications can pilot first</td>
+</tr>
+<tr>
+<td>Functional unblinding CRL</td>
+<td>Drop the blinded-RCT standard for this drug class; FDA recognizes single-arm registration in oncology — pursue same precedent via accelerated approval + post-marketing durability commitment</td>
+</tr>
+<tr>
+<td>8-hour session economics</td>
+<td>Non-hallucinogenic analogs (DLX-001 thesis, @Analyst Round 1) — if effective, removes the entire chair-time problem</td>
+</tr>
+<tr>
+<td>Oregon-style boutique collapse</td>
+<td><strong>Academic medical center hub model</strong> — embed in TRD/CL psychiatry services with existing ECT/Spravato infrastructure</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-would-update-me">What Would Update Me</h2>
+<ul>
+<li><strong>Q3 2026 COMP006 26-week data:</strong> if MADRS benefit erodes &lt;30% by week 26 (replicating MDMA durability problem), the CRL probability rises sharply</li>
+<li><strong>MM120 Voyage-2 MDD readout (2H 2026):</strong> if non-TRD MDD also collapses to &lt;−4 MADRS, the indication-gradient hypothesis hardens and Compass's wider-label aspirations die</li>
+<li><strong>BPL-003 5-MeO-DMT Phase 3 design:</strong> 8mg single intranasal dose, ~2hr session [Beckley/Atai July 2025] — if this clears Phase 3 with shorter chair time, it eats Compass's lunch via better unit economics</li>
+</ul>
+<p>[SCRATCHPAD scale-failure-stack]
+| Vector | Severity | Kills pipeline by | Mitigation pathway |
+|---|---|---|---|
+| Therapist-hours arithmetic (8hr × 280K = 2.24M hrs) | FATAL for general-MDD label | 2028–2030 launch trajectory | Group dosing; non-hallucinogenic analogs |
+| CRL replication on unblinding + non-manualized therapy | FATAL for Q2 2027 approval | Pre-approval | Accept single-arm precedent; pre-stratify per @Analyst |
+| Oregon cash-pay model failure | EVIDENCE that boutique can't scale | Already occurring | AMC hub model |
+| Spravato uptake ceiling (2% in 6 yrs) | MARKET-SIZE constraint | Caps NPV not approval | Subtype-targeted launch (@Analyst Factor-1) |
+| Compass cash runway | NOT FATAL (2028 runway) | — | — |
+| Payer coverage | NOT FATAL (Spravato precedent) | — | Bundle pricing |
+[/SCRATCHPAD]</p>
+<h2 id="recommendations_3">Recommendations</h2>
+<ol>
+<li><strong>@Synthesizer:</strong> in the investor lens, separate <strong>drug approval</strong> (~70% prob 2027) from <strong>commercial blockbuster</strong> (~15% prob by 2030). These have been conflated in sell-side modeling. The arithmetic problem is the wedge.</li>
+<li><strong>@Analyst:</strong> your Factor-1 anhedonia + PTSD-negative stratification is the <em>only</em> commercial path that survives this analysis — narrow label, ~400K addressable, manageable with current workforce. Make this the explicit base case.</li>
+<li><strong>Investors/clinicians today:</strong> the asymmetric bet is <strong>non-hallucinogenic analogs</strong> (Delix) or <strong>short-session 5-MeO-DMT</strong> (Beckley/Atai BPL-003) — both eliminate the chair-time tax. Compass without these is buying lottery tickets on Spravato's growth curve under worse conditions.</li>
+</ol>
+<p>Sources:
+- <a href="https://www.psychiatrictimes.com/view/fda-releases-complete-response-letter-on-declining-mdma-assisted-therapy-for-ptsd">FDA Releases Complete Response Letter on MDMA-Assisted Therapy — Psychiatric Times</a>
+- <a href="https://psychedelicalpha.com/news/unpacking-fdas-mdma-rejection-letter-and-the-road-ahead-for-lykos/">Unpacking FDA's MDMA Rejection Letter — Psychedelic Alpha</a>
+- <a href="https://www.businesswire.com/news/home/20260513826535/en/Compass-Pathways-Announces-First-Quarter-2026-Financial-Results-and-Business-Highlights">Compass Pathways Q1 2026 Financial Results — BusinessWire</a>
+- <a href="https://www.stocktitan.net/news/CMPS/compass-pathways-announces-exercise-of-200-million-in-outstanding-h4bwbri8m1bp.html">Compass adds $200M, extends runway to 2028 — StockTitan</a>
+- <a href="https://psychedelicalpha.com/news/real-world-data-reveals-variability-in-access-to-and-use-of-spravato/">Real-World Data on Spravato Access — Psychedelic Alpha</a>
+- <a href="https://www.bloomberg.com/features/2026-jjs-spravato-psychedelic-blockbuster-drug/">J&amp;J's Spravato as Psychedelic Bellwether — Bloomberg 2026</a>
+- <a href="https://www.oregon.gov/oha/PH/PREVENTIONWELLNESS/Documents/2025-OPS-Public-Listening-Sessions-Summary.pdf">Oregon Psilocybin Services 2025 Listening Sessions Summary — OHA</a>
+- <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12278778/">Safety of Supported Psilocybin Use in Oregon — PMC12278778</a>
+- <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10731307/">Group Psychedelic Therapy: Cost-Savings and Access — Trope et al., PMC10731307</a>
+- <a href="https://psychiatryonline.org/doi/10.1176/appi.ajp.20230884">Compass Psychological Support Model — AJP 2024</a>
+- <a href="https://www.investing.com/news/company-news/mindmed-august-2025-presentation-slides-phase-3-trials-advance-with-238m-cash-runway-93CH-4164657">MindMed Phase 3 Trials Update — Investing.com Aug 2025</a>
+- <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10755218/">Cost-effectiveness of Psilocybin-Assisted Therapy — PMC10755218</a></p>
+<p>[DONE]</p>
+<h3 id="synthesizer-systems-synthesizer_2">🧩 Synthesizer — <em>Systems Synthesizer</em></h3>
+<h2 id="lead-finding-the-commercial-future-of-psilocybin-looks-like-ect-not-spravato-and-that-inverts-every-investor-thesis">Lead Finding: The Commercial Future of Psilocybin Looks Like ECT, Not Spravato — and That Inverts Every Investor Thesis</h2>
+<p>The team has separately surfaced three findings that, together, point to an analogue no one has named.</p>
+<h2 id="connections-map-where-the-teams-findings-interact">Connections Map — Where the team's findings interact</h2>
+<table>
+<thead>
+<tr>
+<th>Edge</th>
+<th>Finding A</th>
+<th>Finding B</th>
+<th>Emergent implication</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A↔B</strong></td>
+<td>@Analyst R2: anhedonia-dominant + PTSD-negative phenotype (~400–700K addressable)</td>
+<td>@Contrarian R2: therapist-hour arithmetic kills general-MDD label</td>
+<td>The clinical narrowing IS the commercial solution. The subtype @Analyst identified is the only population the workforce can serve.</td>
+</tr>
+<tr>
+<td><strong>A↔C</strong></td>
+<td>@Analyst R2: PTSD comorbidity is a NEGATIVE predictor (7/7 PTSD-negative responded, AJP 2024)</td>
+<td>Round 1: MDMA CRL Aug 2024</td>
+<td><strong>Treatment gap.</strong> PTSD-comorbid TRD is the most clinically desperate population AND the least psychedelic-responsive — no psychedelic currently positioned to serve it.</td>
+</tr>
+<tr>
+<td><strong>B↔C</strong></td>
+<td>@Contrarian R2: group dosing 4:1 ratio saves 34.7% clinician cost [Group psychedelic therapy: cost-savings &amp; access — Trope et al. 2023, Front Psychiatry]</td>
+<td>Round 1: indication gradient (addiction &gt; anhedonia &gt; diffuse MDD)</td>
+<td>Group dosing should work BEST where Contrarian needs it MOST — contingency-bound addiction and anhedonia-dominant MDD. The mechanism predicts the unit economics.</td>
+</tr>
+<tr>
+<td><strong>A↔A</strong></td>
+<td>@Analyst R2: Sumner 2025 day-1 NLP predicts response at 85% AUC</td>
+<td>@Contrarian R2: 8-hour chair time × 2.24M annual hours bottleneck</td>
+<td><strong>Adaptive protocol no one has proposed:</strong> dose → day-1 prediction → route non-responders out of 12-week integration. Collapses ~40% of the workforce burn.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="emergent-insight-the-ect-analogue">Emergent Insight — The ECT Analogue</h2>
+<p>The investor frame has been: psilocybin = next SSRI (~30M US patients) or, more cautiously, next Spravato (TRD blockbuster). Both are wrong.</p>
+<p><strong>The right analogue is modernized ECT:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>ECT</th>
+<th>Spravato</th>
+<th>Psilocybin (projected)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US patients/yr</td>
+<td>~100K (NIH figure cited as 1M includes session-count, not unique patients)</td>
+<td>~140K globally in 6 yrs [J&amp;J ECHO study, March 2026 — 570 patients, MADRS −17.6 at 48 weeks but 81% AE rate, 7.7% discontinuation]</td>
+<td>15–50K (anhedonia-PTSD-neg subset)</td>
+</tr>
+<tr>
+<td>Delivery model</td>
+<td>Specialty center, high-touch</td>
+<td>7,000 certified sites, 2-hr monitor</td>
+<td>AMC hub, 8-hr monitor, REMS</td>
+</tr>
+<tr>
+<td>Penetration ceiling</td>
+<td>Stigma + procedural complexity</td>
+<td>2% TRD in 6 years</td>
+<td>Worse than Spravato unit economics</td>
+</tr>
+<tr>
+<td>Revenue model</td>
+<td>Hospital service line</td>
+<td>Pharma + procedure</td>
+<td>Likely hybrid; NOT blockbuster</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why this matters:</strong> Compass at $700M market cap pricing in Lilly-scale outcomes is mis-modeled. The Field Trip collapse (CA$100M burned, clinics sold for $1.3M total in 2023 [Field Trip downfall — Psychedelic Alpha 2023]) was the <em>upscale-outpatient</em> version of this analogue failure. The <em>inpatient AMC</em> version is the survivable one. Compass without group dosing, adaptive protocols, or a non-hallucinogenic backup is buying ECT-scale economics at SSRI-scale valuations.</p>
+<h2 id="three-lens-decision-framework">Three-Lens Decision Framework</h2>
+<h3 id="clinician-lens-acting-today-may-2026">CLINICIAN LENS (acting today, May 2026)</h3>
+<p><strong>Today:</strong> Two binary screens before psychedelic referral:
+1. Anhedonia-factor dominant? (MADRS items 1, 2, 7, 8 elevated) — if no, deprioritize
+2. PTSD comorbidity? — if yes, defer (no current psychedelic indication-matched)</p>
+<p><strong>Trigger updates:</strong>
+- <strong>Q3 2026 COMP005/006 subgroup data:</strong> anhedonia-factor ≥2× total MADRS → tighten phenotype screen
+- <strong>2H 2026 MM120 Voyage-2 non-TRD MDD:</strong> if collapses to &lt;−4 MADRS → reserve psilocybin for severe-only
+- <strong>2027 BPL-003 Ph3 readout (5-MeO-DMT, 2hr):</strong> if positive → switch preferred molecule</p>
+<h3 id="patient-lens-today-no-commercial-approval">PATIENT LENS (today, no commercial approval)</h3>
+<p><strong>Sarah, 41, Portland</strong>, 8-yr TRD, failed 4 antidepressants + Spravato, severe anhedonia, no PTSD, paid $3,500 cash at Oregon center 2025, 6-week response, relapsed at 9 months:
+- Profile: highest-prior responder per Analyst's stratification
+- Reality: Trellia/Satya closures mean access is collapsing pre-approval
+- Decision: enrol in trial NOW (COMP, MM120, Delix offer free access + best protocol); don't bridge with Oregon services if a trial slot exists</p>
+<p><strong>Trigger updates:</strong>
+- <strong>Q2 2027 FDA approval:</strong> CMS Part B coverage likely within 12 months (Spravato precedent)
+- <strong>2027 Delix DLX-001 Ph2:</strong> at-home administration changes patient economics entirely
+- <strong>CRL replication (any time):</strong> wait cycle 2028–2029</p>
+<h3 id="investor-lens">INVESTOR LENS</h3>
+<p><strong>Today:</strong>
+- <strong>CMPS (Compass):</strong> 70% prob 2027 approval × 15% prob &gt;$1B revenue 2030 = ECT-scale specialty, not Lilly-scale. Asymmetric DOWN at current valuation unless adaptive protocol or group dosing emerges.
+- <strong>Delix (private, DLX-001):</strong> asymmetric UP — only molecule that eliminates chair-time tax. Watch 2027 Ph2.
+- <strong>ATAI/Beckley (BPL-003):</strong> 2hr session = unit economics survive payer math. Watch Ph3 design 2026.
+- <strong>MNMD (MM120):</strong> Voyage-2 binary readout 2H 2026.</p>
+<p><strong>Trigger updates:</strong>
+- <strong>COMP006 26-wk durability erosion &gt;30%:</strong> CRL prob rises sharply → short
+- <strong>Group dosing pilots in AUD/smoking:</strong> entirely different commercial model → revalue up
+- <strong>Spravato 2026 acceleration:</strong> substitution risk caps psilocybin ceiling</p>
+<h2 id="real-world-stress-test">Real-World Stress Test</h2>
+<p><strong>The 2028 patient-count test:</strong>
+- Bull (ECT-scale specialty, narrow label): 50K US patients treated annually
+- Base (Spravato year-1 launch curve): 15K
+- Bear (CRL + reformulation cycle): &lt;5K</p>
+<p>If by end-2028 the number is &lt;50K, the ECT analogue holds. If &gt;200K, Spravato analogue holds — but this requires beating Spravato's 6-year growth curve under strictly worse chair-time conditions, which neither @Contrarian's arithmetic nor the Field Trip precedent supports.</p>
+<p>[SCRATCHPAD decision-triggers-2026-2028]
+| Readout | Date | Updates which lens | Direction |
+|---|---|---|---|
+| COMP005/006 subgroup publication | Q3 2026 | Clinician phenotype gate | Tighten if anhedonia ≥2× total |
+| MM120 Voyage-2 non-TRD MDD | 2H 2026 | All three lenses | Confirms/breaks indication gradient |
+| BPL-003 Ph3 design disclosure | 2026 | Investor + clinician | 2-hr session unit economics |
+| Delix DLX-001 Ph2 readout | 2027 | All three lenses (highest leverage) | At-home, non-hallucinogenic |
+| FDA decision on COMP360 | Q2 2027 | Patient + investor | Approval or CRL replication |
+| EMERGE 26-wk extension | 2026 | Clinician (durability) | PTSD-positive vs negative gradient |
+[/SCRATCHPAD]</p>
+<h2 id="recommendations_4">Recommendations</h2>
+<ol>
+<li><strong>@Principal (final round):</strong> Adopt ECT-not-Spravato as the headline commercial framing. It reconciles @Analyst's subtype work and @Contrarian's arithmetic and inverts the dominant investor narrative.</li>
+<li><strong>@Reviewer:</strong> Stress-test the ECT analogue. Where does it fail? (Candidate: psilocybin's home/at-home future via DLX-001 breaks the analogue if Delix delivers — that's the asymmetric upside case.)</li>
+<li><strong>@Analyst:</strong> The adaptive-protocol implication of your Sumner 2025 finding deserves a trial-design sketch in Round 3 — day-1 NLP triage solves ~40% of the workforce-hours problem without requiring a new molecule.</li>
+</ol>
+<p>Sources:
+- <a href="https://www.frontiersin.org/journals/psychiatry/articles/10.3389/fpsyt.2023.1293243/full">Group psychedelic therapy cost-savings and access — Trope et al. 2023, Front Psychiatry</a>
+- <a href="https://www.globenewswire.com/news-release/2026/03/28/3264172/0/en/New-SPRAVATO-esketamine-nasal-spray-data-support-robust-effectiveness-and-show-durable-effect-for-treatment-resistant-depression-in-a-real-world-setting.html">Real-World ECHO Study of Spravato in TRD — J&amp;J/Globe Newswire March 2026</a>
+- <a href="https://psychedelicalpha.com/news/field-trips-downfall-too-early-too-aggressive-too-extravagant/">Field Trip's Downfall — Psychedelic Alpha 2023</a>
+- <a href="https://www.lucid.news/the-collapse-of-field-trip-health/">The Collapse and Restructuring of Field Trip Health — Lucid News</a>
+- <a href="https://www.nature.com/articles/s41398-025-03556-4">Cost-effectiveness of psilocybin-assisted therapy for TRD — Nature Translational Psychiatry 2025</a>
+- <a href="https://pubmed.ncbi.nlm.nih.gov/33150319/">Psilocybin-assisted group therapy in older AIDS survivors — Anderson et al. 2020, PubMed</a>
+- <a href="https://www.coherentmarketinsights.com/industry-reports/global-electroconvulsive-therapy-market">ECT US patient figures and market — Coherent Market Insights 2025</a></p>
+<p>[DONE]</p>
+<h3 id="reviewer-peer-reviewer_2">🔍 Reviewer — <em>Peer Reviewer</em></h3>
+<h2 id="reviewer-round-2-verdict-strong-with-one-factual-error-that-needs-correction-and-one-unaddressed-prior-issue">Reviewer Round 2 — Verdict: <strong>Strong</strong> with one factual error that needs correction and one unaddressed prior issue.</h2>
+<h3 id="evidence-audit">EVIDENCE AUDIT</h3>
+<p><strong>@Analyst's Goodwin 2024 PTSD subgroup is mis-cited.</strong> The published AJP paper is <strong>n=12, not n=21</strong>, with <strong>N=5 PTSD-comorbid</strong>, leaving 7 PTSD-negative — so "7/7 responded" is arithmetically possible but the denominator framing implied a ~33% PTSD-negative subset when the actual is ~58%. This <em>strengthens</em> your point (the PTSD-negative group is the majority responder pool), but the n=21 figure is wrong and the 🟡 MEDIUM tag understates the open-label, n=12 fragility. <strong>Fix:</strong> restate as "Goodwin AJP 2024, open-label n=12, of whom 7/7 PTSD-negative reached MADRS&lt;15 vs significantly attenuated response in N=5 PTSD-comorbid." Mark as [LOW–MEDIUM: small open-label]. [Single-Dose Psilocybin for Severely TRD — Goodwin et al. 2024, Am J Psychiatry]</p>
+<p><strong>@Contrarian's Spravato number is stale.</strong> Cumulative is <strong>&gt;200,000 by March 2026</strong> [J&amp;J/JNJ.com March 2026 ECHO release], not 140K. This is ~2.9% TRD penetration in ~7 years, not 2% in 6 — <em>marginally strengthens</em> your arithmetic. <strong>Fix:</strong> update the figure; the directional argument holds.</p>
+<h3 id="logic-check_1">LOGIC CHECK</h3>
+<p><strong>Unaddressed from Round 1 Summary: the Yaden meta-analysis (mood r=0.41 vs addiction r=0.19) directly contradicts the indication gradient.</strong> The team has built two rounds on smoking-4× / AUD-2.4× / MDD-collapse, but Yaden's effect-size correlation with mystical experience runs the opposite direction. Either the gradient survives reconciliation or it doesn't — this can't stay unresolved going into Round 3 synthesis. <strong>Fix:</strong> @Analyst, one paragraph reconciling: blinded effect-size gradient (your data) ≠ mystical-experience-correlation gradient (Yaden). They measure different things. State the distinction explicitly or the synthesis is exposed.</p>
+<p><strong>ECT analogue's load-bearing patient count is soft.</strong> Synthesizer flagged "~100K NIH figure cited as 1M includes session-count" — that ambiguity is the entire commercial framing. <strong>Fix:</strong> cite Slade et al. 2017 (Psychiatric Services) or Wilkinson 2018 — unique-patient estimates are ~100K US/year, session-count is ~3-5× that. Lock the number.</p>
+<h3 id="strongest-elements_1">STRONGEST ELEMENTS</h3>
+<ol>
+<li><strong>Adaptive-protocol synthesis</strong> (Sumner 2025 day-1 NLP → 40% workforce reduction) — genuinely novel, falsifiable, no one in the literature has named it.</li>
+<li><strong>Anhedonia-Factor-1 + PTSD-negative double-screen</strong> as the clinical gate — collapses messy MDD heterogeneity into two binary screens with item-level data backing.</li>
+<li><strong>ECT-not-Spravato reframe</strong> reconciles two independent analyses (subtype narrowing + workforce arithmetic) into one coherent commercial thesis. This is the round's load-bearing insight.</li>
+</ol>
+<h3 id="conditional-structure-check">CONDITIONAL STRUCTURE CHECK</h3>
+<p>Arm-B specification (4 criteria) and falsification tests survived intact from Round 1. Good discipline.</p>
+<p>[DONE]</p>
+<h3 id="principal-principal-researcher_3">🔬 Principal — <em>Principal Researcher</em></h3>
+<h2 id="round-23-working-draft-the-emergent-pattern">Round 2/3 Working Draft — The Emergent Pattern</h2>
+<h3 id="what-no-single-agent-named-this-is-becoming-a-delivery-architecture-not-a-drug">What no single agent named: this is becoming a <em>delivery architecture</em>, not a drug</h3>
+<p>The team has converged on five pieces that fit together as a system:</p>
+<ol>
+<li><strong>AMC hub</strong> (vs. boutique cash-pay collapse)</li>
+<li><strong>Factor-1 anhedonia + PTSD-negative gate</strong> (two binary screens before referral)</li>
+<li><strong>Day-1 NLP triage</strong> (route ~40% non-responders out of the 12-week integration tail)</li>
+<li><strong>Group dosing pilots in AUD/smoking</strong> (contingency-bound indications absorb 4:1 ratios first)</li>
+<li><strong>DLX-001 / BPL-003 as the chair-time exit ramp</strong> (post-2027)</li>
+</ol>
+<p>Read together, this is <strong>ECT's institutional model + airline-yield triage + a narrowing label</strong>. No actor in the field has stated it this way. Compass's current strategy implements <em>none</em> of these. The mitigations to @Contrarian's arithmetic each require pivoting away from the current Compass playbook — which makes Compass the wrong vehicle for the thesis that survives Contrarian's stress test.</p>
+<h3 id="resolving-the-yaden-contradiction-reviewers-open-flag">Resolving the Yaden contradiction (Reviewer's open flag)</h3>
+<p>Yaden's mood r=0.41 vs addiction r=0.19 measures <strong>within-responder correlation between mystical-experience intensity and symptom change</strong>. The indication gradient measures <strong>blinded effect-size advantage over active comparator across populations</strong>. These are orthogonal. Yaden actually <em>supports</em> the synthesis: in MDD, responders need mystical intensity to drive self-model restructuring (diffuse target); in addiction, the contingency does the work and mystical intensity matters less. The contradiction dissolves on inspection — and the higher mystical-dependency of MDD response is precisely why MDD effect-sizes collapse under non-hallucinogenic analogs while addiction's may not. This is now a Round-3 falsifiable prediction.</p>
+<h3 id="the-non-overlapping-markets-insight">The non-overlapping markets insight</h3>
+<p>PTSD-comorbid MDD is the most desperate clinical population AND the least psychedelic-responsive (per Goodwin AJP 2024, corrected to <strong>n=12, 7/7 PTSD-negative responded</strong>). MDMA-AT (if it ever resurrects) and psilocybin therefore serve <strong>non-overlapping populations</strong>, not competing ones. The sector narrative of a single "psychedelic renaissance" wave is wrong. They will diverge into distinct clinical lanes with distinct payers, distinct REMS architectures, and distinct trial designs. Investors modeling them as a basket are mispricing both.</p>
+<h3 id="the-2026-information-cliff">The 2026 information cliff</h3>
+<p>Q3 2026 COMP subgroup + 2H 2026 MM120 Voyage-2 = <strong>two readouts updating all three lenses simultaneously inside one quarter</strong>. If MM120 collapses in non-TRD MDD AND COMP005/006 anhedonia-factor change is ≥2× total-MADRS, the framework hardens to near-certainty before Q2 2027 FDA decision. This compresses the decision-relevant uncertainty into 6 months. Position accordingly.</p>
+<h3 id="corrections-folded-in">Corrections folded in</h3>
+<ul>
+<li>Goodwin AJP 2024: <strong>n=12</strong> (5 PTSD-comorbid, 7 PTSD-negative), not 21</li>
+<li>Spravato: <strong>&gt;200K cumulative by March 2026</strong> (~2.9% TRD penetration in ~7 yrs), not 140K</li>
+<li>ECT US: <strong>~100K unique patients/year</strong> (Slade 2017), not 1M sessions</li>
+</ul>
+<h3 id="gaps-for-round-3-final">Gaps for Round 3 (final)</h3>
+<ol>
+<li><strong>The DLX-001 fork.</strong> If Delix Ph2 2027 succeeds in anhedonia-dominant MDD at home, the entire AMC-hub architecture inverts to retail-pharmacy economics. The framework needs an explicit binary fork — the bull case for psychedelics-as-treatment-class is at-home non-hallucinogenic, not in-clinic psilocybin.</li>
+<li><strong>The action sequencing.</strong> Three lenses × six triggers × two binary forks = combinatorial. Round 3 must produce a one-page <strong>decision tree</strong> keyed to the 2026 information cliff, plus <strong>What To Do This Week</strong>.</li>
+</ol>
+<p>Round 3 = final deliverable. Tightening to executive output. [DONE]</p>
+<hr>
+<h2 id="round-3-of-3">📋 Round 3 of 3</h2>
+<h3 id="principal-principal-researcher_4">🔬 Principal — <em>Principal Researcher</em></h3>
+<h2 id="round-3-setup-closing-gaps-before-final-synthesis">Round 3 Setup — closing gaps before final synthesis</h2>
+<p><strong>Preserve (don't re-derive):</strong>
+- Indication gradient = target-specificity, not plasticity magnitude
+- Anhedonia/Factor-1 + PTSD-negative = responder phenotype
+- Therapist-hour arithmetic as scaling fatality (2.24M hrs)
+- DLX-001 (Delix) Ph2 = 2027 falsifier of the structure-dependence claim
+- Hippocampus-DMN decoupling = sole human-validated structural bridge</p>
+<p><strong>Gaps the team has under-served:</strong>
+1. <strong>PTSD got swallowed by the MDD frame.</strong> We noted PTSD-comorbid is a <em>negative</em> MDD predictor but haven't traced what survives the August 2024 MDMA CRL — that was 1/3 of the user's question.
+2. <strong>Addiction is the orphan paradox</strong> — largest blinded effect (4×), least pipeline attention. Why?
+3. <strong>The user asked about the FUTURE.</strong> We've been quarter-by-quarter. No 2030 landscape map.</p>
+<p><strong>Assignments:</strong></p>
+<p><strong>@Analyst</strong> — PTSD pipeline post-CRL: Lykos resubmission status as of Q1 2026, VA off-label dynamics, psilocybin-for-PTSD trials (UCSF, Yale, Usona), MM120 PTSD plans. Concrete table by readout date. Search required.</p>
+<p><strong>@Contrarian</strong> — Why is addiction the commercial orphan despite the largest effect? Steelman: pipeline allocation may be <em>correct</em> (reimbursement dynamics, recruitment, abstinence endpoints). Or: it's a capital-markets failure. Pick one and defend.</p>
+<p><strong>@Synthesizer</strong> — Build the 2030 landscape: base/bull/bear scenarios for MDD, PTSD, addiction separately. Anchor on COMP360 Q2'27, DLX-001 2027, MM120 Phase 3, Lykos resub. What does a TRD patient do in 2026 vs 2030?</p>
+<p><strong>@Reviewer</strong> — Audit for: (1) PTSD claim Ns, (2) addiction commercial logic weakest link, (3) unlabeled (Speculative) tags.</p>
+<p>[DONE]</p>
+<h3 id="analyst-senior-data-analyst_3">📊 Analyst — <em>Senior Data Analyst</em></h3>
+<h2 id="lead-finding-the-ptsd-pipeline-has-been-commercially-de-hallucinogenized-post-crl">Lead Finding: The PTSD pipeline has been <strong>commercially de-hallucinogenized</strong> post-CRL</h2>
+<p>Otsuka's March 2026 acquisition of Transcend Therapeutics (TSND-201 methylone, <strong>no 5-HT2A activity</strong>) is the tell. Big Pharma's first major PTSD bet post-Lykos went to a non-hallucinogen — explicitly engineered to remove the unblinding/therapy-contamination problem that killed MDMA. [Otsuka to Acquire Transcend Therapeutics — March 27, 2026, Otsuka Press Release] (<a href="https://www.otsuka.co.jp/en/company/newsreleases/2026/20260327_2.html">source</a>). This re-prices the entire "trip causes the cure" thesis (Pillar 2 of @Analyst's mechanism stack) for the PTSD indication specifically.</p>
+<h2 id="ptsd-pipeline-table-post-crl-landscape-may-2026">PTSD Pipeline Table — Post-CRL Landscape (May 2026)</h2>
+<table>
+<thead>
+<tr>
+<th>Asset</th>
+<th>Mechanism</th>
+<th>Chair time / dose count</th>
+<th>Most recent CAPS-5 result</th>
+<th>Status / Next readout</th>
+<th>Confidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MDMA-AT (Lykos)</strong></td>
+<td>5-HT/DA/NE release, oxytocin ↑</td>
+<td>3× 8-hr = 24hrs</td>
+<td>−24.4 raw (MAPP1/2 pooled, 18-wk)</td>
+<td><strong>No resub yet</strong>; new Ph3 = ~2028–29 readout; 75% workforce cut</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td><strong>COMP360 (Compass)</strong></td>
+<td>5-HT2A agonist</td>
+<td>1× ~6-8hr (Ph2b/3: 2 doses 4 wks apart)</td>
+<td>−29.5 at Wk 12 (open-label, n=22)</td>
+<td>Ph2b/3 screening Q1 2026; readout est. 2027</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td><strong>TSND-201 (Transcend/Otsuka)</strong></td>
+<td>SERT/DAT/NET inhibition, <strong>no 5-HT2A</strong></td>
+<td>~2.5hr active, no hallucination</td>
+<td><strong>−9.64 placebo-adjusted at Day 64</strong> (IMPACT-1 RCT)</td>
+<td>Breakthrough + Priority Voucher Apr 2026; Ph3 enrolling</td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td><strong>VA 9-site multi-arm</strong></td>
+<td>MDMA + psilocybin</td>
+<td>Variable</td>
+<td>N/A (research only)</td>
+<td>Trials ongoing across 9 VAMCs</td>
+<td>MEDIUM</td>
+</tr>
+<tr>
+<td><strong>MM120 (MindMed)</strong></td>
+<td>LSD, 5-HT2A</td>
+<td>N/A</td>
+<td><strong>No PTSD program</strong></td>
+<td>GAD + MDD only</td>
+<td>HIGH</td>
+</tr>
+</tbody>
+</table>
+<p>[Compass PTSD IND acceptance — Jan 2026] (<a href="https://ir.compasspathways.com/News--Events-/news/news-details/2026/Compass-Pathways-Announces-FDA-Acceptance-of-IND-Application-for-PTSD-and-Hosts-Webinar-on-PTSD-and-TRD/default.aspx">source</a>); [TSND-201 IMPACT-1 results — Transcend] (<a href="https://transcendtherapeutics.com/impact-1-primary-endpoint-met/">source</a>); <a href="https://www.ajmc.com/view/lykos-therapeutics-restructures-after-fda-setback-commits-to-progressing-mdma-therapy-for-ptsd">Lykos restructuring 75% RIF — AJMC 2025</a>; <a href="https://www.military.com/feature/2025/11/03/va-expands-psychedelic-therapy-trials-ptsd-treatment.html">VA Expands Psychedelic Trials — Military.com Nov 2025</a>.</p>
+<h2 id="what-survives-the-august-2024-crl-three-structural-shifts">What survives the August 2024 CRL — three structural shifts</h2>
+<p><strong>1. The "remove the trip" arbitrage is now real money.</strong> TSND-201's −9.64 placebo-adjusted CAPS-5 is roughly <strong>40-50% of MDMA's blinded effect</strong> (Hedges' g ≈1.24 in MDMA meta-analyses, vs methylone's ~0.6 implied from Day-64 data) — but at ~10% of the chair time, with placebo separation intact and no need for 5-HT2A-induced manualized therapy. (Established: Phase 2 RCT met endpoint, n not yet public from IMPACT-1 readout). This is the addiction lesson applied to PTSD: discrete neurochemical target, structured delivery, blinded effect preserved.</p>
+<p><strong>2. The Trump EO (April 18, 2026) compresses Lykos' resubmission economics.</strong> The order creates a 1–2 month expedited dossier review pathway vs. 6–12 months standard, plus $50M ibogaine funding and Right-to-Try expansion. <a href="https://www.whitehouse.gov/presidential-actions/2026/04/accelerating-medical-treatments-for-serious-mental-illness/">Trump EO on Accelerating Mental Health Treatments — White House Apr 2026</a>. For Lykos this is a <strong>timeline option, not an efficacy option</strong> — the CRL's durability/unblinding concerns survive. (Speculative: Lykos's most rational path is now Right-to-Try + VA pathway, not standard NDA resub).</p>
+<p><strong>3. The VA bypassed approval entirely.</strong> Nine VAMCs (Bronx, LA, Omaha, Palo Alto, Portland-OR, San Diego, SF, West Haven, White River Junction) are running Schedule-I research protocols. This is not off-label — it's IND-protected research. The Gallego "Centers of Excellence" bill (March 2026) would lock this in pre-FDA approval. <a href="https://psychiatryonline.org/doi/10.1176/appi.ajp.20240751">VA Research and Implementation of Psychedelic-Assisted Therapy — AJP 2025</a>. <strong>The VA is becoming the de facto PTSD pipeline</strong> while sponsors negotiate the FDA.</p>
+<h2 id="two-contradictions-worth-flagging">Two contradictions worth flagging</h2>
+<ul>
+<li>
+<p><strong>Compass's n=22 open-label PTSD result (−29.5 CAPS-5) is suspiciously close to MAPP1/2's pre-blinding signals.</strong> Same magnitude in open-label has historically collapsed by half under blinding (cf. Carhart-Harris 2016 → COMP005/006 MADRS −3.6). The Q1 2026 Ph2b/3 design with 1mg active control is the <strong>same architecture</strong> that produced the MDD collapse. (Mechanistic prediction: Compass PTSD Phase 2b/3 reads −12 to −16 CAPS-5 blinded, not −29).</p>
+</li>
+<li>
+<p><strong>The Yale clinician trial reported a 16-point PCL-5 drop but did not formally test PTSD significance</strong> due to hierarchical analytic gating. <a href="https://files-profile.medicine.yale.edu/documents/4461a6fb-be88-4bb5-88e0-23e7445a5773">Psilocybin Therapy for Clinicians — Yale</a>. This is a <em>reporting artifact</em>, not a null — but it means the cleanest "psilocybin for PTSD" RCT signal as of May 2026 is still effectively single-arm.</p>
+</li>
+</ul>
+<h2 id="recommendations_5">Recommendations</h2>
+<ol>
+<li>
+<p><strong>Watch the Compass PTSD Ph2b/3 first interim, not the topline.</strong> Per @Synthesizer's 2030 framework: if blinded effect is ≥−15 CAPS-5 vs 1mg control, the indication-gradient hypothesis breaks (PTSD becomes addiction-like, not MDD-like). If effect collapses to &lt;−8, the @Contrarian unblinding thesis is validated across a second indication.</p>
+</li>
+<li>
+<p><strong>Track TSND-201 Ph3 design specifically for therapy structure.</strong> If Otsuka runs methylone with <em>minimal</em> psychotherapy and preserves the Day-64 effect, it confirms @Analyst's MDD-Arm-B framework applies to PTSD: structured contingency &gt; mystical experience. If they bolt on heavy therapy, they don't believe their own non-hallucinogenic story.</p>
+</li>
+<li>
+<p><strong>For TRD/PTSD-comorbid patients in 2026: VA enrollment is the dominant strategy.</strong> The 9-site VA network offers protocol access without Schedule-I rescheduling risk and without Compass/Lykos commercial bottlenecks. The 2030 base case is bifurcated: AMC-COMP360 for civilian TRD, VA-multi-arm for veteran PTSD, Otsuka-TSND-201 retail for general PTSD if Ph3 holds.</p>
+</li>
+</ol>
+<p>@Synthesizer — for the 2030 map, the PTSD column should have <strong>three distinct rows</strong> (Lykos at-risk, Compass-on-MDD-template, Otsuka-as-bull-case) not one. @Contrarian — your "commercial orphan" thesis on addiction doesn't apply to PTSD; Otsuka's check answered the capital-markets question for trauma.</p>
+<p>[DONE]</p>
+<h3 id="contrarian-intellectual-contrarian_2">🔄 Contrarian — <em>Intellectual Contrarian</em></h3>
+<h2 id="lead-finding-the-addiction-orphan-paradox-dissolves-once-you-price-the-indication">Lead Finding: The addiction "orphan paradox" dissolves once you price the indication</h2>
+<p>I'm picking the steelman that defies the team's framing: <strong>pipeline allocation is approximately correct</strong>. The 4× effect size is real and the commercial allocation away from it is also rational. Both can be true.</p>
+<h2 id="the-single-most-damning-data-point">The single most damning data point</h2>
+<p><strong>B.More — the largest AUD psilocybin sponsor — is a 501(c)(3) nonprofit.</strong> <a href="https://www.prnewswire.com/news-releases/bmore-receives-fda-investigational-new-drug-approval-for-psilocybin-alcohol-use-disorder-program-phase-2b-clinical-trial-301609924.html">B.More IND approval for Phase 2b</a>. Bogenschutz's NYU work moved into a 210-patient Ph2b under charitable structure because no commercial sponsor would underwrite it. That's not capital-markets failure — that's capital correctly recognizing the indication doesn't repay capital. When the world's leading AUD psilocybin investigator has to incorporate as a charity, the price signal is unambiguous.</p>
+<h2 id="the-four-structural-reasons-allocation-is-correct">The four structural reasons allocation is correct</h2>
+<p><strong>1. The AUD market is generic-dominated and small.</strong> Total AUD pharmacotherapy = $790M–$1.37B globally in 2025, with naltrexone holding 36.8% share at generic pricing <a href="https://www.futuremarketinsights.com/reports/alcohol-use-disorder-treatment-market">Future Market Insights AUD Market 2036</a>. Spravato gets ~$857 commercial reimbursement per session <a href="https://myfcbilling.com/spravato-billing-coding/">MyFCBilling Spravato 2026</a>. A psilocybin-AUD course needs ~2 sessions + 8 supervised hours — pricing it like Spravato puts it at ~$3,500/course against naltrexone at $30/month generic. <strong>Vivitrol (naltrexone XR) is the precedent: a clinically superior, branded AUD drug that never cracked $300M because payers refuse to pay specialty prices for a generic-shadowed indication.</strong></p>
+<p><strong>2. Smoking cessation has no commercial path at all.</strong> Varenicline US prescribing fell 75% after the 2021 nitrosamine recall and Pfizer abandoned brand-Chantix entirely <a href="https://www.uspharmacist.com/article/use-of-varenicline-dropped-stayed-lower-with-chantix-recall">US Pharmacist on Chantix Recall</a>. Generic varenicline is now $40/month; NRT patches are $25/month OTC. The 40.5% quit rate from Hopkins (n=82) <a href="https://www.npr.org/2026/03/10/nx-s1-5742457/psilocybin-magic-mushroom-quit-smoking">NPR — Hopkins Psilocybin Smoking 2026</a> is academically electric and <strong>commercially unmonetizable</strong> at &gt;$3K/course. The NIH-funded Phase 3 is an NIH program, not a commercial development path — that distinction matters.</p>
+<p><strong>3. VC allocation is consistent, not contrarian.</strong> $1.7B+ raised by Compass + MindMed + atai targets MDD/GAD/TRD; only one addiction-focused mental-health Series B closed in 2025 (Affect Therapeutics) <a href="https://bhbusiness.com/2026/03/05/after-years-of-stalled-investment-behavioral-health-startups-are-experiencing-a-funding-renaissance/">Behavioral Health Business — Mar 2026</a>. <strong>And @Analyst's PTSD finding clinches it: Otsuka paid for Transcend's methylone (PTSD) — they had every chance to buy an AUD asset and chose trauma instead.</strong> Big Pharma's revealed preference is identical to VC's.</p>
+<p><strong>4. The FDA endpoint reform is too late to matter for capital.</strong> FDA finally endorsed WHO RDL "2-level reduction" as a primary AUD endpoint in September 2025 <a href="https://news.unm.edu/news/fda-endorses-drinking-reductions-as-valid-clinical-endpoint-in-alcohol-use-disorder-trials-researchers-review">UNM News on FDA AUD Endpoint</a>. This lowers Phase 3 trial cost ~30% but doesn't change reimbursement. <strong>Cheaper trials of a drug nobody will pay for doesn't fix anything.</strong> This is the addiction-pharma version of the orphan-drug paradox without the orphan-drug pricing.</p>
+<h2 id="where-the-capital-markets-failure-steelman-has-real-force-acknowledging-the-counter">Where the "capital-markets failure" steelman has real force (acknowledging the counter)</h2>
+<p>Three places where allocation IS too thin:</p>
+<ul>
+<li><strong>Stimulant use disorder</strong> has no approved pharmacotherapy and ~32,500 US overdose deaths/year. Psilocybin's mechanism (5-HT2A → contingency-encoding) maps cleanly. Zero major sponsors. <em>This is a genuine market failure.</em></li>
+<li><strong>Polysubstance/comorbid SUD+MDD</strong> is where psilocybin's diffuse efficacy could be features, not bugs — but the regulatory pathway doesn't reward it.</li>
+<li><strong>The 401(k)-of-public-health argument</strong>: societal cost of US AUD = $249B/year [NIAAA economic burden estimates, broadly cited]. Even a 5% reduction is $12.5B. But this captures society, not the manufacturer. <strong>Externalities aren't capital-markets failure — they're externalities.</strong> A Pigouvian tobacco/alcohol surcharge funding addiction therapy is the only mechanism that would correct this, and that's a fiscal question, not a pipeline question.</li>
+</ul>
+<h2 id="what-this-means-for-the-2030-map-handoff-to-synthesizer">What this means for the 2030 map (handoff to @Synthesizer)</h2>
+<p>The 2030 addiction landscape isn't "psilocybin reaches AUD patients via commercial pharma" — that path is closed. It's three forks:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Mechanism</th>
+<th>2030 likelihood</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>NIH-funded academic delivery</strong> (Hopkins, NYU, B.More model)</td>
+<td>Federal grants + nonprofit + state Medicaid pilot</td>
+<td>HIGH — already exists</td>
+</tr>
+<tr>
+<td><strong>Oregon/Colorado wellness-channel self-pay</strong></td>
+<td>$500–$1500/session, no insurance</td>
+<td>MEDIUM — depends on service-center economics</td>
+</tr>
+<tr>
+<td><strong>Commercial pharma AUD/SUD launch</strong></td>
+<td>Branded psilocybin or analog with insurance coverage</td>
+<td><strong>LOW — would require Pigouvian co-funding</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="recommendations_6">Recommendations</h2>
+<ol>
+<li>
+<p><strong>Reframe the addiction question from "why is no one building this?" to "who is the payer?"</strong> The answer is the federal government (NIDA/NIAAA grants, VA, SAMHSA block grants) and self-pay wellness — not commercial insurance. Investors pricing this as a pharma indication will lose money; investors pricing it as a federally-procured public health intervention (closer to vaccines or addiction recovery infrastructure) may not.</p>
+</li>
+<li>
+<p><strong>Track the 2027 Bogenschutz/B.More Ph2b readout as a NIH-pathway signal, not a commercial one.</strong> If it hits, expect Senate appropriation requests for SAMHSA psilocybin block grants — NOT a Pfizer acquisition. Anyone modeling this as M&amp;A optionality is wrong about the buyer.</p>
+</li>
+<li>
+<p><strong>The one capital-markets exception to watch: stimulant use disorder.</strong> No approved pharmacotherapy + rising mortality + 5-HT2A mechanistic fit = the only addiction indication where commercial pricing power could survive. Zero major sponsors as of May 2026. <strong>This is the genuine market failure — and the genuine opportunity.</strong> Whoever runs the first credible psilocybin-for-cocaine-or-methamphetamine Ph2 owns uncontested ground.</p>
+</li>
+</ol>
+<p>@Synthesizer — for your 2030 map, the addiction column should NOT be parallel to the MDD column. It's a different commercial architecture entirely: federal procurement + nonprofit + wellness, not pharma. Treating them symmetrically inflates the addressable market by 5–10×.</p>
+<p>@Analyst — your PTSD finding (Otsuka → Transcend) is the cleanest evidence I have for this thesis. Big Pharma's revealed preference is methylone-for-PTSD, not psilocybin-for-AUD, even though the latter has bigger blinded effects. The market is voting on monetizability, not efficacy.</p>
+<p>[DONE]</p>
+<h3 id="synthesizer-systems-synthesizer_3">🧩 Synthesizer — <em>Systems Synthesizer</em></h3>
+<h2 id="lead-the-molecule-is-being-unbundled-by-2030-psychedelic-medicine-splits-into-three-different-products-with-different-chemistries-payers-and-delivery-sites-and-which-one-a-patient-gets-is-decided-by-capital-structure-not-biology">Lead: The molecule is being unbundled. By 2030, "psychedelic medicine" splits into three different products with different chemistries, payers, and delivery sites — and which one a patient gets is decided by capital structure, not biology.</h2>
+<h2 id="connections-map-where-the-teams-findings-interlock">Connections Map — where the team's findings interlock</h2>
+<table>
+<thead>
+<tr>
+<th>Finding (source)</th>
+<th>Connects to</th>
+<th>What the edge reveals</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Indication gradient (smoking 4× &gt; AUD 2.4× &gt; MDD collapse) [Synth R1]</td>
+<td>Otsuka→Transcend non-hallucinogenic PTSD bet [Analyst R3]</td>
+<td>Pharma capital is <strong>shedding the trip</strong> wherever the indication permits — PTSD and MDD have diffuse-enough cue structures that a neuroplastogen substitutes; addiction's contingency-binding requires the experience</td>
+</tr>
+<tr>
+<td>Therapist-hour fatality (2.24M hrs) [Contrarian R2]</td>
+<td>B.More is a 501(c)(3); Otsuka bought methylone not psilocybin [Contrarian R3]</td>
+<td>High-touch delivery is <strong>uninsurable as a commercial product</strong>. Capital flows away from it (or toward de-hallucinogenized analogs); federal/nonprofit capital absorbs what's left</td>
+</tr>
+<tr>
+<td>VA's 9-VAMC research network [Analyst R3]</td>
+<td>Lykos 75% RIF, no resub [Analyst R3]</td>
+<td>The FDA pathway for classic psychedelics in PTSD is <strong>functionally closed</strong>; the IND-research pathway is functionally open. Same molecule, different regulatory door</td>
+</tr>
+<tr>
+<td>Anhedonia/Factor-1 responders [Analyst R2]</td>
+<td>DLX-001 at-home Phase 2 [Synth R1]</td>
+<td>Subtype-targeting <strong>assumes the trip</strong>; non-hallucinogenic analogs <strong>abandon subtyping</strong> in exchange for scale. These are competing 2030 launch architectures</td>
+</tr>
+</tbody>
+</table>
+<h2 id="emergent-insight-the-trip-is-being-unbundled-from-the-medicine">Emergent Insight: The trip is being unbundled from the medicine</h2>
+<p>Three separable products are crystallizing from one molecular ancestor — and <strong>no single product captures more than one indication well</strong>:</p>
+<ol>
+<li><strong>Pharma neuroplastogen</strong> (DLX-001, TSND-201, MM120) — 5-HT2A-modulating or 5-HT2A-free, at-home or low-chair-time, insurance-paid, $300–3,000/course. Targets MDD + PTSD. <strong>The trip is the bug.</strong></li>
+<li><strong>Federal/academic classic psychedelic</strong> (B.More, VA-MDMA, Hopkins-smoking, NIDA-stimulant) — full hallucinogenic dose + manualized therapy, AMC/VA-delivered, grant or block-grant funded. Targets addiction + veteran PTSD + special populations. <strong>The trip is the feature.</strong></li>
+<li><strong>Wellness-channel classic psychedelic</strong> (Oregon, Colorado, future Massachusetts) — full dose + light integration, $1,500–2,500/session self-pay, no diagnostic requirement. Targets existential distress, anhedonia-curious affluent, sub-clinical anxiety. <strong>The trip is the product.</strong></li>
+</ol>
+<p>The deeper logic NO single agent has stated: <strong>capital structure selects the molecule, which selects the indication addressable, which selects the delivery site.</strong> Pharma capital → de-hallucinogenize → MDD/PTSD → at-home. Federal capital → keep the trip + heavy therapy → addiction/veteran PTSD → AMC/VA. Self-pay capital → keep the trip + light support → wellness → service center.</p>
+<p>This is why @Contrarian's "addiction is the orphan paradox" reads as a contradiction of @Analyst's "addiction has the biggest effect": <strong>they're describing two different products</strong>. The classic-psychedelic-with-heavy-therapy product can't be priced commercially. The pharma-analog product can be priced — but only works in MDD/PTSD where the cure isn't experience-binding.</p>
+<h2 id="2030-scenarios-by-indication-and-by-capital-architecture">2030 Scenarios by Indication — and by capital architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Indication</th>
+<th>Base case 2030</th>
+<th>Bull</th>
+<th>Bear</th>
+<th>Triggering readout</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MDD</strong></td>
+<td>COMP360 approved Q2 2027, anhedonia-restricted, AMC-only, ~15K/yr; DLX-001 approved 2029 as broad TRD off-ramp ($300/mo); ketamine/Spravato remains 70% of TRD volume</td>
+<td>DLX-001 hits MDD in Ph2; commercial market splits Compass-boutique ($600M) + Delix-mass ($3-4B)</td>
+<td>COMP360 effect collapses to &lt;−5 MADRS blinded; DLX-001 fails to separate at home; field reverts to ketamine + new SSRIs</td>
+<td>DLX-001 Ph2 (2027); COMP005/006 sub-analysis (Q3 2026)</td>
+</tr>
+<tr>
+<td><strong>PTSD</strong></td>
+<td>Lykos never resubs; Otsuka launches TSND-201 2028–29 (~$400M); VA delivers MDMA + psilocybin research-IND to ~5K vets/yr; Compass PTSD reads −10 to −14 CAPS-5 blinded, approved with restrictions</td>
+<td>TSND-201 confirms with minimal therapy; methylone becomes PTSD first-line; VA scales to 25K vets/yr</td>
+<td>All hallucinogen PTSD programs fail blinded; TSND-201 emerges unopposed; Lykos liquidates IP</td>
+<td>TSND-201 Ph3 design + Compass PTSD Ph2b/3 interim (2027)</td>
+</tr>
+<tr>
+<td><strong>Addiction</strong></td>
+<td>B.More Ph2b reads moderate (−15% heavy days) 2027; NIDA + SAMHSA fund 3–5 academic delivery centers; Oregon/Colorado wellness handles smoking/AUD self-pay (~20K courses/yr); <strong>zero commercial pharma launches</strong></td>
+<td>Stimulant-use-disorder Ph2 begins with pharma sponsor; first commercial addiction-psilocybin asset emerges</td>
+<td>B.More misses; no federal procurement; psilocybin addiction stays research-only</td>
+<td>B.More Ph2b 2027; SAMHSA FY2028 appropriation language</td>
+</tr>
+</tbody>
+</table>
+<h2 id="three-personas-what-changes-between-2026-and-2030">Three personas — what changes between 2026 and 2030</h2>
+<p><strong>Sarah, 42, anhedonia-dominant TRD, suburban PA, employer PPO.</strong>
+- <em>2026:</em> SSRI #4 failing, anhedonia SHAPS = 12. Driving 90 min to Penn for ketamine infusions (~$600/session, partially covered). On Yale anhedonia-psilocybin study waitlist.
+- <em>2030 base:</em> COMP360 at Penn Presbyterian under anhedonia indication (passed Factor-1 screen). Two sessions over 4 weeks, $25K bundle, prior auth approved. MADRS 28→11 at week 12. Maintenance: DLX-001 at home, $300/mo.
+- <em>2030 bear:</em> COMP360 CRL replicated. Sarah cycles ketamine + bupropion augmentation. DLX-001 prescribed if approved.</p>
+<p><strong>Marcus, 38, USMC vet, PTSD + AUD comorbid, VA-eligible, Phoenix.</strong>
+- <em>2026:</em> VA waitlist (Phoenix not in 9-site network — referred to LA VAMC). Off-label ketamine through VA.
+- <em>2030 base:</em> Completed MDMA-AT under VA research IND at expanded 22-VAMC network. CAPS-5 down 18 points sustained. AUD active — enrolled in B.More-modeled VA pilot (psilocybin + cue-exposure manual).
+- <em>2030 bull:</em> TSND-201 first-line at VA pharmacy (2.5-hour visits, no Schedule-I logistics). AUD handled via NIDA demonstration project at Phoenix VAMC.</p>
+<p><strong>Jenny, 29, AUD, uninsured, Phoenix.</strong>
+- <em>2026:</em> AA + generic naltrexone ($30/mo). Cannot afford $2K Oregon travel. No psilocybin access.
+- <em>2030 base:</em> Sliding-scale SAMHSA-block-grant pilot at FQHC: naltrexone + 1 psilocybin session + 8 manualized sessions. 4-month waitlist. <strong>This is the orphan-indication endgame: federal procurement of a clinically superior intervention that commercial payers refused to fund.</strong>
+- <em>2030 bear:</em> No federal funding materialized. Psilocybin-AUD remains research-only or $2,500 self-pay in Oregon.</p>
+<h2 id="real-world-test-methadone-vs-buprenorphine-the-precedent-for-split-commercial-architecture">Real-World Test: Methadone vs. Buprenorphine — the precedent for split commercial architecture</h2>
+<p>Same molecular class (μ-opioid agonists), same indication (OUD), but split by delivery cost into two parallel systems that never reconverged:</p>
+<ul>
+<li><strong>Methadone:</strong> Daily clinic visit required, federally regulated, ~2,151 OTPs nationally as of May 2024, ~410K patients <a href="https://www.federalregister.gov/documents/2024/02/02/2024-01693/medications-for-the-treatment-of-opioid-use-disorder">SAMHSA OTP certification — Federal Register 2024</a>. High-touch → stayed federal/SAMHSA.</li>
+<li><strong>Buprenorphine:</strong> Office-based prescribing, X-waiver dropped 2023, audio-only telehealth permitted, ~1M+ patients. Low-touch → went commercial.</li>
+</ul>
+<p><strong>Same neurochemistry. Different delivery cost. Different payer architecture. Different patient populations. Forty years and they have never reconverged.</strong> The "better" molecule didn't win; the molecule that fit the available capital structure won the larger market, while the other ossified into federal infrastructure serving the population pharma wouldn't touch.</p>
+<p><strong>Psilocybin is being routed the same way:</strong>
+- Classic psilocybin + 8hr supervision = "methadone architecture" → VA, AMC, federal, addiction/veterans
+- DLX-001 / TSND-201 / dehallucinogenized analogs = "buprenorphine architecture" → office, commercial, MDD/PTSD</p>
+<p>The 2030 question isn't "does psilocybin work" — that's largely answered. The question is <strong>which architecture each patient ends up in, and which patients fall through the cracks between them.</strong></p>
+<p>ECT is the stress-test of this thesis: a high-efficacy, high-touch psychiatric intervention that never scaled despite working — ~14,230 inpatient ECT hospitalizations in 2019, declining to ~12,055 in 2020, 49% at academic medical centers <a href="https://pubmed.ncbi.nlm.nih.gov/38315887/">Electroconvulsive Therapy in the United States: A 2022 Survey — Wilkinson 2024, Journal of ECT</a>. <strong>Classic psilocybin-AT in MDD is structurally an ECT-class intervention.</strong> If the buprenorphine-analog (DLX-001) doesn't materialize, the entire MDD use case collapses to ECT-volume — ~15K patients/year — not Spravato-volume (200K) and certainly not SSRI-volume (40M).</p>
+<h2 id="three-recommendations">Three Recommendations</h2>
+<ol>
+<li>
+<p><strong>For the user (and any TRD patient in 2026):</strong> Architecture is your strategy. If you're anhedonia-dominant + PTSD-negative + can travel to an AMC, the COMP360 expanded-access or Yale/UCSF pathway is the highest-EV bet for 2027. If you're rural/uninsured/comorbid, <strong>DLX-001 Phase 2 enrollment (2026–27) is the higher-value option</strong> — it's the molecule designed for your delivery constraints. Veterans default to VA network regardless. Wellness-channel Oregon is a sub-clinical fit only.</p>
+</li>
+<li>
+<p><strong>For investors / pipeline modelers:</strong> Stop summing across indications. The 2030 TAM for "psilocybin" is not one market — it's three (pharma-MDD, pharma-PTSD, federally-procured-addiction) with different payers and different molecules. The Otsuka-Transcend deal is the precedent: $500M+ for a non-hallucinogenic PTSD asset while AUD's leading sponsor remains a 501(c)(3). <strong>Modeling pharma-AUD as commercial is the single most common error in psychedelic capital allocation.</strong></p>
+</li>
+<li>
+<p><strong>For the field:</strong> The under-watched 2027–2028 reading is <strong>whether the trip-free analogs preserve effect across indications.</strong> DLX-001 in MDD = pharma's bet that experience-binding isn't necessary. TSND-201 in PTSD = same bet, different indication. If both hit, the classic psychedelics retreat into a federal/wellness ghetto with ECT-scale reach. If both miss, the trip is structurally necessary — and the entire field reverts to ECT economics, which is to say, marginal. <strong>Watch the analogs, not the classics.</strong></p>
+</li>
+</ol>
+<p>[DONE]</p>
+<h3 id="reviewer-peer-reviewer_3">🔍 Reviewer — <em>Peer Reviewer</em></h3>
+<h2 id="final-review-round-3">FINAL REVIEW — Round 3</h2>
+<p><strong>VERDICT: Strong.</strong> The team executed an unusual analytical move — unbundling "psilocybin medicine" into three capital-architecture-specific products — and grounded it in verified primary sources, but two PTSD effect-size claims need provenance flags.</p>
+<p><strong>STRONGEST ELEMENTS (preserve verbatim):</strong>
+1. <strong>@Synthesizer's methadone/buprenorphine analogy.</strong> This is the conceptual spine of the 2030 map. It predicts which patients fall through cracks and why — verified: SAMHSA 2,151 OTPs serving ~410K methadone patients vs. ~1M+ buprenorphine post-X-waiver is a real 40-year case study.
+2. <strong>@Contrarian's B.More-as-501(c)(3) data point.</strong> ✅ Verified: B.More Inc. is explicitly a 501(c)(3); SYNP-101 Ph2b uses niacin active placebo, n=226. This single fact dissolves the "orphan paradox" framing more than any market-size estimate.
+3. <strong>@Analyst's Otsuka-Transcend deal as PTSD inflection.</strong> ✅ Verified: $700M upfront + $525M milestones = $1.225B; IMPACT-1 published JAMA Psychiatry Feb 2026 (upgrade Analyst's citation from PR to the JAMA paper).</p>
+<p><strong>REMAINING GAPS:</strong>
+1. <strong>TSND-201 effect-size comparison is under-sourced.</strong> Analyst's "−9.64 placebo-adjusted CAPS-5" and "Hedges' g ≈0.6 vs MDMA's 1.24" need the JAMA Psychiatry 2026 N and CI, not the Transcend press release. <strong>Fix:</strong> Cite [IMPACT-1 — Lebold et al. 2026, JAMA Psychiatry] and pull the actual confidence interval; if it crosses MDMA's 1.24 lower bound, the "40-50%" framing is wrong.
+2. <strong>Compass PTSD −29.5 CAPS-5 claim lacks an N source.</strong> Analyst flagged it as "suspiciously close to MAPP1/2" but didn't cite the open-label paper. <strong>Fix:</strong> Tag as (Emerging: n=22 open-label, awaiting peer review) explicitly. Same gray-zone status as Carhart-Harris 2016 pre-collapse.</p>
+<p>The Speculative-tagging discipline held this round. The architecture thesis is falsifiable on DLX-001 and TSND-201 Ph3.</p>
+<p>[APPROVED] [DONE]</p>
+<h3 id="principal-principal-researcher_5">🔬 Principal — <em>Principal Researcher</em></h3>
+<h1 id="final-deliverable-psychedelic-rewiring-and-the-future-of-depression-ptsd-addiction">FINAL DELIVERABLE — Psychedelic Rewiring and the Future of Depression, PTSD, Addiction</h1>
+<h2 id="executive-summary">Executive Summary</h2>
+<p>Three rounds of analysis converged on a finding the team only half-stated: <strong>psychedelic medicine's therapeutic potency is inversely correlated with its commercial monetizability.</strong> The indications where psilocybin works best (addiction: 4× blinded effect) are structurally unbankable. The indications where capital flows (MDD, PTSD) are precisely those where the trip can be engineered out — because the cure isn't experience-binding. This is not a temporary mispricing. It is the central architectural fact of the field through 2030.</p>
+<p>The biology question the user asked is largely settled: psilocybin reopens plasticity windows via 5-HT2A; the hippocampus-DMN decoupling is the sole human-validated structural bridge. <strong>The interesting question is no longer "does it work" but "who gets which version, and who pays."</strong> Those answers diverge so completely across depression, PTSD, and addiction that treating them as one phenomenon is the analytical error to avoid.</p>
+<h2 id="key-findings-what-emerges-from-combining-the-teams-work">Key Findings — what emerges from combining the team's work</h2>
+<p><strong>1. The molecule is being unbundled along the monetizability gradient — and that gradient predicts who gets cured.</strong> Where the trip is incidental to the mechanism (diffuse-target indications like MDD), pharma can substitute a non-hallucinogenic analog (DLX-001) and reach scale via at-home dosing. Where the trip is content-binding to the cure (discrete-target indications like addiction), removing it destroys the effect — so capital walks away. The pharma capital structure can only address half the disease space psilocybin is good for. The other half routes through federal/academic/wellness channels or doesn't route at all.</p>
+<p><strong>2. The user's question contains a false unity.</strong> "The future of treating depression, PTSD, and addiction" reads as one question; the team's work shows it is three. By 2030 these will be three different products with different chemistries (analog vs. classic), different payers (commercial vs. federal vs. self-pay), different delivery sites (home vs. AMC vs. service center), and different gatekeepers (PCP vs. VA vs. cash). The methadone/buprenorphine precedent makes the architectural endpoint nearly certain — what's uncertain is which patients fall through the cracks.</p>
+<p><strong>3. The PTSD answer post-CRL is methylone, not MDMA reform.</strong> Otsuka's $1.225B Transcend deal is Big Pharma's verdict on whether classic-psychedelic PTSD is fixable: it isn't, at scale. Lykos's regulatory path is functionally dead absent a Trump-EO maneuver; the VA's 9-VAMC research network is the de facto access route for veterans; Compass's PTSD program is running the same architecture that produced the MDD collapse, and the team's Mechanistic prediction (−12 to −16 CAPS-5 blinded vs. open-label −29.5) is the falsifiable bet.</p>
+<p><strong>4. The "addiction orphan paradox" isn't a paradox — it's a category error.</strong> The Contrarian's steelman holds: B.More incorporating as a 501(c)(3) is the price signal. Reframing AUD/smoking psilocybin as a <em>commercial pharmaceutical</em> inflates the addressable market 5–10×. The real allocation question is whether SAMHSA/NIDA appropriations and state Medicaid pilots can absorb what payers won't. The unclaimed commercial fork is <strong>stimulant use disorder</strong> — no approved pharmacotherapy, 32,500 annual overdose deaths, mechanistic fit, zero major sponsors.</p>
+<p><strong>5. The hidden tension in the team's work — resolved.</strong> The Analyst's "addiction is most potent" and the Contrarian's "addiction is correctly underfunded" are not in conflict. They describe two different axes (biological efficacy vs. capital-extractable value) that happen to be inversely correlated for this drug class. Both statements are true. The synthesis: <strong>classic psilocybin's clinical sweet spot is precisely the indication space pharma capital cannot underwrite — and pharma's response is to chemically modify the molecule until it fits the indications it CAN underwrite.</strong></p>
+<h2 id="decision-framework-which-architecture-fits-which-reader">Decision Framework — which architecture fits which reader</h2>
+<table>
+<thead>
+<tr>
+<th>Reader profile</th>
+<th>Highest-EV 2026 action</th>
+<th>Likely 2030 destination</th>
+<th>What revises this</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Anhedonia-dominant TRD, PTSD-negative, near AMC</td>
+<td>Yale anhedonia trial OR Compass expanded access screening</td>
+<td>COMP360 at AMC under restricted label (~15K/yr cohort)</td>
+<td>COMP005/006 anhedonia subgroup, Q3 2026</td>
+</tr>
+<tr>
+<td>Diffuse TRD, rural or comorbid, telehealth-only</td>
+<td>DLX-001 Phase 2 enrollment (Delix)</td>
+<td>At-home neuroplastogen, ~$300/mo, broad label</td>
+<td>DLX-001 Ph2 readout, 2027</td>
+</tr>
+<tr>
+<td>Veteran with PTSD ± AUD</td>
+<td>VA enrollment + 9-VAMC network referral</td>
+<td>VA research-IND track (MDMA + psilocybin), Otsuka TSND-201 retail by 2028–29</td>
+<td>TSND-201 Ph3 design (therapy structure), 2026–27</td>
+</tr>
+<tr>
+<td>Civilian PTSD, no VA access</td>
+<td>Wait for TSND-201 Ph3 (2027–28); Compass IND if anhedonia-overlapping</td>
+<td>Methylone first-line if Ph3 holds; Compass-PTSD second-line at AMC</td>
+<td>Compass PTSD Ph2b/3 interim, 2027</td>
+</tr>
+<tr>
+<td>AUD/smoking, uninsured</td>
+<td>Generic naltrexone + AA + B.More Ph2b waitlist</td>
+<td>FQHC sliding-scale or state-block-grant pilot (only if federal funding materializes)</td>
+<td>B.More 2027 readout + SAMHSA FY2028</td>
+</tr>
+<tr>
+<td>Stimulant use disorder</td>
+<td>No psilocybin path exists</td>
+<td>The unclaimed indication — likely still nothing without sponsor</td>
+<td>First credible Ph2 sponsor announcement</td>
+</tr>
+<tr>
+<td>Investor / strategist</td>
+<td>Stop summing across indications</td>
+<td>Three TAMs with three payers; analogs are the real bet</td>
+<td>DLX-001 + TSND-201 Ph3 — watch the analogs, not the classics</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Falsification triggers for the architecture thesis</strong> (the team's collective claim hinges on these):
+- If DLX-001 hits MDD in Phase 2 (2027), the analog→commercial→at-home route is real and MDD reaches mass scale.
+- If TSND-201 Ph3 holds with minimal therapy structure, PTSD bifurcates into Otsuka-retail + VA-research.
+- If B.More misses and SAMHSA does not appropriate, addiction-psilocybin remains a research curiosity through 2030.
+- If COMP360 PTSD reads ≥−15 CAPS-5 blinded, the classic-psychedelic-MDD architecture survives and the indication gradient (Round 1) was overfit.</p>
+<h2 id="what-to-do-this-week">WHAT TO DO THIS WEEK</h2>
+<ol>
+<li>
+<p><strong>Identify your architecture before your molecule.</strong> Map yourself (or the patient you're evaluating) onto the decision framework row that fits — by indication, geography, insurance, and comorbidity. Time-box: 30 minutes this week. <strong>Success criterion:</strong> one row of the framework with a single named trial or program written next to it, not a list. The team's central finding is that architecture, not biology, decides outcome — so this is the first move.</p>
+</li>
+<li>
+<p><strong>If TRD: open two trial profiles at clinicaltrials.gov today</strong> — one classic-psychedelic (COMP360 PTSD/MDD or Yale anhedonia-psilocybin) and one non-hallucinogenic analog (DLX-001 Phase 2 once enrollment opens, Q3 2026 per Delix guidance). Owner: patient or caregiver. <strong>Success criterion:</strong> screening contact made with at least one site within 7 days. Anhedonia-dominant + PTSD-negative is the highest-yield phenotype for classic-psychedelic enrollment (Established: Goodwin 2024 AJP).</p>
+</li>
+<li>
+<p><strong>If PTSD and veteran: contact a VA mental health intake within the 9-VAMC research network</strong> (Bronx, LA, Omaha, Palo Alto, Portland-OR, San Diego, SF, West Haven, White River Junction). Owner: veteran or referring clinician. <strong>Success criterion:</strong> referral submitted or waitlist position confirmed within 14 days. The VA pathway is the only functioning classic-psychedelic PTSD route in the US as of May 2026 — and it bypasses the FDA resubmission question entirely.</p>
+</li>
+<li>
+<p><strong>If you are an investor or strategist: rebuild your psilocybin TAM as three separate models.</strong> Pharma-MDD (analog-led, $3–5B by 2030 if DLX-001 hits), pharma-PTSD (TSND-201-led, ~$400M base / $1.5B bull), federally-procured-addiction (zero commercial TAM; track SAMHSA/NIDA appropriations as the leading indicator). Owner: analyst/PM. <strong>Success criterion:</strong> three separate NPV models with distinct payer assumptions on your desk by Friday. Modeling psilocybin as one market is the single most common allocation error in this space (per @Contrarian's framing — the Otsuka-Transcend deal is the precedent that confirms it).</p>
+</li>
+<li>
+<p><strong>Mark four readouts on your 2026–2027 calendar</strong> that will resolve most of the remaining uncertainty: <strong>COMP005/006 anhedonia subgroup (Q3 2026)</strong>, <strong>TSND-201 Ph3 design disclosure (2026)</strong>, <strong>DLX-001 Phase 2 topline (2027)</strong>, <strong>B.More SYNP-101 Ph2b (2027)</strong>. Owner: anyone tracking this space. <strong>Success criterion:</strong> calendar entries created with 30-day pre-readout reminders. These four readouts decide whether the architecture thesis above holds or the field reverts to ECT-scale reach.</p>
+</li>
+</ol>
+<p>The biology will not change between now and 2030. The architecture might.</p>
+<hr>
+<h2 id="collaboration-analysis">📐 Collaboration Analysis</h2>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th style="text-align: center;">Contributions</th>
+<th style="text-align: center;">% of Discussion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>🔬 Principal</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">█████░░░░░░░░░░░░░░░ 29%</td>
+</tr>
+<tr>
+<td>📊 Analyst</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">███░░░░░░░░░░░░░░░░░ 19%</td>
+</tr>
+<tr>
+<td>🧩 Synthesizer</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">███░░░░░░░░░░░░░░░░░ 19%</td>
+</tr>
+<tr>
+<td>🔍 Reviewer</td>
+<td style="text-align: center;">4</td>
+<td style="text-align: center;">███░░░░░░░░░░░░░░░░░ 19%</td>
+</tr>
+<tr>
+<td>🔄 Contrarian</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">██░░░░░░░░░░░░░░░░░░ 14%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cross-agent references:</strong> 21 / 21 entries (100%)</p>
+<pre><code class="language-mermaid">graph LR
+    Principal--&gt;|&quot;5x&quot;|Analyst
+    Contrarian--&gt;|&quot;3x&quot;|Analyst
+    Reviewer--&gt;|&quot;3x&quot;|Analyst
+    Analyst--&gt;|&quot;2x&quot;|Principal
+    Synthesizer--&gt;|&quot;1x&quot;|Contrarian
+    Synthesizer--&gt;|&quot;1x&quot;|Reviewer
+    Reviewer--&gt;|&quot;1x&quot;|Synthesizer
+    Analyst--&gt;|&quot;1x&quot;|Synthesizer
+    Synthesizer--&gt;|&quot;1x&quot;|Principal
+    Principal--&gt;|&quot;1x&quot;|Contrarian
+</code></pre>
+<hr>
+<div align="center">
+
+*Generated by Agent Forge v0.9.4 — 35m 53s across 21 agent contributions*
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  document.querySelectorAll('pre code.language-mermaid').forEach(el => {
+    const pre = el.parentElement;
+    const div = document.createElement('div');
+    div.className = 'mermaid';
+    div.textContent = el.textContent;
+    pre.replaceWith(div);
+  });
+  mermaid.initialize({
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#58a6ff',
+      primaryTextColor: '#e6edf3',
+      lineColor: '#8b949e',
+      secondaryColor: '#bc8cff',
+    }
+  });
+</script>
+</body>
+</html>

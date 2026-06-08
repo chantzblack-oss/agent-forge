@@ -80,13 +80,15 @@ TRIPLE_MODEL_BRAINTRUST = TeamConfig(
             name="GPTAnalyst", role="worker", icon="\U0001f9e0",
             provider="openai", model="gpt",
             personality=(
-                "OpenAI GPT-5 analyst. Strengths: cross-domain synthesis, "
-                "elegant reframing, creative pattern recognition. Your "
-                "move is not the same as Claude's 'careful reasoning' or "
-                "Gemini's 'find recent evidence' — it's 'propose a "
-                "non-obvious frame that reorganizes the whole question.' "
-                "Pair every creative move with specific grounding so you "
-                "don't drift into unsupported speculation."
+                "OpenAI GPT-5 analyst with web search. Strengths: cross-domain "
+                "synthesis, elegant reframing, creative pattern recognition. "
+                "You have web search — USE IT to find evidence the other models "
+                "missed: different search engines surface different results. "
+                "Your move is not the same as Claude's 'careful reasoning' or "
+                "Gemini's 'find recent evidence' — it's 'propose a non-obvious "
+                "frame that reorganizes the whole question' BACKED by evidence "
+                "you actually searched for. Pair every creative move with "
+                "specific grounding."
             ),
         ),
         AgentConfig(
@@ -217,8 +219,8 @@ CROSS_MODEL_DELIBERATION = TeamConfig(
     category="Cross-Model",
     max_rounds=1,
     deliberation_mode=True,
-    max_deliberation_turns=10,
-    deliberation_turn_tokens=1500,
+    max_deliberation_turns=15,
+    deliberation_turn_tokens=5000,
     agents=[
         AgentConfig(
             name="Chair", role="leader", icon="\U0001f3af",
@@ -281,7 +283,7 @@ CROSS_MODEL_DEBATE = TeamConfig(
     description="Claude vs Gemini — one argues FOR, one argues AGAINST",
     icon="⚔️",
     category="Cross-Model",
-    max_rounds=2,
+    max_rounds=3,
     agents=[
         AgentConfig(
             name="Moderator", role="leader", icon="\U0001f399️",

@@ -30,8 +30,8 @@ POLYMATH_CLAUDE = TeamConfig(
     chat_mode=True,
     max_rounds=1,
     deliberation_mode=True,
-    max_deliberation_turns=6,
-    deliberation_turn_tokens=1500,
+    max_deliberation_turns=10,
+    deliberation_turn_tokens=5000,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",
@@ -114,8 +114,8 @@ POLYMATH_TRI = TeamConfig(
     chat_mode=True,
     max_rounds=1,
     deliberation_mode=True,
-    max_deliberation_turns=7,
-    deliberation_turn_tokens=1500,
+    max_deliberation_turns=12,
+    deliberation_turn_tokens=5000,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",
@@ -178,15 +178,17 @@ POLYMATH_TRI = TeamConfig(
             name="GPTAnalyst", role="worker", icon="\U0001f9e0",
             provider="openai", model="gpt",
             personality=(
-                "GPT analyst. Your lane: the UNEXPECTED angle. If you "
-                "agree with Claude and Gemini, you've failed — find a "
-                "different lens, a reframe, an uncomfortable implication "
-                "they didn't surface. Your job is the insight that "
-                "reorganizes the whole question. "
+                "GPT analyst with web search. Your lane: the UNEXPECTED "
+                "angle. If you agree with Claude and Gemini, you've "
+                "failed — find a different lens, a reframe, an "
+                "uncomfortable implication they didn't surface. "
+                "You have web search — USE IT. Different search engines "
+                "find different things. Search for the counter-evidence, "
+                "the edge case, the study nobody cited yet. "
                 "Never start with 'Building on' or 'Great analysis' — "
                 "lead with your actual point. Pair every creative move "
-                "with specific grounding (a named case, exemplar, or "
-                "research finding). Under 180 words."
+                "with specific grounding from sources you actually found. "
+                "Under 200 words."
             ),
         ),
         AgentConfig(
@@ -214,8 +216,8 @@ POLYMATH = TeamConfig(
     chat_mode=True,
     max_rounds=1,
     deliberation_mode=True,
-    max_deliberation_turns=6,
-    deliberation_turn_tokens=1500,
+    max_deliberation_turns=10,
+    deliberation_turn_tokens=5000,
     agents=[
         AgentConfig(
             name="Scholar", role="leader", icon="\U0001f393",

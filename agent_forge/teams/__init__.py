@@ -31,7 +31,7 @@ class TeamConfig:
     # Max turns within a single deliberation "round" before forcing synthesis.
     max_deliberation_turns: int = 12
     # Per-turn soft budget — keeps turns short so the conversation flows.
-    deliberation_turn_tokens: int = 800
+    deliberation_turn_tokens: int = 3000
 
     # ── chat mode ───────────────────────────────────────
     # When True, the team runs as a persistent conversation loop: user types

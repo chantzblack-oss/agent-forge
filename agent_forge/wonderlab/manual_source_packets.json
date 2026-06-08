@@ -1,0 +1,8 @@
+{
+  "src-graeber-debt": {
+    "verification_status": "manual-packet",
+    "verified_title": "Debt: The First 5,000 Years",
+    "verification_excerpt": "Manual source packet scaffold. Add page-level excerpts from the book before publishing claims that rely on Graeber's barter/debt critique.",
+    "verification_error": "Book source requires curator-entered page evidence."
+  }
+}

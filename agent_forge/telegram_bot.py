@@ -55,7 +55,7 @@ _allowed_raw = os.environ.get("TELEGRAM_ALLOWED_USERS", "")
 if _allowed_raw:
     _ALLOWED_USERS = {int(x.strip()) for x in _allowed_raw.split(",") if x.strip()}
 
-_DEFAULT_TEAM = "Polymath (Tri-Model)"
+_DEFAULT_TEAM = "Triple-Model Braintrust"
 
 # Per-user state
 _user_teams: dict[int, str] = {}
@@ -398,7 +398,7 @@ async def handle_question(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     status_msg = await update.message.reply_text(
         f"STARTING: {team.name}\n"
         f"Team: {', '.join(agent_names)}\n\n"
-        f"This usually takes 5-8 minutes.\n"
+        f"This usually takes 8-15 minutes (deep thinking enabled).\n"
         f"Use /status to check progress or /cancel to abort.",
     )
 

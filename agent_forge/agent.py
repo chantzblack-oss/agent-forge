@@ -120,7 +120,7 @@ class AgentConfig:
     model: str = "default"
     temperature: float = 0.8
     icon: str = ""
-    max_tokens: int = 16000
+    max_tokens: int = 32000
 
 
 @dataclass

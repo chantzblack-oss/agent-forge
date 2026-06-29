@@ -1,0 +1,36 @@
+# Render.com blueprint — deploy the Agent Forge Telegram bot from your phone,
+# no computer or terminal required.
+#
+# How to use (all in a phone browser):
+#   1. render.com → sign up with GitHub → authorize the agent-forge repo
+#   2. New +  →  Blueprint  →  pick the agent-forge repo
+#   3. choose branch: claude/gracious-wozniak-hqvt9l
+#   4. Render reads this file and prompts for the secret values below
+#      (sync: false means "ask me, don't store in git")
+#   5. paste your keys → Apply → watch the logs for
+#      "Bot ready. Polling for messages..."
+#
+# A "worker" service has no web port — perfect for a Telegram long-poll bot.
+
+services:
+  - type: worker
+    name: agent-forge-bot
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter          # background workers require a paid plan (~$7/mo)
+    autoDeploy: true       # redeploys when you push to the branch
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TELEGRAM_ALLOWED_USERS
+        sync: false
+    disk:
+      name: agentforge-data
+      mountPath: /root/.agent_forge   # persists memory + model cache
+      sizeGB: 1

@@ -1,0 +1,34 @@
+# Fly.io deploy for the Agent Forge Telegram bot.
+#
+# The bot is a long-poll worker (no inbound HTTP), so it runs as a single
+# always-on machine with no exposed ports.
+#
+#   1. fly launch --no-deploy --copy-config --dockerfile ../Dockerfile
+#   2. fly secrets set \
+#        TELEGRAM_BOT_TOKEN=... \
+#        ANTHROPIC_API_KEY=... \
+#        GEMINI_API_KEY=... \
+#        OPENAI_API_KEY=... \
+#        TELEGRAM_ALLOWED_USERS=...
+#   3. fly volumes create agentforge_data --size 1
+#   4. fly deploy
+#
+# Run this from the repo root, pointing at this config:
+#   fly deploy -c deploy/fly.toml --dockerfile Dockerfile
+
+app = "agent-forge-bot"
+primary_region = "iad"   # change to a region near you
+
+[build]
+  dockerfile = "../Dockerfile"
+
+[mounts]
+  source = "agentforge_data"
+  destination = "/root/.agent_forge"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# No [http_service] / [[services]] block: this is a worker, not a web app.
+# Keep exactly one machine running so only one poller talks to Telegram.

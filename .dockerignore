@@ -1,0 +1,19 @@
+.git
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+.env
+.env.*
+!.env.telegram.example
+# Exported transcripts / reports — not needed in the image.
+agent_forge_*.md
+research_report_*.*
+chat_report_*.*
+*.html
+session_output.txt
+wonderlab_money_episode.json
+.pytest_cache
+.ruff_cache
+.mypy_cache

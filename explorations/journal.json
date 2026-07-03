@@ -1,0 +1,19 @@
+[
+  {
+    "date": "2026-07-03",
+    "topic": "Who's Actually Paying for Your Cash Back",
+    "tags": [
+      "actually",
+      "paying",
+      "cashback",
+      "points",
+      "transfer"
+    ],
+    "file": "explorations/20260703-who-s-actually-paying-for-your-cash-back.md",
+    "threads": [
+      "The new Visa/Mastercard settlement lets merchants surcharge or decline by card tier for the first time. Once that plays out at real registers, does the cross-subsidy actually shrink — or just relocate?",
+      "The 2010/2013 dispute was fought entirely with assumption-sensitive models that can't agree on the transfer's sign. Is there a way to estimate it directly from real transaction and pricing data instead?",
+      "Australia (cap the fee, ban the surcharge) and the U.S. (legalize the surcharge, leave the fee alone) are running opposite bets on the same problem starting the same year. Which actually shrinks the transfer more — and does either one do anything for the unbanked households sitting outside the mechanism entirely?"
+    ]
+  }
+]

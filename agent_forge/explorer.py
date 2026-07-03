@@ -1,0 +1,275 @@
+"""Explorer — a personal exploration engine. Arrive with nothing, leave with
+a rabbit hole; come back and it remembers everything you've explored.
+
+What makes this more than "ask an AI a question":
+
+- **Memory.** Every exploration is logged to ``explorations/journal.json``,
+  which is committed to git on purpose — cloud session containers are
+  ephemeral, so git IS the persistence layer. Every menu is generated
+  against that history: no repeats, deliberate adjacency.
+- **Modes.**
+    - ``menu(n)``   — n one-line exploration pitches, tuned by the journal.
+    - ``dive(t)``   — a self-verifying deep dive on topic ``t`` (see below).
+    - ``surprise()``— menu(1) → dive, sight unseen.
+    - ``threads()`` — for the last dive, the open follow-up threads it left.
+- **Self-verification.** A dive is not one generation. It drafts, then a
+  skeptic pass attacks the draft's factual claims and framing, then a final
+  pass rewrites with corrections and an honest "where the pop version
+  oversells it" section. One strong model that argues with itself beats a
+  committee that agrees with itself.
+
+Single-model by design (Claude via the authenticated CLI or API key — zero
+extra keys needed in a cloud session). If Gemini is configured, the skeptic
+seat automatically switches to a different model family for genuinely
+independent pushback — that's the only place cross-model buys anything here.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+from datetime import datetime
+from pathlib import Path
+
+from .providers import get_provider, ProviderError
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+EXPLORATIONS_DIR = REPO_ROOT / "explorations"
+JOURNAL_PATH = EXPLORATIONS_DIR / "journal.json"
+
+# Family aliases — resolve to the newest release. Overridable because the
+# CLI path has heavy per-call latency; EXPLORER_FAST=1 (or forge.py --fast)
+# swaps the writer to sonnet for a ~3x faster dive at some depth cost.
+WRITER_MODEL = os.environ.get("EXPLORER_WRITER_MODEL") or (
+    "sonnet" if os.environ.get("EXPLORER_FAST") else "opus"
+)
+SKEPTIC_MODEL = os.environ.get("EXPLORER_SKEPTIC_MODEL", "sonnet")
+
+
+# ── journal (memory) ─────────────────────────────────────
+
+def load_journal() -> list[dict]:
+    if not JOURNAL_PATH.exists():
+        return []
+    try:
+        return json.loads(JOURNAL_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _append_journal(entry: dict) -> None:
+    entries = load_journal()
+    entries.append(entry)
+    EXPLORATIONS_DIR.mkdir(exist_ok=True)
+    JOURNAL_PATH.write_text(
+        json.dumps(entries, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _journal_digest(limit: int = 40) -> str:
+    """Compact history for prompt context — newest last."""
+    entries = load_journal()[-limit:]
+    if not entries:
+        return "(nothing explored yet — this is the very first session)"
+    lines = []
+    for e in entries:
+        tags = ", ".join(e.get("tags", []))
+        lines.append(f"- {e.get('date', '?')}: {e.get('topic', '?')} [{tags}]")
+    return "\n".join(lines)
+
+
+# ── providers ────────────────────────────────────────────
+
+def _claude():
+    return get_provider("anthropic")
+
+
+def _skeptic_provider():
+    """Prefer a different model family for the skeptic seat, if configured."""
+    if (
+        os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+        or shutil.which("gemini")
+    ):
+        try:
+            return get_provider("google"), "flash", "Gemini"
+        except ProviderError:
+            pass
+    return _claude(), SKEPTIC_MODEL, "Claude"
+
+
+# ── menu ─────────────────────────────────────────────────
+
+_MENU_SYSTEM = (
+    "You are the curator of a personal exploration engine for one curious "
+    "person. You generate rabbit holes: specific, surprising, one-line "
+    "exploration pitches in the spirit of Veritasium / Kurzgesagt deep "
+    "dives — concrete mysteries and mechanisms, never generic topics "
+    "('the ocean' is bad; 'why the deepest fish have no swim bladders and "
+    "what the pressure does to their bodies instead' is good).\n\n"
+    "Rules:\n"
+    "- NEVER repeat or closely paraphrase anything in the already-explored "
+    "list you are given.\n"
+    "- Make 1-2 options adjacent to the most recent explorations (a thread "
+    "worth pulling), and the rest deliberately far from everything in the "
+    "history (new territory).\n"
+    "- Vary the register: a mystery, a how-it-actually-works, a big idea, a "
+    "controversy, a wildcard.\n"
+    "- Output ONLY a numbered list, one line per option: a bold 2-5 word "
+    "title, an em dash, then a one-sentence hook. No preamble, no outro."
+)
+
+
+def menu(n: int = 6, topic: str | None = None) -> str:
+    """Generate n exploration options, personalized against the journal."""
+    focus = f"\nConstraint: every option must relate to: {topic}." if topic else ""
+    user = (
+        f"Already explored (do not repeat):\n{_journal_digest()}\n{focus}\n\n"
+        f"Generate exactly {n} options."
+    )
+    return _claude().complete(
+        system=_MENU_SYSTEM, user=user, model=WRITER_MODEL, max_tokens=1400
+    ).strip()
+
+
+# ── dive (draft → skeptic → final) ───────────────────────
+
+_DRAFT_SYSTEM = (
+    "You write deep-dive explorations for one sharp, curious generalist — "
+    "Veritasium/Kurzgesagt register in prose: vivid, concrete, mechanism-"
+    "first, zero filler. 800-1200 words. Structure: a hook, the core story "
+    "or mechanism with specifics (names, dates, numbers where real), and a "
+    "closing 'where this leads'. State facts plainly; you will be fact-"
+    "checked by an adversary, so do not embellish."
+)
+
+_SKEPTIC_SYSTEM = (
+    "You are a ruthless fact-checker and framing critic. You are given a "
+    "draft essay. Your job is to attack it: list its shakiest factual "
+    "claims (numbers, dates, attributions, 'studies show'), any pop-"
+    "science oversimplifications, and any place the framing oversells "
+    "certainty. For each: quote the claim, say why it's suspect, and state "
+    "what the more defensible version is (or 'unknown/contested'). Be "
+    "specific and merciless. Output a numbered list only."
+)
+
+_FINAL_SYSTEM = (
+    "You are revising your own draft after an adversarial fact-check. "
+    "Produce the final essay in clean markdown:\n"
+    "- Fix or hedge every claim the critique flagged; drop what can't be "
+    "defended.\n"
+    "- Keep the vivid register — corrections should not flatten the prose.\n"
+    "- End with two short sections: '## Where the pop version oversells "
+    "it' (2-4 honest bullets from the critique) and '## Open threads' "
+    "(exactly 3 numbered follow-up explorations this opens).\n"
+    "- Start with a single H1 title line.\n"
+    "Output only the essay markdown."
+)
+
+
+def dive(topic: str, on_progress=None) -> dict:
+    """Run a self-verifying deep dive. Returns {title, path, threads, skeptic}."""
+    say = on_progress or (lambda _msg: None)
+    claude = _claude()
+
+    say("drafting…")
+    draft = claude.complete(
+        system=_DRAFT_SYSTEM,
+        user=f"Deep dive topic: {topic}",
+        model=WRITER_MODEL,
+        max_tokens=3000,
+    )
+
+    skeptic, sk_model, sk_family = _skeptic_provider()
+    say(f"skeptic pass ({sk_family})…")
+    critique = skeptic.complete(
+        system=_SKEPTIC_SYSTEM,
+        user=f"Draft to attack:\n\n{draft}",
+        model=sk_model,
+        max_tokens=1800,
+    )
+
+    say("final revision…")
+    final = claude.complete(
+        system=_FINAL_SYSTEM,
+        user=(
+            f"Topic: {topic}\n\nYour draft:\n\n{draft}\n\n"
+            f"Adversarial critique:\n\n{critique}"
+        ),
+        model=WRITER_MODEL,
+        max_tokens=3500,
+    ).strip()
+
+    title = _first_h1(final) or topic
+    threads = _extract_threads(final)
+    path = _export(topic, title, final, sk_family)
+
+    _append_journal({
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "topic": title,
+        "tags": _infer_tags(title, topic),
+        "file": str(path.relative_to(REPO_ROOT)),
+        "threads": threads,
+    })
+    return {"title": title, "path": path, "threads": threads, "skeptic": sk_family}
+
+
+def surprise(on_progress=None) -> dict:
+    """One option, chosen for you, dived immediately."""
+    option = menu(1)
+    topic = re.sub(r"^\s*\d+[.)]\s*", "", option.splitlines()[0]).strip()
+    topic = topic.replace("**", "")
+    return dive(topic, on_progress=on_progress)
+
+
+def threads() -> list[str]:
+    """Open follow-up threads from the most recent dive."""
+    entries = load_journal()
+    return entries[-1].get("threads", []) if entries else []
+
+
+# ── helpers ──────────────────────────────────────────────
+
+def _first_h1(md: str) -> str | None:
+    for line in md.splitlines():
+        if line.startswith("# "):
+            return line[2:].strip()
+    return None
+
+
+def _extract_threads(md: str) -> list[str]:
+    """Pull the numbered items from the '## Open threads' section."""
+    m = re.search(r"##\s*Open threads(.*)", md, re.IGNORECASE | re.DOTALL)
+    if not m:
+        return []
+    items = re.findall(r"^\s*\d+[.)]\s*(.+)$", m.group(1), re.MULTILINE)
+    return [i.strip() for i in items][:3]
+
+
+def _infer_tags(title: str, topic: str) -> list[str]:
+    words = re.findall(r"[a-zA-Z]{5,}", f"{title} {topic}".lower())
+    seen: list[str] = []
+    for w in words:
+        if w not in seen:
+            seen.append(w)
+    return seen[:5]
+
+
+def _slugify(text: str, max_len: int = 48) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return slug[:max_len].rstrip("-") or "exploration"
+
+
+def _export(topic: str, title: str, final_md: str, skeptic_family: str) -> Path:
+    EXPLORATIONS_DIR.mkdir(exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d")
+    path = EXPLORATIONS_DIR / f"{ts}-{_slugify(title)}.md"
+    header = (
+        f"<!-- exploration: {topic} | "
+        f"self-verified (skeptic: {skeptic_family}) | {ts} -->\n\n"
+    )
+    path.write_text(header + final_md + "\n", encoding="utf-8")
+    return path

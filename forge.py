@@ -195,54 +195,117 @@ def cmd_run(args) -> int:
     return _run_team(team, args.goal, narrate=args.narrate)
 
 
-_EXPLORE_SYSTEM = (
-    "You are an exploration concierge for a curious, sharp generalist who "
-    "arrives with no specific question and wants options. Offer a menu of "
-    "distinct, genuinely interesting explorations. Be specific and vivid — "
-    "each option should make them want to pick it. No filler."
-)
-
-
-def _explore_prompt(topic: str | None) -> str:
-    focus = f" All options should relate to: {topic}." if topic else ""
-    return (
-        "Give me exactly 6 explorations worth an hour of attention." + focus +
-        " Mix types: a mystery, a 'how X actually works', a big idea, a "
-        "controversy, something timely, and a wildcard (unless a topic is "
-        "given, in which case keep them all on-topic but still varied). "
-        "Format each as a single numbered line: a bold 2-4 word label, then "
-        "a one-sentence hook. After the list, add one line: 'Reply with a "
-        "number and I'll go deep, or run a team on it with forge.py run.'"
+def _require_claude() -> bool:
+    if _claude_ready():
+        return True
+    console.print(
+        "  [red]This needs Claude:[/] run inside a Claude Code session "
+        "(CLI is authenticated) or set ANTHROPIC_API_KEY."
     )
+    return False
 
 
 def cmd_explore(args) -> int:
-    """Generate an exploration menu — works with just Claude (no extra keys)."""
-    if not _claude_ready():
-        console.print(
-            "  [red]Explore needs Claude:[/] run inside a Claude Code session "
-            "(CLI is authenticated) or set ANTHROPIC_API_KEY."
-        )
+    """Journal-aware exploration menu — works with just Claude (no extra keys)."""
+    if not _require_claude():
         return 2
+    from agent_forge import explorer
 
-    from agent_forge.providers import get_provider
-
+    n_seen = len(explorer.load_journal())
     console.print(f"  [bold {ACCENT}]✳ Explore[/]"
-                  + (f"  [{MUTED}]· {args.topic}[/]" if args.topic else ""))
+                  + (f"  [{MUTED}]· {args.topic}[/]" if args.topic else "")
+                  + f"  [{MUTED}]· journal: {n_seen} past dives[/]")
     console.print()
     try:
-        provider = get_provider("anthropic")
-        text = provider.complete(
-            system=_EXPLORE_SYSTEM,
-            user=_explore_prompt(args.topic),
-            model="opus",
-            max_tokens=1200,
-        )
+        text = explorer.menu(n=args.n, topic=args.topic)
     except Exception as e:
         console.print(f"  [red]Explore failed:[/] {e}")
         return 1
     console.print(text)
     console.print()
+    console.print(f"  [{MUTED}]Pick one → python forge.py dive \"<topic>\"   "
+                  f"(or: python forge.py surprise)[/]")
+    return 0
+
+
+def _print_dive_result(result: dict) -> None:
+    console.print()
+    console.print(f"  [bold green]✓[/] [bold]{result['title']}[/]")
+    console.print(f"  [{MUTED}]saved:[/] {result['path']}")
+    console.print(f"  [{MUTED}]skeptic seat:[/] {result['skeptic']}")
+    if result["threads"]:
+        console.print(f"  [{MUTED}]open threads:[/]")
+        for i, t in enumerate(result["threads"], 1):
+            console.print(f"    {i}. {t}")
+
+
+def cmd_dive(args) -> int:
+    """Self-verifying deep dive: draft → skeptic attack → revised final."""
+    if not _require_claude():
+        return 2
+    if getattr(args, "fast", False):
+        os.environ["EXPLORER_FAST"] = "1"
+    from agent_forge import explorer
+
+    console.print(f"  [bold {ACCENT}]▼ Dive[/]  {args.topic}")
+    try:
+        result = explorer.dive(
+            args.topic,
+            on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]"),
+        )
+    except Exception as e:
+        console.print(f"  [red]Dive failed:[/] {e}")
+        return 1
+    _print_dive_result(result)
+    return 0
+
+
+def cmd_surprise(args) -> int:
+    """Sight-unseen: the engine picks a topic (avoiding your history) and dives."""
+    if not _require_claude():
+        return 2
+    if getattr(args, "fast", False):
+        os.environ["EXPLORER_FAST"] = "1"
+    from agent_forge import explorer
+
+    console.print(f"  [bold {ACCENT}]🎲 Surprise[/]")
+    try:
+        result = explorer.surprise(
+            on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]"),
+        )
+    except Exception as e:
+        console.print(f"  [red]Surprise failed:[/] {e}")
+        return 1
+    _print_dive_result(result)
+    return 0
+
+
+def cmd_thread(args) -> int:
+    """Show (or follow) the open threads left by the most recent dive."""
+    from agent_forge import explorer
+
+    open_threads = explorer.threads()
+    if not open_threads:
+        console.print(f"  [{MUTED}]No dives in the journal yet — "
+                      f"run: python forge.py surprise[/]")
+        return 0
+    if args.pick is None:
+        console.print(f"  [bold {ACCENT}]⑂ Open threads[/] from your last dive:")
+        for i, t in enumerate(open_threads, 1):
+            console.print(f"    {i}. {t}")
+        console.print(f"\n  [{MUTED}]Follow one → python forge.py thread <number>[/]")
+        return 0
+    if not 1 <= args.pick <= len(open_threads):
+        console.print(f"  [red]Pick 1-{len(open_threads)}.[/]")
+        return 2
+    if not _require_claude():
+        return 2
+    topic = open_threads[args.pick - 1]
+    console.print(f"  [bold {ACCENT}]⑂ Thread[/]  {topic}")
+    result = explorer.dive(
+        topic, on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]")
+    )
+    _print_dive_result(result)
     return 0
 
 
@@ -265,10 +328,27 @@ def build_parser() -> argparse.ArgumentParser:
                        help="voice narration mode (default: off)")
     p_run.set_defaults(func=cmd_run)
 
-    p_exp = sub.add_parser("explore", help="get a menu of things to explore")
+    p_exp = sub.add_parser("explore", help="journal-aware menu of things to explore")
     p_exp.add_argument("--topic", default=None,
                        help="optional focus area for the menu")
+    p_exp.add_argument("-n", type=int, default=6, help="number of options (default 6)")
     p_exp.set_defaults(func=cmd_explore)
+
+    p_dive = sub.add_parser("dive", help="self-verifying deep dive on a topic")
+    p_dive.add_argument("topic", help="what to dive into")
+    p_dive.add_argument("--fast", action="store_true",
+                        help="sonnet writer — ~3x faster, slightly shallower")
+    p_dive.set_defaults(func=cmd_dive)
+
+    p_sur = sub.add_parser("surprise", help="engine picks a topic and dives")
+    p_sur.add_argument("--fast", action="store_true",
+                       help="sonnet writer — ~3x faster, slightly shallower")
+    p_sur.set_defaults(func=cmd_surprise)
+
+    p_thr = sub.add_parser("thread", help="show/follow open threads from last dive")
+    p_thr.add_argument("pick", nargs="?", type=int, default=None,
+                       help="thread number to follow (omit to list)")
+    p_thr.set_defaults(func=cmd_thread)
 
     return p
 

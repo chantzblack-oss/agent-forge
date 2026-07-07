@@ -56,6 +56,9 @@ Hard requirements (violating any of these is failure):
   content before any JavaScript runs. Never rely on an onload script to
   reveal scene 1. Include a <noscript> line at the top of the body telling
   the reader to open the page in a browser if interactions don't respond.
+  That <noscript> MUST include a <style> that reveals every scene as a
+  readable vertical scroll (e.g. .scene{display:block !important} and hide
+  the dots/nav), so a JS-less renderer shows the full content, never blank.
 
 Required interactions (all of them, adapted to THIS content):
 1. Scene 2 or 3 is a PREDICT-BEFORE-REVEAL: the reader drags a slider or

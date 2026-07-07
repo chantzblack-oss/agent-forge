@@ -187,10 +187,16 @@
     <div class="dots" id="dots" aria-hidden="true"></div>
   </header>
 
+  <noscript>
+    <style>.scene{display:block !important;border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:24px}
+      #dots,.navbar,.nav{display:none !important}</style>
+    <p style="padding:12px 0;color:var(--muted)">Interactive mode needs JavaScript — showing all sections as a scroll instead.</p>
+  </noscript>
+
   <main id="main">
 
     <!-- 1 -->
-    <section class="scene" aria-label="Introduction">
+    <section class="scene is-active" aria-label="Introduction">
       <div class="eyebrow">A true story about money and coral</div>
       <h1>The Reef With an Insurance Policy</h1>
       <svg class="hero" viewBox="0 0 320 120" role="img" aria-label="A coral reef beneath a wave line">

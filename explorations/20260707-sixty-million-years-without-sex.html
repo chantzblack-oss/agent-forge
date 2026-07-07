@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sixty Million Years Without Sex</title>
+<style>
+:root{
+  --bg:#f6f4ee;
+  --bg-soft:#ece7da;
+  --surface:#ffffff;
+  --text:#1c211d;
+  --text-dim:#5c6a60;
+  --accent:#1f6e56;
+  --accent-strong:#154f3d;
+  --accent-2:#a8562a;
+  --on-accent:#ffffff;
+  --line:#d9d2bf;
+  --danger:#ac3b2a;
+  --success:#1f6e56;
+  --shadow:0 10px 30px rgba(28,33,29,0.10);
+  --radius:16px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0d1310; --bg-soft:#141c17; --surface:#1a231c; --text:#e9ede9; --text-dim:#9fb0a4;
+    --accent:#57d6a3; --accent-strong:#8be8c1; --accent-2:#e2985f; --on-accent:#06120c;
+    --line:#2b362f; --danger:#f0897a; --success:#57d6a3; --shadow:0 10px 30px rgba(0,0,0,0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1310; --bg-soft:#141c17; --surface:#1a231c; --text:#e9ede9; --text-dim:#9fb0a4;
+  --accent:#57d6a3; --accent-strong:#8be8c1; --accent-2:#e2985f; --on-accent:#06120c;
+  --line:#2b362f; --danger:#f0897a; --success:#57d6a3; --shadow:0 10px 30px rgba(0,0,0,0.5);
+  color-scheme: dark;
+}
+:root[data-theme="light"]{
+  --bg:#f6f4ee; --bg-soft:#ece7da; --surface:#ffffff; --text:#1c211d; --text-dim:#5c6a60;
+  --accent:#1f6e56; --accent-strong:#154f3d; --accent-2:#a8562a; --on-accent:#ffffff;
+  --line:#d9d2bf; --danger:#ac3b2a; --success:#1f6e56; --shadow:0 10px 30px rgba(28,33,29,0.10);
+  color-scheme: light;
+}
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:17px; line-height:1.5;
+  -webkit-text-size-adjust:100%;
+}
+h1,h2,h3,p{margin:0;}
+svg{max-width:100%;display:block;}
+button{font:inherit;}
+
+.app-shell{max-width:600px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding:0 20px 28px;}
+@media (min-width:640px){
+  body{padding:32px 16px;}
+  .app-shell{min-height:auto;box-shadow:var(--shadow);border-radius:24px;border:1px solid var(--line);padding-bottom:28px;}
+}
+
+noscript{display:block;background:var(--danger);color:#fff;text-align:center;padding:12px 16px;font-size:14px;}
+
+.app-header{display:flex;align-items:center;justify-content:space-between;padding:18px 0 6px;gap:12px;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:34px;height:34px;flex:0 0 auto;}
+.brand-text{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700;}
+.theme-toggle{min-width:44px;min-height:44px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+
+.scene-viewport{flex:1;position:relative;}
+.scene{display:none;flex-direction:column;gap:18px;padding:8px 0 24px;}
+.scene.is-active{display:flex;animation:sceneIn .4s ease;}
+@keyframes sceneIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+.kicker{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);}
+.scene-title{font-size:26px;line-height:1.22;font-weight:800;letter-spacing:-.01em;}
+h1.scene-title{font-size:28px;}
+.prose{font-size:16.5px;color:var(--text);}
+.prose + .prose{margin-top:10px;}
+.muted{color:var(--text-dim);font-size:14px;}
+strong{color:var(--text);}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;}
+
+.btn{min-height:48px;padding:0 20px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:16px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent;}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);}
+.btn-block{width:100%;}
+.btn:active{transform:scale(.98);}
+.btn:disabled{opacity:.35;cursor:default;}
+
+.nav-bar{display:flex;flex-direction:column;gap:14px;padding-top:14px;}
+.progress-dots{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line);border:none;padding:0;cursor:pointer;}
+.dot.is-active{background:var(--accent);width:22px;border-radius:5px;}
+.nav-buttons{display:flex;gap:12px;}
+.nav-buttons .btn{flex:1;}
+
+.hero-icon{width:112px;height:112px;margin:6px auto 2px;}
+
+.slider-row{display:flex;flex-direction:column;gap:12px;}
+.value-readout{text-align:center;font-size:22px;font-weight:800;color:var(--accent-strong);}
+.value-readout .unit{font-size:13.5px;font-weight:700;color:var(--text-dim);margin-left:6px;}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:44px;background:transparent;margin:0;padding:0;}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:4px;background:linear-gradient(to right, var(--accent) var(--fill,0%), var(--line) var(--fill,0%));}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:var(--accent);border:3px solid var(--surface);box-shadow:0 1px 4px rgba(0,0,0,.35);margin-top:-9px;}
+input[type=range]::-moz-range-track{height:8px;border-radius:4px;background:var(--line);}
+input[type=range]::-moz-range-progress{height:8px;border-radius:4px;background:var(--accent);}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--accent);border:3px solid var(--surface);}
+
+.range-scale{position:relative;height:112px;margin-top:18px;}
+.range-row{position:absolute;left:0;right:0;height:26px;}
+.range-scale .label{position:absolute;top:-15px;left:0;font-size:11.5px;font-weight:700;color:var(--text-dim);}
+.range-bar{position:absolute;top:0;height:26px;border-radius:6px;background:var(--accent);opacity:.88;}
+.range-bar.alt{background:var(--accent-2);}
+.guess-marker{position:absolute;top:2px;width:2px;height:82px;background:var(--danger);}
+.guess-marker .marker-label{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:10.5px;font-weight:800;white-space:nowrap;color:var(--danger);}
+.range-scale .axis{position:absolute;left:0;right:0;top:88px;height:1px;background:var(--line);}
+.range-ticks{position:absolute;left:0;right:0;top:94px;height:16px;font-size:10.5px;color:var(--text-dim);}
+.range-ticks span{position:absolute;transform:translateX(-50%);}
+.verdict{font-weight:700;margin-bottom:4px;}
+
+.year-chip{display:inline-block;background:var(--bg-soft);color:var(--accent-strong);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;margin-right:8px;vertical-align:middle;}
+
+.dose-readout{text-align:center;}
+.dose-readout .num{font-size:30px;font-weight:800;color:var(--accent-strong);}
+.dose-readout .gy{font-size:14px;color:var(--text-dim);margin-left:6px;}
+.dose-mult{text-align:center;font-size:13.5px;color:var(--text-dim);min-height:18px;margin-top:2px;}
+.tick-row{position:relative;height:18px;font-size:10.5px;color:var(--text-dim);margin-top:6px;}
+.tick-row span{position:absolute;transform:translateX(-50%);}
+.chromosome-wrap{background:var(--bg-soft);border-radius:var(--radius);padding:12px;border:1px solid var(--line);margin-top:10px;}
+.chromosome-wrap svg{width:100%;height:auto;}
+.status-line{font-size:15px;min-height:44px;display:flex;align-items:center;margin-top:6px;}
+
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+details+details{margin-top:10px;}
+summary{list-style:none;cursor:pointer;padding:14px 44px 14px 16px;font-weight:700;position:relative;min-height:20px;display:flex;align-items:center;-webkit-tap-highlight-color:transparent;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:"+";position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;color:var(--accent);transition:transform .2s ease;}
+details[open] summary::after{transform:translateY(-50%) rotate(45deg);}
+.details-body{padding:0 16px 16px;color:var(--text-dim);font-size:15px;}
+.details-body p+p{margin-top:8px;}
+
+.flip-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media (max-width:380px){.flip-grid{grid-template-columns:1fr;}}
+.flip-card{display:block;width:100%;min-height:168px;perspective:1200px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.flip-card-inner{position:relative;display:block;width:100%;height:100%;min-height:168px;transition:transform .5s cubic-bezier(.2,.8,.2,1);transform-style:preserve-3d;}
+.flip-card.flipped .flip-card-inner{transform:rotateY(180deg);}
+.flip-card-face{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;min-height:168px;-webkit-backface-visibility:hidden;backface-visibility:hidden;border-radius:var(--radius);border:1px solid var(--line);padding:14px;text-align:left;}
+.flip-card-front{background:var(--surface);}
+.flip-card-back{background:var(--bg-soft);transform:rotateY(180deg);}
+.flip-eyebrow{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin-bottom:6px;}
+.flip-card-front p{font-size:15px;font-weight:700;}
+.flip-card-back p{font-size:13.5px;font-weight:500;color:var(--text);}
+.flip-hint{display:block;font-size:11px;color:var(--text-dim);margin-top:10px;}
+
+.quiz-progress{font-size:12.5px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+.quiz-question{font-size:19px;font-weight:700;margin-top:6px;}
+.quiz-options{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+.quiz-option{min-height:48px;text-align:left;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15.5px;font-weight:600;cursor:pointer;color:var(--text);}
+.quiz-option.is-correct{border-color:var(--success);background:var(--bg-soft);background:color-mix(in srgb, var(--success) 18%, var(--surface));}
+.quiz-option.is-incorrect{border-color:var(--danger);background:var(--bg-soft);background:color-mix(in srgb, var(--danger) 18%, var(--surface));}
+.quiz-option:disabled{cursor:default;}
+.quiz-feedback{margin-top:14px;padding:14px;border-radius:12px;font-size:14.5px;background:var(--bg-soft);border:1px solid var(--line);}
+.quiz-feedback.is-correct{border-color:var(--success);}
+.quiz-feedback.is-incorrect{border-color:var(--danger);}
+.quiz-score{font-size:34px;font-weight:800;color:var(--accent-strong);text-align:center;margin-bottom:6px;}
+
+.stance-list{display:flex;flex-direction:column;gap:10px;}
+.stance-btn{min-height:48px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px;font-weight:600;text-align:left;cursor:pointer;color:var(--text);}
+.stance-btn.is-selected{border-color:var(--accent);background:var(--bg-soft);}
+.framing-box{border:1px solid var(--accent);border-radius:var(--radius);padding:16px;background:var(--bg-soft);}
+.framing-label{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-strong);background:var(--surface);border:1px solid var(--accent);padding:3px 9px;border-radius:999px;margin-bottom:10px;}
+.coda{margin-top:14px;font-style:italic;color:var(--text-dim);border-top:1px dashed var(--line);padding-top:14px;font-size:15px;}
+</style>
+</head>
+<body>
+<noscript>This page needs JavaScript for its interactions — please open it in a standard web browser.</noscript>
+<div class="app-shell">
+  <header class="app-header">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="-6 -6 112 112" role="img" aria-label="Rotifer icon">
+        <circle cx="50" cy="60" r="28" fill="var(--accent)" opacity="0.85"></circle>
+        <circle cx="50" cy="30" r="21" fill="none" stroke="var(--accent-2)" stroke-width="3"></circle>
+        <circle cx="50" cy="30" r="12" fill="none" stroke="var(--accent-2)" stroke-width="2" stroke-dasharray="3 5"></circle>
+      </svg>
+      <span class="brand-text">An interactive essay</span>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle color theme">🌙</button>
+  </header>
+
+  <div class="scene-viewport" id="sceneViewport">
+
+    <section class="scene is-active" id="scene-1" aria-label="Introduction">
+      <p class="kicker">Sixty million years, give or take</p>
+      <svg class="hero-icon" viewBox="-6 -6 112 112" role="img" aria-label="Illustration of a wheel-shaped rotifer, a crowned body under a lens">
+        <circle cx="50" cy="60" r="28" fill="var(--accent)" opacity="0.85"></circle>
+        <ellipse cx="50" cy="64" rx="15" ry="19" fill="var(--bg)" opacity="0.28"></ellipse>
+        <circle cx="50" cy="30" r="21" fill="none" stroke="var(--accent-2)" stroke-width="3"></circle>
+        <circle cx="50" cy="30" r="12" fill="none" stroke="var(--accent-2)" stroke-width="2" stroke-dasharray="3 5"></circle>
+        <g stroke="var(--accent-2)" stroke-width="2.5" stroke-linecap="round">
+          <line x1="50" y1="9" x2="50" y2="2"></line>
+          <line x1="33" y1="14" x2="27" y2="8"></line>
+          <line x1="67" y1="14" x2="73" y2="8"></line>
+          <line x1="22" y1="28" x2="14" y2="25"></line>
+          <line x1="78" y1="28" x2="86" y2="25"></line>
+        </g>
+      </svg>
+      <h1 class="scene-title">Sixty Million Years Without Sex</h1>
+      <p class="prose">1687. Delft draper Antonie van Leeuwenhoek scrapes bone-dry dust from his roof gutter, adds rainwater, slides it under a hand-ground lens. Within the hour the "dead" grit uncurls into wheel-shaped animals, cilia spinning like tiny watermills.</p>
+      <p class="prose">He'd found bdelloid rotifers — and, without knowing it, the start of a 300-year mystery.</p>
+    </section>
+
+    <section class="scene" id="scene-2" aria-label="Predict the age">
+      <p class="kicker">Predict, then peek</p>
+      <h2 class="scene-title">Not one has ever been male</h2>
+      <p class="prose">Of the hundreds of thousands of bdelloids ever logged — in ponds, moss, birdbaths — zero males. How many years do you think this lineage has gone without a single one?</p>
+      <div class="panel slider-row">
+        <div class="value-readout"><span id="predictValue">50</span><span class="unit">million years</span></div>
+        <input type="range" id="predictSlider" min="1" max="120" value="50" step="1" aria-label="Your guess, in millions of years">
+        <button class="btn btn-primary btn-block" id="lockGuessBtn" type="button">Lock in my guess</button>
+      </div>
+      <div class="panel" id="predictReveal" hidden aria-live="polite">
+        <p class="verdict" id="predictVerdict"></p>
+        <div class="range-scale">
+          <div class="range-row" style="top:16px;">
+            <span class="label">Fossil record</span>
+            <div class="range-bar" style="left:29.2%;width:4.2%;"></div>
+          </div>
+          <div class="range-row" style="top:50px;">
+            <span class="label">DNA divergence</span>
+            <div class="range-bar alt" style="left:66.7%;width:16.7%;"></div>
+          </div>
+          <div class="guess-marker" id="guessMarker" style="left:41.7%;">
+            <span class="marker-label">your guess</span>
+          </div>
+          <div class="axis"></div>
+          <div class="range-ticks">
+            <span style="left:0%;">0</span>
+            <span style="left:25%;">30M</span>
+            <span style="left:50%;">60M</span>
+            <span style="left:75%;">90M</span>
+            <span style="left:100%;">120M</span>
+          </div>
+        </div>
+        <p class="muted">Fossils suggest 35–40 million years without males. DNA divergence suggests 80–100 million. "Sixty million" — this essay's own title included — is the headline's compromise between them, not a measurement either side has confirmed.</p>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-3" aria-label="Meet the investigator">
+      <p class="kicker">Enter the detective</p>
+      <h2 class="scene-title">A career spent telling threats from false alarms</h2>
+      <p class="prose">By every rule evolutionary biology has for why sex exists, this lineage should have collapsed long ago. It hasn't. One investigator who'd spent a career separating real threats from false ones would eventually turn that same instinct on the rotifers — and become part of the story himself.</p>
+      <div class="panel">
+        <p><span class="year-chip">1958</span>The Meselson–Stahl experiment proves how DNA replicates — often called biology's most beautiful experiment.</p>
+      </div>
+      <div class="panel">
+        <p><span class="year-chip">1969</span>Helps persuade Richard Nixon to unilaterally renounce the U.S. biological weapons program.</p>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-4" aria-label="The Yellow Rain investigation">
+      <p class="kicker">The bee-feces heresy</p>
+      <h2 class="scene-title">Yellow Rain</h2>
+      <details open data-default-open="true">
+        <summary>1983 — a heresy from bee droppings</summary>
+        <div class="details-body">
+          <p>Comparing alleged nerve-agent samples to bee droppings gathered around Cambridge, Massachusetts, Meselson stood up at an AAAS meeting and floated a heresy: the Reagan administration's flagship evidence of Soviet chemical warfare against Hmong villages — "Yellow Rain" — wasn't a nerve agent.</p>
+        </div>
+      </details>
+      <details data-default-open="false">
+        <summary>March 1984 — he goes to see for himself</summary>
+        <div class="details-body">
+          <p>In a jungle clearing at Khao Yai National Park, Meselson, bee biologist Thomas Seeley, and a Thai bee specialist watched the sky do exactly what villagers described — then got hit themselves, about a dozen spots apiece. A mass honeybee defecation flight. Pollen baked into the dried spots clinched it.</p>
+        </div>
+      </details>
+    </section>
+
+    <section class="scene" id="scene-5" aria-label="Play with the repair mechanism">
+      <p class="kicker">Play with the machine</p>
+      <h2 class="scene-title">The repair system that shrugs off radiation</h2>
+      <p class="prose">Losing water shatters a bdelloid's DNA into hundreds of pieces — then repair enzymes splice it back. That machinery has a strange side effect. Drag the dose.</p>
+      <div class="panel">
+        <div class="dose-readout"><span class="num" id="doseValue">0</span><span class="gy">grays (Gy)</span></div>
+        <input type="range" id="doseSlider" min="0" max="2000" value="0" step="10" aria-label="Radiation dose in grays">
+        <div class="tick-row">
+          <span style="left:0%;">0</span>
+          <span style="left:28%;">560</span>
+          <span style="left:50%;">1,000</span>
+          <span style="left:60%;">1,200</span>
+          <span style="left:100%;">2,000</span>
+        </div>
+        <div class="chromosome-wrap">
+          <svg viewBox="-40 0 380 100" role="img" aria-label="Schematic chromosome fragmenting as dose rises">
+            <line id="backbone" x1="0" y1="50" x2="320" y2="50" stroke="var(--line)" stroke-width="3"></line>
+            <g id="fragments" fill="var(--accent)"></g>
+          </svg>
+          <p class="muted" style="text-align:center;margin-top:4px;">Schematic — illustrative, not a measured fragment count.</p>
+        </div>
+        <p class="status-line" id="doseStatus" aria-live="polite"></p>
+        <p class="dose-mult" id="doseMult"></p>
+      </div>
+      <details data-default-open="false">
+        <summary>Why does radiation do nothing?</summary>
+        <div class="details-body">
+          <p>A 2023 study found this isn't a radiation-specific defense: it's the desiccation-repair system firing on damage it was never built to see. Lineages that gave up drying out for permanently wet habitats lost the tolerance right along with it.</p>
+        </div>
+      </details>
+    </section>
+
+    <section class="scene" id="scene-6" aria-label="Twenty-five years of verdicts">
+      <p class="kicker">Twenty-five years, four verdicts</p>
+      <h2 class="scene-title">The case: opened, closed, reopened</h2>
+      <details data-default-open="false">
+        <summary><span class="year-chip">2000</span>Case closed</summary>
+        <div class="details-body"><p>Meselson &amp; Mark Welch, in <em>Science</em>: bdelloid gene pairs are oddly divergent — read as eons without sex. Textbook "ancient asexual scandal."</p></div>
+      </details>
+      <details data-default-open="false">
+        <summary><span class="year-chip">2013</span>Reopened</summary>
+        <div class="details-body"><p>A <em>Nature</em> genome of <em>Adineta vaga</em> shows bdelloids are ancient hybrids. Those "divergent pairs"? Leftovers of one hybridization event — not proof of zero sex since.</p></div>
+      </details>
+      <details data-default-open="false">
+        <summary><span class="year-chip">2016→18</span>Claim, then rebuttal</summary>
+        <div class="details-body"><p>2016: direct evidence individual rotifers swap DNA. 2018: a rival team argues the samples were cross-contaminated, not exchanging. Disputed, still unsettled.</p></div>
+      </details>
+      <details data-default-open="false">
+        <summary><span class="year-chip">2020–22</span>A statistical fingerprint</summary>
+        <div class="details-body"><p>Whole wild-population genomes show linkage decay and allele ratios matching rare, unseen sex. Nobody has caught it directly.</p></div>
+      </details>
+      <p class="prose" style="text-align:center;font-weight:700;">Current status: probably not never.</p>
+    </section>
+
+    <section class="scene" id="scene-7" aria-label="Myth versus reality">
+      <p class="kicker">Myth vs. reality</p>
+      <h2 class="scene-title">Tap a card to flip it</h2>
+      <div class="flip-grid">
+        <div class="flip-card" role="button" tabindex="0" aria-pressed="false">
+          <div class="flip-card-inner">
+            <div class="flip-card-face flip-card-front">
+              <span class="flip-eyebrow">Myth</span>
+              <p>"They're basically tiny tardigrades."</p>
+              <span class="flip-hint">tap to flip</span>
+            </div>
+            <div class="flip-card-face flip-card-back">
+              <span class="flip-eyebrow">Reality</span>
+              <p>Different toolkit. Tardigrades vitrify with the sugar trehalose; bdelloids make almost none. They lean on LEA proteins — borrowed from the family plants use for seed dormancy — plus antioxidants and chaperones.</p>
+            </div>
+          </div>
+        </div>
+        <div class="flip-card" role="button" tabindex="0" aria-pressed="false">
+          <div class="flip-card-inner">
+            <div class="flip-card-face flip-card-front">
+              <span class="flip-eyebrow">Myth</span>
+              <p>"They evolved a shield against radiation."</p>
+              <span class="flip-hint">tap to flip</span>
+            </div>
+            <div class="flip-card-face flip-card-back">
+              <span class="flip-eyebrow">Reality</span>
+              <p>No radiation-specific defense exists. It's the desiccation-repair system misfiring on damage it never evolved to see — species that stopped drying out lost the "shield" entirely.</p>
+            </div>
+          </div>
+        </div>
+        <div class="flip-card" role="button" tabindex="0" aria-pressed="false">
+          <div class="flip-card-inner">
+            <div class="flip-card-face flip-card-front">
+              <span class="flip-eyebrow">Myth</span>
+              <p>"Zero males means zero genetic exchange, ever."</p>
+              <span class="flip-hint">tap to flip</span>
+            </div>
+            <div class="flip-card-face flip-card-back">
+              <span class="flip-eyebrow">Reality</span>
+              <p>Probably not never. 2020–22 population genomics found statistical fingerprints consistent with rare, cryptic sex — even as a 2016 claim of direct exchange stays disputed by a 2018 contamination rebuttal.</p>
+            </div>
+          </div>
+        </div>
+        <div class="flip-card" role="button" tabindex="0" aria-pressed="false">
+          <div class="flip-card-inner">
+            <div class="flip-card-face flip-card-front">
+              <span class="flip-eyebrow">Myth</span>
+              <p>"The RAID-array comparison is settled science."</p>
+              <span class="flip-hint">tap to flip</span>
+            </div>
+            <div class="flip-card-face flip-card-back">
+              <span class="flip-eyebrow">Reality</span>
+              <p>It's this essay's own speculation — a plausible shape for a mechanism nobody has demonstrated, not a claim any published paper makes.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-8" aria-label="The gene thieves toolkit">
+      <p class="kicker">The gene thieves' toolkit</p>
+      <h2 class="scene-title">About 8% of the genome is stolen goods</h2>
+      <p class="prose">Borrowed from bacteria, fungi, and plants — among the highest horizontal-transfer rates known in any animal. Tap a heist:</p>
+      <details data-default-open="false">
+        <summary>🧬 A silencing switch, 2022</summary>
+        <div class="details-body"><p>A bacterial methyltransferase gene, captured roughly 60 million years ago, now writes a DNA mark found in no other animal genome — used to silence jumping genes.</p></div>
+      </details>
+      <details data-default-open="false">
+        <summary>💊 Pirated antibiotics, 2024</summary>
+        <div class="details-body"><p>Attacked by the fungus <em>Rotiferophthora globospora</em>, bdelloids switch on stolen bacterial gene clusters resembling real antibiotic pathways — upregulated nearly tenfold more in a resistant species than a susceptible one.</p></div>
+      </details>
+      <details data-default-open="false">
+        <summary>🧊 24 years in a freezer, 2025</summary>
+        <div class="details-body"><p>Antarctic bdelloids, frozen at –25°C for 24 years, revived within an hour of thawing. Their freeze tolerance traces to a horizontally acquired bacterial ice-binding protein, confirmed by AlphaFold prediction and a lab-grown recombinant version.</p></div>
+      </details>
+      <details data-default-open="false">
+        <summary>❄️ 24,000 years in permafrost</summary>
+        <div class="details-body"><p>A wild bdelloid pulled from Siberian permafrost in 2021, radiocarbon-dated to roughly 24,000 years old, also thawed and cloned itself. Freezing and drying turn out to be two separately pirated tricks, not one.</p></div>
+      </details>
+    </section>
+
+    <section class="scene" id="scene-9" aria-label="Quick check quiz">
+      <p class="kicker">Quick check</p>
+      <h2 class="scene-title">Three questions</h2>
+      <div class="panel">
+        <p class="quiz-progress" id="quizProgress">Question 1 of 3</p>
+        <p class="quiz-question" id="quizQuestion"></p>
+        <div class="quiz-options" id="quizOptions"></div>
+        <div class="quiz-feedback" id="quizFeedback" hidden aria-live="polite"></div>
+        <button class="btn btn-primary btn-block" id="quizNextBtn" type="button" hidden style="margin-top:14px;">Next question →</button>
+        <div id="quizResult" hidden>
+          <p class="quiz-score" id="quizScoreText">0 / 3</p>
+          <p class="muted" style="text-align:center;">The score isn't really the point — the uncertainty is.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-10" aria-label="What is still open">
+      <p class="kicker">What's still open</p>
+      <h2 class="scene-title">Three loose threads</h2>
+      <div class="panel">
+        <p class="prose"><strong>Catch cryptic sex in the act.</strong> Live imaging or multi-generation single-animal sequencing could settle the exchange-versus-contamination standoff directly, instead of by statistics alone.</p>
+      </div>
+      <div class="panel">
+        <p class="prose"><strong>Test the RAID hypothesis.</strong> If repair really leans on homeologous copies, foreign DNA should cluster where homeolog divergence is highest. Nobody has checked.</p>
+      </div>
+      <div class="panel">
+        <p class="prose"><strong>Mine the pirated chemistry.</strong> Do the stolen antibiotic-like gene clusters make a compound that works outside the animal? Open question.</p>
+      </div>
+    </section>
+
+    <section class="scene" id="scene-11" aria-label="Final synthesis">
+      <p class="kicker">Your synthesis, first</p>
+      <h2 class="scene-title">Mid-repair, it accepts patches from strangers</h2>
+      <p class="prose">Before we frame it for you — how would you describe a genome that does that?</p>
+      <div class="stance-list">
+        <button class="stance-btn" type="button">A backup array that also lets strangers overwrite files</button>
+        <button class="stance-btn" type="button">An immune system that never learned to say no</button>
+        <button class="stance-btn" type="button">Just messy chemistry — no analogy needed</button>
+      </div>
+      <div class="framing-box" id="synthesisReveal" hidden aria-live="polite">
+        <span class="framing-label">Framing, not fact</span>
+        <p class="prose">The essay's own image: a genome acting like a RAID array, its ancient hybrid copies standing in as backup — except this array also lets a stranger's matching DNA patch overwrite the original. No paper has shown repair enzymes actually do this.</p>
+        <p class="coda">Meselson spent a Cold War career asking whether a signal was a real attack or contamination in the sample. He ended it studying an animal that never learned to draw that line — filing away foreign scraps for tens of millions of years, asking questions later.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="nav-bar">
+    <div class="progress-dots" id="progressDots">
+      <button class="dot is-active" data-idx="0" aria-label="Scene 1"></button>
+      <button class="dot" data-idx="1" aria-label="Scene 2"></button>
+      <button class="dot" data-idx="2" aria-label="Scene 3"></button>
+      <button class="dot" data-idx="3" aria-label="Scene 4"></button>
+      <button class="dot" data-idx="4" aria-label="Scene 5"></button>
+      <button class="dot" data-idx="5" aria-label="Scene 6"></button>
+      <button class="dot" data-idx="6" aria-label="Scene 7"></button>
+      <button class="dot" data-idx="7" aria-label="Scene 8"></button>
+      <button class="dot" data-idx="8" aria-label="Scene 9"></button>
+      <button class="dot" data-idx="9" aria-label="Scene 10"></button>
+      <button class="dot" data-idx="10" aria-label="Scene 11"></button>
+    </div>
+    <div class="nav-buttons">
+      <button class="btn" id="backBtn" type="button" disabled>← Back</button>
+      <button class="btn btn-primary" id="nextBtn" type="button">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var scenes = Array.prototype.slice.call(document.querySelectorAll('.scene'));
+  var dots = Array.prototype.slice.call(document.querySelectorAll('.dot'));
+  var backBtn = document.getElementById('backBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var sceneIndex = 0;
+
+  function showScene(i){
+    sceneIndex = i;
+    scenes.forEach(function(s, idx){ s.classList.toggle('is-active', idx === i); });
+    dots.forEach(function(d, idx){ d.classList.toggle('is-active', idx === i); });
+    backBtn.disabled = (i === 0);
+    nextBtn.textContent = (i === scenes.length - 1) ? 'Restart ⟲' : 'Next →';
+    window.scrollTo(0, 0);
+  }
+
+  backBtn.addEventListener('click', function(){
+    if (sceneIndex > 0) showScene(sceneIndex - 1);
+  });
+  nextBtn.addEventListener('click', function(){
+    if (sceneIndex < scenes.length - 1) {
+      showScene(sceneIndex + 1);
+    } else {
+      resetAll();
+      showScene(0);
+    }
+  });
+  dots.forEach(function(d, idx){
+    d.addEventListener('click', function(){ showScene(idx); });
+  });
+
+  function setFill(input){
+    var min = Number(input.min) || 0, max = Number(input.max) || 100, val = Number(input.value);
+    var pct = ((val - min) / (max - min)) * 100;
+    input.style.setProperty('--fill', pct + '%');
+  }
+
+  var predictSlider = document.getElementById('predictSlider');
+  var predictValue = document.getElementById('predictValue');
+  var predictReveal = document.getElementById('predictReveal');
+  var predictVerdict = document.getElementById('predictVerdict');
+  var lockGuessBtn = document.getElementById('lockGuessBtn');
+  var guessMarker = document.getElementById('guessMarker');
+
+  function updatePredictDisplay(){
+    predictValue.textContent = predictSlider.value;
+    setFill(predictSlider);
+  }
+  predictSlider.addEventListener('input', updatePredictDisplay);
+
+  lockGuessBtn.addEventListener('click', function(){
+    var guess = Number(predictSlider.value);
+    var verdict;
+    if (guess < 35) {
+      verdict = `Low — even the conservative fossil estimate (35–40M) tops that.`;
+    } else if (guess <= 40) {
+      verdict = `Right at the fossil-record floor — close.`;
+    } else if (guess < 80) {
+      verdict = `You landed in the gap between the two estimates — which is exactly where "sixty million" comes from: a headline's compromise, not a measurement.`;
+    } else if (guess <= 100) {
+      verdict = `Right at the DNA-divergence ceiling — close.`;
+    } else {
+      verdict = `Higher than even the high-end DNA-divergence estimate (100M).`;
+    }
+    predictVerdict.textContent = verdict;
+    guessMarker.style.left = (guess / 120 * 100) + '%';
+    predictReveal.hidden = false;
+  });
+
+  var doseSlider = document.getElementById('doseSlider');
+  var doseValue = document.getElementById('doseValue');
+  var doseStatus = document.getElementById('doseStatus');
+  var doseMult = document.getElementById('doseMult');
+  var fragmentsG = document.getElementById('fragments');
+  var backbone = document.getElementById('backbone');
+
+  var FRAG_COUNT = 18, FRAG_W = 14, FRAG_H = 22, FRAG_GAP = 15, FRAG_START = 6;
+  var jitterY = [3,-4,5,-3,4,-5,2,-3,4,-2,3,-4,5,-3,2,-4,3,-2];
+  var fragEls = [];
+
+  function initFragments(){
+    for (var i = 0; i < FRAG_COUNT; i++){
+      var r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      var x = FRAG_START + i * FRAG_GAP;
+      r.setAttribute('x', x);
+      r.setAttribute('y', 39);
+      r.setAttribute('width', FRAG_W);
+      r.setAttribute('height', FRAG_H);
+      r.setAttribute('rx', 3);
+      fragmentsG.appendChild(r);
+      fragEls.push(r);
+    }
+  }
+  initFragments();
+
+  function updateDose(){
+    var dose = Number(doseSlider.value);
+    doseValue.textContent = dose.toLocaleString();
+    setFill(doseSlider);
+    var shatter = dose / 2000;
+    fragEls.forEach(function(el, i){
+      var dx = (i - 8.5) * shatter * 4.5;
+      var dy = jitterY[i] * shatter;
+      el.setAttribute('transform', `translate(${dx.toFixed(1)},${dy.toFixed(1)})`);
+    });
+    backbone.style.opacity = String(1 - shatter);
+
+    var status;
+    if (dose < 4) {
+      status = `A person would likely survive this dose.`;
+    } else if (dose < 10) {
+      status = `Entering the human lethal range (4–10 Gy). The bdelloid hasn't blinked.`;
+    } else if (dose < 560) {
+      status = `Already well past what would kill a person — the bdelloid's repair system is just warming up.`;
+    } else if (dose < 1000) {
+      status = `560 Gy of protons once shredded a bdelloid genome into ~350,000-base-pair fragments here — and it still stitched them back together.`;
+    } else if (dose < 1200) {
+      status = `Inside the tested gamma range (1,000–1,200 Gy): zero effect on survival or egg-laying.`;
+    } else if (dose < 2000) {
+      status = `Past the tested gamma ceiling — territory only the iron-ion test below has touched.`;
+    } else {
+      status = `2,000 Gy of iron-ion bombardment, tested on one species: zero effect on survival or egg-laying.`;
+    }
+    doseStatus.textContent = status;
+
+    if (dose < 4) {
+      doseMult.textContent = `still within a fully human-survivable range`;
+    } else if (dose <= 10) {
+      doseMult.textContent = `right at the human lethal dose (4–10 Gy)`;
+    } else {
+      var mult = Math.round(dose / 7);
+      doseMult.textContent = `≈ ${mult.toLocaleString()}× the human lethal dose`;
+    }
+  }
+  doseSlider.addEventListener('input', updateDose);
+
+  var flipCards = Array.prototype.slice.call(document.querySelectorAll('.flip-card'));
+  function toggleFlip(card){
+    var flipped = card.classList.toggle('flipped');
+    card.setAttribute('aria-pressed', flipped ? 'true' : 'false');
+  }
+  flipCards.forEach(function(card){
+    card.addEventListener('click', function(){ toggleFlip(card); });
+    card.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+        e.preventDefault();
+        toggleFlip(card);
+      }
+    });
+  });
+
+  var QUIZ = [
+    {
+      q: `What actually shatters a bdelloid's DNA into pieces?`,
+      options: ['Gamma radiation', 'Losing water', 'Old age'],
+      correct: 1,
+      right: `Right — desiccation causes the breaks. Radiation tolerance is a side effect of the same repair system, discovered later, not the original trigger.`,
+      wrong: `Not quite — it's losing water. Desiccation shatters the genome; the repair system built for that turns out to shrug off radiation too, as a side effect.`
+    },
+    {
+      q: `The 2013 genome study revealed the "divergent gene pairs" from 2000 were actually...`,
+      options: ['Proof of eons without sex', 'Leftovers of an ancient hybridization', 'Radiation damage'],
+      correct: 1,
+      right: `Exactly — bdelloids are ancient hybrids. Those divergent pairs (homeologs) exist whether or not the animals had sex afterward — the 2000 evidence was reading the wrong signal.`,
+      wrong: `Actually: leftovers of an ancient hybridization. Bdelloids fused from two lineages long ago, which alone explains the divergent pairs — no eons of celibacy required to produce them.`
+    },
+    {
+      q: `What's the honest current status of "sixty million years without sex"?`,
+      options: ['Fully proven', 'Fully disproven', 'Probably not literally never'],
+      correct: 2,
+      right: `Right. Statistical fingerprints from 2020–22 suggest rare, cryptic sex — though nobody has caught it directly, and a 2016-vs-2018 dispute over direct evidence is still unresolved.`,
+      wrong: `Closer to: probably not literally never. Cryptic-sex signals turned up in 2020–22, and a 2016 claim of direct exchange still hasn't been resolved against a 2018 contamination rebuttal.`
+    }
+  ];
+  var qi = 0, score = 0, answered = false;
+  var quizProgress = document.getElementById('quizProgress');
+  var quizQuestion = document.getElementById('quizQuestion');
+  var quizOptions = document.getElementById('quizOptions');
+  var quizFeedback = document.getElementById('quizFeedback');
+  var quizNextBtn = document.getElementById('quizNextBtn');
+  var quizResult = document.getElementById('quizResult');
+  var quizScoreText = document.getElementById('quizScoreText');
+
+  function renderQuizStep(){
+    answered = false;
+    var item = QUIZ[qi];
+    quizProgress.hidden = false;
+    quizProgress.textContent = `Question ${qi + 1} of ${QUIZ.length}`;
+    quizQuestion.hidden = false;
+    quizQuestion.textContent = item.q;
+    quizOptions.hidden = false;
+    quizOptions.innerHTML = '';
+    item.options.forEach(function(opt, idx){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'quiz-option';
+      b.textContent = opt;
+      b.addEventListener('click', function(){ selectQuizOption(idx); });
+      quizOptions.appendChild(b);
+    });
+    quizFeedback.hidden = true;
+    quizFeedback.textContent = '';
+    quizNextBtn.hidden = true;
+    quizResult.hidden = true;
+  }
+
+  function selectQuizOption(idx){
+    if (answered) return;
+    answered = true;
+    var item = QUIZ[qi];
+    var buttons = Array.prototype.slice.call(quizOptions.children);
+    buttons.forEach(function(b, i){
+      b.disabled = true;
+      if (i === item.correct) b.classList.add('is-correct');
+      else if (i === idx) b.classList.add('is-incorrect');
+    });
+    var correct = (idx === item.correct);
+    if (correct) score++;
+    quizFeedback.hidden = false;
+    quizFeedback.textContent = correct ? item.right : item.wrong;
+    quizFeedback.className = 'quiz-feedback ' + (correct ? 'is-correct' : 'is-incorrect');
+    quizNextBtn.hidden = false;
+    quizNextBtn.textContent = (qi < QUIZ.length - 1) ? 'Next question →' : 'See summary';
+  }
+
+  quizNextBtn.addEventListener('click', function(){
+    qi++;
+    if (qi < QUIZ.length){
+      renderQuizStep();
+    } else {
+      quizProgress.hidden = true;
+      quizQuestion.hidden = true;
+      quizOptions.hidden = true;
+      quizFeedback.hidden = true;
+      quizNextBtn.hidden = true;
+      quizResult.hidden = false;
+      quizScoreText.textContent = `${score} / ${QUIZ.length}`;
+    }
+  });
+
+  var stanceBtns = Array.prototype.slice.call(document.querySelectorAll('.stance-btn'));
+  var synthesisReveal = document.getElementById('synthesisReveal');
+  stanceBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      stanceBtns.forEach(function(b){ b.classList.remove('is-selected'); });
+      btn.classList.add('is-selected');
+      synthesisReveal.hidden = false;
+    });
+  });
+
+  var themeToggle = document.getElementById('themeToggle');
+  function currentEffectiveTheme(){
+    var explicit = document.documentElement.getAttribute('data-theme');
+    if (explicit) return explicit;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  function updateThemeToggleLabel(){
+    var eff = currentEffectiveTheme();
+    themeToggle.textContent = (eff === 'dark') ? '☀️' : '🌙';
+    themeToggle.setAttribute('aria-label', (eff === 'dark') ? 'Switch to light theme' : 'Switch to dark theme');
+  }
+  themeToggle.addEventListener('click', function(){
+    var next = (currentEffectiveTheme() === 'dark') ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    updateThemeToggleLabel();
+  });
+
+  function resetAll(){
+    predictSlider.value = 50;
+    updatePredictDisplay();
+    predictReveal.hidden = true;
+
+    doseSlider.value = 0;
+    updateDose();
+
+    flipCards.forEach(function(c){
+      c.classList.remove('flipped');
+      c.setAttribute('aria-pressed', 'false');
+    });
+
+    qi = 0; score = 0; answered = false;
+    renderQuizStep();
+
+    stanceBtns.forEach(function(b){ b.classList.remove('is-selected'); });
+    synthesisReveal.hidden = true;
+
+    Array.prototype.slice.call(document.querySelectorAll('details')).forEach(function(d){
+      d.open = (d.getAttribute('data-default-open') === 'true');
+    });
+  }
+
+  updatePredictDisplay();
+  updateDose();
+  renderQuizStep();
+  updateThemeToggleLabel();
+  showScene(0);
+})();
+</script>
+</body>
+</html>

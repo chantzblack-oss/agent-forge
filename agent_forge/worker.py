@@ -48,6 +48,22 @@ from . import feed as _feed
 
 log = logging.getLogger("agent_forge.worker")
 
+# Hard daily cap on expensive jobs (lessons/surprises/auto-feed items).
+# Each job is roughly $1.50-2.50 of API spend; this is the in-app circuit
+# breaker so no bug can ever drain an account. Override with MAX_JOBS_PER_DAY.
+_MAX_JOBS_PER_DAY = int(os.environ.get("MAX_JOBS_PER_DAY", "6"))
+_jobs_today: list[float] = []
+
+
+def _job_allowed() -> bool:
+    import time as _t
+    cutoff = _t.time() - 86400
+    _jobs_today[:] = [t for t in _jobs_today if t > cutoff]
+    if len(_jobs_today) >= _MAX_JOBS_PER_DAY:
+        return False
+    _jobs_today.append(_t.time())
+    return True
+
 _ALLOWED = {int(x) for x in os.environ.get("TELEGRAM_ALLOWED_USERS", "").replace(" ", "").split(",") if x}
 
 
@@ -87,6 +103,12 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _make_lesson(update, context, topic: str):
+    if not _job_allowed():
+        await context.bot.send_message(
+            update.effective_chat.id,
+            f"Daily budget guard: {_MAX_JOBS_PER_DAY} jobs/day reached. "
+            "Raise MAX_JOBS_PER_DAY in Render env if intentional.")
+        return
     chat = update.effective_chat.id
     await context.bot.send_message(chat, f"Building your lesson on: {topic}\n(a few minutes…)")
 
@@ -135,6 +157,12 @@ async def on_text(update, context):
 
 async def cmd_surprise(update, context):
     if not _ok(update):
+        return
+    if not _job_allowed():
+        await context.bot.send_message(
+            update.effective_chat.id,
+            f"Daily budget guard: {_MAX_JOBS_PER_DAY} jobs/day reached. "
+            "Raise MAX_JOBS_PER_DAY in Render env if intentional.")
         return
     chat = update.effective_chat.id
     await context.bot.send_message(chat, "Finding something wild…")
@@ -234,6 +262,10 @@ async def _restock_loop(app: Application):
     await asyncio.sleep(30)
     while True:
         try:
+            if not _job_allowed():
+                log.info("auto-feed skipped: daily job cap reached")
+                await asyncio.sleep(every)
+                continue
             avoid = [e.get("topic", "") for e in _explorer.load_journal()]
             cands = await _run_blocking(_sources.discover, 3, avoid)
             if cands:

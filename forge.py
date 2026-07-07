@@ -409,8 +409,7 @@ def cmd_restock(args) -> int:
     if args.discover_only:
         return 0
     topics = [c["topic"] for c in cands[:args.dive]]
-    console.print(f"
-  diving the top {len(topics)} into the feed…")
+    console.print(f"  diving the top {len(topics)} into the feed…")
     explorer.queue(topics=topics, on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]"))
     return 0
 

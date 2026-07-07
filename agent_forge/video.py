@@ -61,7 +61,8 @@ _SCRIPT_SYSTEM = (
     "- kicker: 2-4 word eyebrow label.\n"
     "- visual: for scenes where a picture teaches more than words, an inline "
     "SVG diagram for that exact beat (viewBox='0 0 880 700', no external "
-    "refs, no <script>). Design real diagrams: graphs with labeled nodes, "
+    "refs, no <script>; the ENTIRE svg must be ONE line — JSON strings "
+    "cannot contain raw newlines). Design real diagrams: graphs with labeled nodes, "
     "timelines, before/after, flows with arrows, simple scene illustrations. "
     "Palette on dark: ink #eaf3f2, accent #ff7a5e, accent2 #35c2d6, "
     "muted #5d7a84. Text >= 26px. Aim for a visual on at least half the "
@@ -71,6 +72,32 @@ _SCRIPT_SYSTEM = (
     "closing beat that names the open question.\n"
     "Return ONLY a JSON array of {kicker, headline, narration, visual?}."
 )
+
+
+def _repair_json(txt: str) -> str:
+    """Escape raw newlines/tabs inside JSON string literals — the usual
+    reason model-written JSON with embedded SVG fails to parse."""
+    out = []
+    in_str = False
+    esc = False
+    for ch in txt:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            elif ch == "\n":
+                out.append("\\n"); continue
+            elif ch == "\t":
+                out.append("\\t"); continue
+            elif ch == "\r":
+                continue
+        elif ch == '"':
+            in_str = True
+        out.append(ch)
+    return "".join(out)
 
 
 def _parse_scenes(raw: str) -> list[dict]:
@@ -83,10 +110,14 @@ def _parse_scenes(raw: str) -> list[dict]:
     end = txt.rfind("]")
     if start == -1 or end == -1 or end <= start:
         return []
+    blob = txt[start:end + 1]
     try:
-        scenes = json.loads(txt[start:end + 1])
+        scenes = json.loads(blob)
     except json.JSONDecodeError:
-        return []
+        try:
+            scenes = json.loads(_repair_json(blob))
+        except json.JSONDecodeError:
+            return []
     if not isinstance(scenes, list):
         return []
     return [s for s in scenes
@@ -103,12 +134,17 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
     scenes = _parse_scenes(raw)
     if scenes:
         return scenes
-    # One corrective retry: quote the bad output and demand bare JSON.
+    # One corrective retry: no visuals this time (guaranteed parseable).
+    import logging
+    logging.getLogger("agent_forge.video").warning(
+        "scene parse failed; raw head: %r", raw[:400])
     raw2 = provider.complete(
         system=system,
         user=(f"Essay:\n\n{essay}\n\nYour previous output could not be "
               f"parsed as JSON. Output ONLY the raw JSON array — no code "
-              f"fences, no commentary, starting with '[' and ending with ']'."),
+              f"fences, no commentary, starting with '[' and ending with ']'. "
+              f'Set "visual" to null for every scene (no SVG this time), '
+              f"and ensure no string contains raw newlines."),
         model=WRITER_MODEL, max_tokens=8000,
     )
     return _parse_scenes(raw2)

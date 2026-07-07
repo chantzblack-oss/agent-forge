@@ -68,7 +68,7 @@ _LESSON_VIDEO_SYSTEM = (
     "the learner to the cheat-sheet for exact commands.\n\n"
     "Each scene: {kicker (2-4 words), headline (<=7 words, on-screen), "
     "narration (1-3 spoken sentences, warm and clear, no markdown), "
-    "visual (optional inline SVG diagram, viewBox='0 0 880 700', no external "
+    "visual (optional inline SVG diagram on a SINGLE line — JSON strings cannot contain raw newlines — viewBox='0 0 880 700', no external "
     "refs/scripts; palette ink #eaf3f2 accent #ff7a5e accent2 #35c2d6 muted "
     "#5d7a84, text >= 26px)}. Lessons NEED diagrams — draw the actual "
     "structure being taught (graphs with labeled nodes and arrows, "

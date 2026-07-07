@@ -228,6 +228,17 @@ def cmd_explore(args) -> int:
     return 0
 
 
+def _compile_interactive(md_path) -> None:
+    from agent_forge.interactive import compile_interactive
+    try:
+        out = compile_interactive(
+            md_path, on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]")
+        )
+        console.print(f"  [bold green]✓ interactive:[/] {out}")
+    except Exception as e:
+        console.print(f"  [yellow]interactive compile failed: {e}[/]")
+
+
 def _print_dive_result(result: dict) -> None:
     console.print()
     console.print(f"  [bold green]✓[/] [bold]{result['title']}[/]")
@@ -257,6 +268,8 @@ def cmd_dive(args) -> int:
         console.print(f"  [red]Dive failed:[/] {e}")
         return 1
     _print_dive_result(result)
+    if getattr(args, "interactive", False):
+        _compile_interactive(result["path"])
     return 0
 
 
@@ -277,6 +290,8 @@ def cmd_surprise(args) -> int:
         console.print(f"  [red]Surprise failed:[/] {e}")
         return 1
     _print_dive_result(result)
+    if getattr(args, "interactive", False):
+        _compile_interactive(result["path"])
     return 0
 
 
@@ -338,12 +353,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_dive.add_argument("topic", help="what to dive into")
     p_dive.add_argument("--fast", action="store_true",
                         help="sonnet writer — ~3x faster, slightly shallower")
+    p_dive.add_argument("-i", "--interactive", action="store_true",
+                        help="also compile a phone-first interactive HTML page")
     p_dive.set_defaults(func=cmd_dive)
 
     p_sur = sub.add_parser("surprise", help="engine picks a topic and dives")
     p_sur.add_argument("--fast", action="store_true",
                        help="sonnet writer — ~3x faster, slightly shallower")
+    p_sur.add_argument("-i", "--interactive", action="store_true",
+                       help="also compile a phone-first interactive HTML page")
     p_sur.set_defaults(func=cmd_surprise)
+
+    p_int = sub.add_parser("interactive",
+                           help="compile an existing dive .md into interactive HTML")
+    p_int.add_argument("md", help="path to an explorations/*.md dive")
+    p_int.set_defaults(func=lambda a: (_compile_interactive(a.md), 0)[1])
 
     p_thr = sub.add_parser("thread", help="show/follow open threads from last dive")
     p_thr.add_argument("pick", nargs="?", type=int, default=None,

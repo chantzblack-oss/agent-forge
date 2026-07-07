@@ -333,8 +333,9 @@ def cmd_queue(args) -> int:
     from agent_forge import explorer
     compile_fn = None
     if not args.no_interactive:
-        from agent_forge.interactive import compile_interactive
-        compile_fn = compile_interactive
+        from agent_forge.cards import compile_deck
+        # compile_deck returns a list of card paths; keep the dir for reporting
+        compile_fn = lambda md: compile_deck(md)[0].parent
 
     topics = args.topics or None
     console.print(f"  [bold {ACCENT}]▤ Queue[/]  "

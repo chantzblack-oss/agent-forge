@@ -73,14 +73,45 @@ _SCRIPT_SYSTEM = (
 )
 
 
+def _parse_scenes(raw: str) -> list[dict]:
+    """Extract the scene array from model output, tolerating code fences,
+    surrounding prose, and trailing junk."""
+    txt = raw.strip()
+    txt = re.sub(r"^```(?:json)?\s*", "", txt)
+    txt = re.sub(r"\s*```$", "", txt)
+    start = txt.find("[")
+    end = txt.rfind("]")
+    if start == -1 or end == -1 or end <= start:
+        return []
+    try:
+        scenes = json.loads(txt[start:end + 1])
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(scenes, list):
+        return []
+    return [s for s in scenes
+            if isinstance(s, dict) and s.get("narration") and s.get("headline")]
+
+
 def script_from_essay(essay: str, script_system: str | None = None) -> list[dict]:
-    raw = get_provider("anthropic").complete(
-        system=script_system or _SCRIPT_SYSTEM, user=f"Essay:\n\n{essay}",
-        model=WRITER_MODEL, max_tokens=4000,
+    system = script_system or _SCRIPT_SYSTEM
+    provider = get_provider("anthropic")
+    raw = provider.complete(
+        system=system, user=f"Essay:\n\n{essay}",
+        model=WRITER_MODEL, max_tokens=8000,
     )
-    m = re.search(r"\[.*\]", raw, re.DOTALL)
-    scenes = json.loads(m.group(0)) if m else []
-    return [s for s in scenes if s.get("narration") and s.get("headline")]
+    scenes = _parse_scenes(raw)
+    if scenes:
+        return scenes
+    # One corrective retry: quote the bad output and demand bare JSON.
+    raw2 = provider.complete(
+        system=system,
+        user=(f"Essay:\n\n{essay}\n\nYour previous output could not be "
+              f"parsed as JSON. Output ONLY the raw JSON array — no code "
+              f"fences, no commentary, starting with '[' and ending with ']'."),
+        model=WRITER_MODEL, max_tokens=8000,
+    )
+    return _parse_scenes(raw2)
 
 
 # ── 2. narration (host only; silent fallback in sandbox) ──

@@ -49,7 +49,7 @@ def _ffmpeg() -> str:
 
 _SCRIPT_SYSTEM = (
     "You are a video director adapting a researched essay into a narrated "
-    "vertical-video script (think a smart, punchy explainer). Return 10-14 "
+    "vertical-video script (think a smart, punchy explainer). Return 9-12 "
     "scenes. Each scene is one beat of narration the viewer HEARS plus a "
     "short headline they SEE.\n\n"
     "Rules:\n"
@@ -62,7 +62,8 @@ _SCRIPT_SYSTEM = (
     "- visual: for scenes where a picture teaches more than words, an inline "
     "SVG diagram for that exact beat (viewBox='0 0 880 700', no external "
     "refs, no <script>; the ENTIRE svg must be ONE line — JSON strings "
-    "cannot contain raw newlines). Design real diagrams: graphs with labeled nodes, "
+    "cannot contain raw newlines — and each svg must stay under 900 "
+    "characters: simple shapes and labels, not artwork). Design real diagrams: graphs with labeled nodes, "
     "timelines, before/after, flows with arrows, simple scene illustrations. "
     "Palette on dark: ink #eaf3f2, accent #ff7a5e, accent2 #35c2d6, "
     "muted #5d7a84. Text >= 26px. A visual is REQUIRED on every scene that "
@@ -101,6 +102,15 @@ def _repair_json(txt: str) -> str:
     return "".join(out)
 
 
+def _salvage_truncated(blob: str) -> str:
+    """A response cut off mid-array can still yield its complete scenes:
+    trim to the last complete '}' and close the array."""
+    last = blob.rfind("}")
+    if last == -1:
+        return blob
+    return blob[:last + 1] + "]"
+
+
 def _parse_scenes(raw: str) -> list[dict]:
     """Extract the scene array from model output, tolerating code fences,
     surrounding prose, and trailing junk."""
@@ -108,17 +118,20 @@ def _parse_scenes(raw: str) -> list[dict]:
     txt = re.sub(r"^```(?:json)?\s*", "", txt)
     txt = re.sub(r"\s*```$", "", txt)
     start = txt.find("[")
-    end = txt.rfind("]")
-    if start == -1 or end == -1 or end <= start:
+    if start == -1:
         return []
-    blob = txt[start:end + 1]
-    try:
-        scenes = json.loads(blob)
-    except json.JSONDecodeError:
+    end = txt.rfind("]")
+    blob = txt[start:end + 1] if end > start else txt[start:]
+    scenes = None
+    for candidate in (blob, _repair_json(blob),
+                      _salvage_truncated(_repair_json(txt[start:]))):
         try:
-            scenes = json.loads(_repair_json(blob))
+            scenes = json.loads(candidate)
+            break
         except json.JSONDecodeError:
-            return []
+            continue
+    if scenes is None:
+        return []
     if not isinstance(scenes, list):
         return []
     return [s for s in scenes
@@ -130,7 +143,7 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
     provider = get_provider("anthropic")
     raw = provider.complete(
         system=system, user=f"Essay:\n\n{essay}",
-        model=WRITER_MODEL, max_tokens=8000,
+        model=WRITER_MODEL, max_tokens=24000,
     )
     scenes = _parse_scenes(raw)
     if scenes:
@@ -146,7 +159,7 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
               f"fences, no commentary, starting with '[' and ending with ']'. "
               f"Keep the visual diagrams, but each svg must be a SINGLE "
               f"line and no string may contain raw newlines."),
-        model=WRITER_MODEL, max_tokens=8000,
+        model=WRITER_MODEL, max_tokens=24000,
     )
     return _parse_scenes(raw2)
 

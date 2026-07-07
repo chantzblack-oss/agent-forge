@@ -67,6 +67,17 @@ Required interactions (all of them, adapted to THIS content):
    reader answers first (free tap on 2-3 stances), then the essay's framing
    is revealed, clearly labeled as a framing, not a fact.
 
+CSS robustness (these cause silent 0-size collapse — avoid them):
+- Any element you size with width/height percentages or position its
+  children with absolute/inset MUST be display:block or flex — never leave
+  a <span> at its default inline display while giving it width/height (inline
+  boxes ignore both and collapse to 0, taking absolutely-positioned children
+  with them). Flip-card inner wrappers are the classic trap: set display:block.
+- Give flip cards and any absolutely-positioned-face component an explicit
+  min-height so they never collapse.
+- Prefer flex or grid with real track sizes over absolute positioning for
+  layout; reserve absolute positioning for overlays (like card faces).
+
 Content rules:
 - Every number, date, and claim must come from the provided essay. Do not
   invent facts the essay doesn't contain. Where the essay hedges, the page

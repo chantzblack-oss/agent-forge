@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Reef With an Insurance Policy</title>
+<style>
+  :root{
+    --bg:#eef3f3; --bg2:#e2edee; --surface:#ffffff; --surface2:#f2f7f7;
+    --ink:#11303a; --muted:#57707a; --line:#d5e2e3;
+    --accent:#ef6a49; --accent-ink:#ffffff; --accent2:#0e8ea3;
+    --good:#1c9a68; --bad:#cf463e; --shadow:rgba(16,48,58,.14);
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#071a22; --bg2:#0a222c; --surface:#0e2731; --surface2:#123039;
+      --ink:#e7f2f1; --muted:#8aa6ad; --line:#1d3d47;
+      --accent:#ff7a5e; --accent-ink:#1c0f0a; --accent2:#35c2d6;
+      --good:#37c98b; --bad:#ff6b60; --shadow:rgba(0,0,0,.45);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#eef3f3; --bg2:#e2edee; --surface:#ffffff; --surface2:#f2f7f7;
+    --ink:#11303a; --muted:#57707a; --line:#d5e2e3;
+    --accent:#ef6a49; --accent-ink:#ffffff; --accent2:#0e8ea3;
+    --good:#1c9a68; --bad:#cf463e; --shadow:rgba(16,48,58,.14);
+    color-scheme:light;
+  }
+  :root[data-theme="dark"]{
+    --bg:#071a22; --bg2:#0a222c; --surface:#0e2731; --surface2:#123039;
+    --ink:#e7f2f1; --muted:#8aa6ad; --line:#1d3d47;
+    --accent:#ff7a5e; --accent-ink:#1c0f0a; --accent2:#35c2d6;
+    --good:#37c98b; --bad:#ff6b60; --shadow:rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:linear-gradient(180deg,var(--bg2),var(--bg)) fixed;
+    color:var(--ink);
+    font:400 17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    min-height:100vh;
+  }
+  .wrap{max-width:600px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding:0 16px}
+
+  header{position:sticky;top:0;z-index:20;background:linear-gradient(180deg,var(--bg2),color-mix(in srgb,var(--bg2) 82%,transparent));
+    padding:12px 0 8px;backdrop-filter:blur(6px)}
+  .toprow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .brand{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2)}
+  .theme{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink);font-size:17px;cursor:pointer;display:grid;place-items:center}
+  .dots{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .dot{width:9px;height:9px;border-radius:99px;background:transparent;border:1.5px solid var(--line);padding:0;cursor:pointer;transition:all .25s}
+  .dot.done{background:var(--muted);border-color:var(--muted)}
+  .dot.on{width:26px;background:var(--accent);border-color:var(--accent)}
+
+  main{flex:1;padding:8px 0 18px}
+  .scene{display:none}
+  .scene.is-active{display:block;animation:rise .4s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:2px 0 10px}
+  h1{font-size:31px;line-height:1.12;margin:.1em 0 .35em;letter-spacing:-.02em}
+  h2{font-size:23px;line-height:1.18;margin:.1em 0 .5em;letter-spacing:-.01em}
+  p{margin:.55em 0}
+  .lede{font-size:18px;color:var(--ink)}
+  .muted{color:var(--muted)}
+  .tiny{font-size:13px;line-height:1.45;color:var(--muted)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 8px 26px -18px var(--shadow)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--line);
+    border-radius:99px;padding:7px 12px;font-size:13.5px;font-weight:600}
+  .chip b{color:var(--accent2)}
+
+  blockquote{margin:16px 0 4px;padding:10px 14px;border-left:3px solid var(--accent);
+    background:var(--surface2);border-radius:0 12px 12px 0;font-style:italic}
+  blockquote cite{display:block;margin-top:6px;font-style:normal;font-size:13px;color:var(--muted)}
+
+  .btn{appearance:none;font:inherit;font-weight:650;min-height:48px;padding:12px 18px;border-radius:13px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;transition:transform .08s,filter .15s}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+  .btn.block{display:block;width:100%}
+  .btn:disabled{opacity:.5;cursor:default}
+
+  footer{position:sticky;bottom:0;z-index:20;background:linear-gradient(0deg,var(--bg),color-mix(in srgb,var(--bg) 70%,transparent));
+    padding:10px 0 calc(12px + env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px}
+  footer .btn{flex:1}
+  #counter{font-size:13px;color:var(--muted);min-width:52px;text-align:center;font-variant-numeric:tabular-nums}
+
+  /* hero art */
+  .hero{width:100%;height:auto;display:block;margin:6px 0 4px;border-radius:14px}
+
+  /* slider */
+  .slab{margin:16px 0 6px}
+  input[type=range]{ -webkit-appearance:none;appearance:none;width:100%;height:12px;border-radius:99px;
+    background:linear-gradient(90deg,var(--accent2),var(--accent));outline:none;margin:16px 0}
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none;width:30px;height:30px;border-radius:50%;
+    background:var(--surface);border:3px solid var(--accent);box-shadow:0 3px 8px var(--shadow);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--surface);
+    border:3px solid var(--accent);box-shadow:0 3px 8px var(--shadow);cursor:pointer}
+  .readout{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-variant-numeric:tabular-nums}
+  .big-num{font-size:30px;font-weight:800;letter-spacing:-.02em}
+
+  /* predict reveal */
+  .reveal[hidden]{display:none}
+  .verdict{font-weight:800;font-size:18px;margin:2px 0 8px}
+  .bars{margin:12px 0}
+  .barrow{display:flex;align-items:center;gap:10px;margin:8px 0}
+  .barrow span{width:112px;flex:none;font-size:13px;color:var(--muted)}
+  .bar{flex:1;background:var(--surface2);border-radius:99px;height:26px;overflow:hidden;border:1px solid var(--line)}
+  .bar i{display:flex;align-items:center;justify-content:flex-end;height:100%;color:#fff;font-size:12px;font-weight:700;
+    padding:0 9px;border-radius:99px;white-space:nowrap;transition:width 1s cubic-bezier(.2,.7,.2,1)}
+  .bar i.prem{background:var(--accent2)}
+  .bar i.pay{background:var(--accent)}
+
+  /* model */
+  .model-top{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+  .storm{width:74px;height:74px;flex:none}
+  .storm-spin{transform-origin:40px 40px;animation:spin 3s linear infinite}
+  #chart{width:100%;height:auto;display:block;margin-top:4px}
+  .grid{stroke:var(--line)}
+  .axis-t{fill:var(--muted);font-size:11px;font-weight:600}
+  .area{fill:color-mix(in srgb,var(--accent) 16%,transparent)}
+  .step{fill:none;stroke:var(--accent);stroke-width:3.5;stroke-linejoin:round;stroke-linecap:round}
+  #indLine{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:3 3;opacity:.55}
+  #indDot{fill:var(--accent2);stroke:var(--surface);stroke-width:2.5}
+  #indLabel{fill:var(--ink);font-size:12px;font-weight:800}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* flip cards */
+  .flip{width:100%;min-height:196px;border:none;background:none;padding:0;perspective:1200px;cursor:pointer;margin:12px 0;text-align:left}
+  .flip-inner{display:block;position:relative;width:100%;height:100%;min-height:196px;transition:transform .55s;transform-style:preserve-3d}
+  .flip.is-flipped .flip-inner{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;
+    border-radius:16px;padding:18px;display:flex;flex-direction:column;justify-content:center;
+    border:1px solid var(--line);box-shadow:0 8px 26px -18px var(--shadow)}
+  .front{background:var(--surface)}
+  .front .lbl{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  .front .claim{font-size:17.5px;font-weight:650;line-height:1.3}
+  .front .hint{position:absolute;left:18px;bottom:14px;font-size:12px;color:var(--muted)}
+  .back{background:var(--surface2);transform:rotateY(180deg)}
+  .back .lbl{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:6px}
+  .back p{margin:0;font-size:14.5px;line-height:1.42}
+
+  /* poles */
+  .pole{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:10px 0}
+  .pole .lbl{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;margin-bottom:5px}
+  .pole.a .lbl{color:var(--accent2)} .pole.b .lbl{color:var(--accent)}
+  .pole p{margin:0;font-size:15px;line-height:1.4}
+
+  /* quiz + stances */
+  .opt{display:block;width:100%;text-align:left;margin:9px 0;min-height:52px;line-height:1.35}
+  .opt.correct{border-color:var(--good);background:color-mix(in srgb,var(--good) 15%,var(--surface));color:var(--ink)}
+  .opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--surface));color:var(--ink)}
+  .qprog{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .explain{margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);font-size:14.5px;line-height:1.45}
+  .explain[hidden]{display:none}
+  .explain b{color:var(--accent2)}
+
+  .framebox[hidden]{display:none}
+  .framebox{margin-top:14px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface)}
+  .frametag{background:var(--accent);color:var(--accent-ink);font-size:11px;font-weight:800;letter-spacing:.1em;
+    text-transform:uppercase;padding:8px 14px}
+  .framebody{padding:16px}
+  .pull{font-size:17px;font-weight:750;line-height:1.35;border-left:3px solid var(--accent2);padding-left:12px;margin:12px 0 2px}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+    .storm-spin{animation:none}
+  }
+  @media (min-width:560px){ h1{font-size:36px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="toprow">
+      <div class="brand">Parametric Insurance · Riviera Maya</div>
+      <button class="theme" id="themeToggle" aria-label="Toggle light or dark theme">◐</button>
+    </div>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+  </header>
+
+  <main id="main">
+
+    <!-- 1 -->
+    <section class="scene" aria-label="Introduction">
+      <div class="eyebrow">A true story about money and coral</div>
+      <h1>The Reef With an Insurance Policy</h1>
+      <svg class="hero" viewBox="0 0 320 120" role="img" aria-label="A coral reef beneath a wave line">
+        <rect width="320" height="120" fill="none"/>
+        <path d="M0,34 Q40,22 80,34 T160,34 T240,34 T320,34" fill="none" stroke="var(--accent2)" stroke-width="2.5" opacity=".8"/>
+        <path d="M0,46 Q40,36 80,46 T160,46 T240,46 T320,46" fill="none" stroke="var(--accent2)" stroke-width="1.5" opacity=".45"/>
+        <g stroke="var(--accent)" stroke-width="5" stroke-linecap="round" fill="none">
+          <path d="M70,120 L70,78 M70,92 L54,74 M70,86 L88,70"/>
+          <path d="M120,120 L120,84 M120,96 L104,84 M120,90 L138,78"/>
+        </g>
+        <g stroke="var(--accent2)" stroke-width="5" stroke-linecap="round" fill="none" opacity=".85">
+          <path d="M210,120 L210,72 M210,88 L192,72 M210,82 L230,66 M210,96 L226,86"/>
+          <path d="M262,120 L262,88 M262,98 L248,90"/>
+        </g>
+      </svg>
+      <p class="lede">A stretch of Mexico's barrier reef carries a hurricane policy that pays out from wind speed alone — funding divers to cement shattered coral back down within days of a storm.</p>
+      <p class="tiny">Tap through · 11 short scenes · you'll predict, drag, and decide.</p>
+      <button class="btn primary block" id="btnBegin" style="margin-top:14px">Begin →</button>
+    </section>
+
+    <!-- 2 -->
+    <section class="scene" aria-label="The cement brigade">
+      <div class="eyebrow">October 2020 · Hurricane Delta</div>
+      <h2>The cement brigade</h2>
+      <p>Divers converged on Puerto Morelos, mixing cement on the boat decks "like contractors repairing a sidewalk." They hand-set roughly 1,200 coral colonies and gathered some 9,000 loose fragments before sun and currents could finish them.</p>
+      <div class="chips">
+        <span class="chip"><b>~1,200</b> colonies re-set</span>
+        <span class="chip"><b>~9,000</b> fragments gathered</span>
+      </div>
+      <blockquote>"We worked 12 hours every day for a month and a half. It was exhausting."<cite>— a volunteer from the core crew</cite></blockquote>
+    </section>
+
+    <!-- 3 : PREDICT -->
+    <section class="scene" aria-label="Predict the payout">
+      <div class="eyebrow">Predict before you scroll</div>
+      <h2>What did Delta pay out?</h2>
+      <p>The entire 2020 season's premium was about <b>$230,000</b>. Then Delta hit. Drag to lock in your guess for the payout.</p>
+      <div class="card">
+        <div class="readout"><span class="muted">Your guess</span><span class="big-num" id="guessOut">$500k</span></div>
+        <input type="range" id="guess" min="100000" max="2000000" step="25000" value="500000" aria-label="Guess the payout in dollars">
+        <button class="btn primary block" id="lockGuess">Lock it in</button>
+        <div class="reveal" id="predReveal" hidden>
+          <div class="verdict" id="verdict"></div>
+          <p class="muted" id="guessRecap" style="margin-top:0"></p>
+          <div class="bars">
+            <div class="barrow"><span>Season premium</span><div class="bar"><i class="prem" style="width:28.75%">$230k</i></div></div>
+            <div class="barrow"><span>Delta payout</span><div class="bar"><i class="pay" id="payBar" style="width:0%">$0</i></div></div>
+          </div>
+          <p class="tiny">≈ 3.5× the whole season's premium — filed and paid before the divers finished counting. (It split roughly 50/50 with beach restoration, so "coral" didn't get all of it.)</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="scene" aria-label="How the trigger works">
+      <div class="eyebrow">The part the headlines skip</div>
+      <h2>There's no sensor on the reef</h2>
+      <p>The trigger is a <b>modeled wind field</b> — satellite, radar and ground stations reconciled into one storm map, arbitrated by a body like the U.S. National Hurricane Center. And it's no simple on/off switch.</p>
+      <p class="tiny">Running since 2018 — 2019, by at least one careful account that dates the first underwritten policy a year after the trust itself.</p>
+    </section>
+
+    <!-- 5 : MODEL -->
+    <section class="scene" aria-label="Manipulable model of the payout tiers">
+      <div class="eyebrow">Drag the storm</div>
+      <h2>A graduated set of tripwires</h2>
+      <p>Payout is tiered — calibrated by actuaries who never see the reef. Pull the wind speed and watch the money release.</p>
+      <div class="card">
+        <div class="model-top">
+          <svg class="storm" viewBox="0 0 80 80" aria-hidden="true">
+            <g class="storm-spin" id="stormSpin" fill="var(--accent2)">
+              <path d="M40,40 C40,18 62,14 67,30 C60,25 47,29 40,40 Z"/>
+              <path d="M40,40 C40,62 18,66 13,50 C20,55 33,51 40,40 Z"/>
+            </g>
+            <circle cx="40" cy="40" r="4.5" fill="var(--surface)"/>
+          </svg>
+          <div style="flex:1">
+            <div class="big-num" id="ktOut">110 kt</div>
+            <div class="muted" id="mphOut">≈ 127 mph</div>
+          </div>
+          <div style="text-align:right">
+            <div class="big-num" id="pctOut" style="color:var(--accent)">40%</div>
+            <div class="muted" id="tierOut">Tier 1</div>
+          </div>
+        </div>
+        <input type="range" id="wind" min="60" max="180" step="1" value="110" aria-label="Sustained wind speed in knots">
+        <svg id="chart" viewBox="0 0 340 214" role="img" aria-label="Payout rises in steps with wind speed">
+          <line class="grid" x1="40" y1="190" x2="320" y2="190"/>
+          <line class="grid" x1="133.3" y1="20" x2="133.3" y2="190" opacity=".6"/>
+          <line class="grid" x1="203.3" y1="20" x2="203.3" y2="190" opacity=".6"/>
+          <line class="grid" x1="273.3" y1="20" x2="273.3" y2="190" opacity=".6"/>
+          <path class="area" d="M40,190 L133.3,190 L133.3,122 L203.3,122 L203.3,54 L273.3,54 L273.3,20 L320,20 L320,190 Z"/>
+          <path class="step" d="M40,190 L133.3,190 L133.3,122 L203.3,122 L203.3,54 L273.3,54 L273.3,20 L320,20"/>
+          <text class="axis-t" x="133.3" y="206" text-anchor="middle">100</text>
+          <text class="axis-t" x="203.3" y="206" text-anchor="middle">130</text>
+          <text class="axis-t" x="273.3" y="206" text-anchor="middle">160</text>
+          <text class="axis-t" x="40" y="122" text-anchor="end" dx="-4">40%</text>
+          <text class="axis-t" x="40" y="58" text-anchor="end" dx="-4">80%</text>
+          <text class="axis-t" x="40" y="24" text-anchor="end" dx="-4">100%</text>
+          <line id="indLine" x1="196.7" y1="190" x2="196.7" y2="122"/>
+          <circle id="indDot" cx="196.7" cy="122" r="6"/>
+          <text id="indLabel" x="196.7" y="112" text-anchor="middle">40%</text>
+        </svg>
+        <p class="tiny" style="margin-bottom:0">Thresholds (knots near the insured zone): ≈100 → 40% · 130 → 80% · 160+ → full. Note 100 kt ≈ 115 mph — the floor a storm must clear to pay anything.</p>
+      </div>
+    </section>
+
+    <!-- 6 : MYTH vs REALITY -->
+    <section class="scene" aria-label="Myth versus reality">
+      <div class="eyebrow">Myth vs reality</div>
+      <h2>The pop version is tidier than the truth</h2>
+      <p class="muted">Tap each card to flip it.</p>
+
+      <button class="flip"><span class="flip-inner">
+        <span class="face front"><span class="lbl">The myth</span><span class="claim">A near-twin storm hit weeks later and got no check. Suspicious.</span><span class="hint">tap to flip ↻</span></span>
+        <span class="face back"><span class="lbl">The reality</span><p>Zeta ran almost Delta's exact track — 60–70 km south, three weeks on — but made landfall a full category weaker (~85 vs ~110 mph), under the wind floor. Same track, different storm.</p></span>
+      </span></button>
+
+      <button class="flip"><span class="flip-inner">
+        <span class="face front"><span class="lbl">The myth</span><span class="claim">Grace slammed the reef head-on and the policy failed to pay.</span><span class="hint">tap to flip ↻</span></span>
+        <span class="face back"><span class="lbl">The reality</span><p>Grace logged 51 mph at the gauge, ~86 mph at landfall — far below the ~115 mph floor. No reef-damage report for Grace was ever published; the silence may be correct calibration, not failure.</p></span>
+      </span></button>
+
+      <button class="flip"><span class="flip-inner">
+        <span class="face front"><span class="lbl">The myth</span><span class="claim">One heroic crew. One clean rescue. One headcount.</span><span class="hint">tap to flip ↻</span></span>
+        <span class="face back"><span class="lbl">The reality</span><p>The number keeps moving: 16 → ~30 → ~80 divers, depending which phase a source describes. And the payout split ~50/50 with beach restoration, not coral alone.</p></span>
+      </span></button>
+
+      <button class="flip"><span class="flip-inner">
+        <span class="face front"><span class="lbl">The myth</span><span class="claim">Two top reef scientists are feuding over this program.</span><span class="hint">tap to flip ↻</span></span>
+        <span class="face back"><span class="lbl">The reality</span><p>Alvarez-Filip and Bellwood aren't in dialogue at all. They're independent poles of a field-wide restoration debate that predates this policy and outlasts it.</p></span>
+      </span></button>
+    </section>
+
+    <!-- 7 -->
+    <section class="scene" aria-label="Why days matter">
+      <div class="eyebrow">The hospital and the ambulance</div>
+      <h2>Why days matter</h2>
+      <p>Most storm-snapped fragments never found new colonies — they die. And after Hurricane Earl (2010), broken fragments off St. Thomas grew white-plague-like lesions where they touched sediment and each other. Cementing fast outruns an infection clock.</p>
+      <div class="chips"><span class="chip"><b>200+</b> trained Reef Guardians by late 2022</span></div>
+      <blockquote>"Like with medical insurance, you need the hospital and the ambulance in order for it to work."<cite>— Fernando Secaira, The Nature Conservancy</cite></blockquote>
+    </section>
+
+    <!-- 8 -->
+    <section class="scene" aria-label="Does cementing save the reef">
+      <div class="eyebrow">The uncomfortable question</div>
+      <h2>Does cementing save the reef?</h2>
+      <div class="pole a">
+        <div class="lbl">Triage that buys time</div>
+        <p>Lorenzo Alvarez-Filip has charted a 40-year flattening of Caribbean reefs. Gluing a branch back keeps it alive — but rebuilds none of the 3-D complexity that took centuries to grow.</p>
+      </div>
+      <div class="pole b">
+        <div class="lbl">A costly distraction</div>
+        <p>David Bellwood calls large-scale restoration "costly, premature, and doomed to fail" without emissions cuts first.</p>
+      </div>
+      <p class="tiny">One fault line, two poles who've never replied to each other: buy time now, or stop pretending anything but decarbonization works.</p>
+    </section>
+
+    <!-- 9 -->
+    <section class="scene" aria-label="The model spreads">
+      <div class="eyebrow">Beyond Mexico</div>
+      <h2>The model escapes the reef</h2>
+      <p><b>2024</b> — a policy over Fiji's Lau Islands pays up to $450,000 for coral repair and emergency food and water. <b>2025</b> — a Maldives study prototypes a trigger on sea-surface temperature: bleaching, not a single storm.</p>
+      <p class="pull" style="border-color:var(--accent)">But heat isn't a hurricane.</p>
+    </section>
+
+    <!-- 10 : QUIZ -->
+    <section class="scene" aria-label="Quiz">
+      <div class="eyebrow">Quick check</div>
+      <h2>Three questions</h2>
+      <p class="muted">The explanations are the point — not the score.</p>
+      <div class="card" id="quiz"></div>
+    </section>
+
+    <!-- 11 : FINAL -->
+    <section class="scene" aria-label="Final question and framing">
+      <div class="eyebrow">You decide first</div>
+      <h2>One last question</h2>
+      <p>Parametric insurance wires money in days for a sudden shock. Is it the right tool to save reefs from a warming ocean?</p>
+      <div id="stances">
+        <button class="btn opt" data-s="0">Yes — money in days is exactly what a dying reef needs.</button>
+        <button class="btn opt" data-s="1">No — it fixes spikes and ignores the slow heat actually killing reefs.</button>
+        <button class="btn opt" data-s="2">Only if someone can build a "slow" version that pays on heat.</button>
+      </div>
+      <button class="btn primary block" id="revealFrame" disabled style="margin-top:6px">Reveal the essay's framing</button>
+      <div class="framebox" id="framebox" hidden>
+        <div class="frametag">The essay's framing — a lens it offers, not a proven fact</div>
+        <div class="framebody">
+          <p>Parametric insurance is a <b>Geiger counter</b>: built for events, a click at the instant something strikes. Wind is exactly that kind of quantity. But coral bleaching is a <b>dose</b> — a film badge that darkens slowly, read too late. Scientists already count heat in "degree heating weeks," a cumulative unit, because that's how the biology fails: not a snap, a slow poisoning.</p>
+          <p>The reef got a spectacular event-detector. It structurally can't carry a dosimeter for the slope killing reefs worldwide.</p>
+          <p class="pull">You can watch eighty divers with cement buckets show up for the spike — and count, precisely, the zero who show up for the slope.</p>
+          <p class="tiny">The author flags this may not generalize to credit, flood, or disease models. Take it as a hypothesis the reef suggests, not one it proves.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <button class="btn" id="btnBack">← Back</button>
+    <span id="counter">1 / 11</span>
+    <button class="btn primary" id="btnNext">Next →</button>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var $=function(s,r){return (r||document).querySelector(s);};
+  var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));};
+
+  /* ---------- Theme ---------- */
+  var root=document.documentElement, tt=$("#themeToggle");
+  function applyTheme(t){ if(t){root.setAttribute("data-theme",t);} else {root.removeAttribute("data-theme");} }
+  try{ var saved=localStorage.getItem("reef-theme"); if(saved){applyTheme(saved);} }catch(e){}
+  if(tt){ tt.addEventListener("click",function(){
+    var cur=root.getAttribute("data-theme");
+    var isDark = cur ? cur==="dark" : window.matchMedia("(prefers-color-scheme:dark)").matches;
+    var next=isDark?"light":"dark"; applyTheme(next);
+    try{localStorage.setItem("reef-theme",next);}catch(e){}
+  }); }
+
+  /* ---------- Scene navigation ---------- */
+  var scenes=$$(".scene"), N=scenes.length, idx=0;
+  var dots=$("#dots"), counter=$("#counter"), back=$("#btnBack"), next=$("#btnNext");
+  for(var i=0;i<N;i++){ (function(k){
+    var b=document.createElement("button"); b.className="dot"; b.type="button";
+    b.setAttribute("aria-label","Go to scene "+(k+1));
+    b.addEventListener("click",function(){go(k);}); dots.appendChild(b);
+  })(i); }
+  var dotEls=$$(".dot",dots);
+
+  function go(n){
+    idx=Math.max(0,Math.min(N-1,n));
+    for(var j=0;j<N;j++){ scenes[j].classList.toggle("is-active",j===idx); }
+    for(var d=0;d<N;d++){ dotEls[d].classList.toggle("on",d===idx); dotEls[d].classList.toggle("done",d<idx); }
+    counter.textContent=(idx+1)+" / "+N;
+    back.disabled=(idx===0);
+    if(idx===N-1){ next.textContent="Start over ↺"; } else { next.textContent="Next →"; }
+    window.scrollTo(0,0);
+  }
+  back.addEventListener("click",function(){ go(idx-1); });
+  next.addEventListener("click",function(){ if(idx===N-1){go(0);} else {go(idx+1);} });
+  var begin=$("#btnBegin"); if(begin){ begin.addEventListener("click",function(){go(idx+1);}); }
+
+  /* ---------- Predict (scene 3) ---------- */
+  var guess=$("#guess"), guessOut=$("#guessOut"), lock=$("#lockGuess");
+  function fmt(n){ return n>=1000000 ? "$"+(n/1000000).toFixed(1).replace(/\.0$/,"")+"M" : "$"+Math.round(n/1000)+"k"; }
+  function updateGuess(){ guessOut.textContent=fmt(+guess.value); }
+  if(guess){ guess.addEventListener("input",updateGuess); updateGuess(); }
+  if(lock){ lock.addEventListener("click",function(){
+    var g=+guess.value, actual=800000, diff=Math.abs(g-actual);
+    var v;
+    if(diff<=125000) v="Nice — you nailed the ballpark.";
+    else if(diff<=350000) v="Close-ish.";
+    else if(g<actual) v="Way low — it paid bigger than that.";
+    else v="Way high — but you can see why people assume so.";
+    $("#verdict").textContent=v;
+    $("#guessRecap").textContent="Your guess: "+fmt(g)+"  ·  Actual ≈ $800k (17 million pesos).";
+    $("#predReveal").hidden=false;
+    lock.disabled=true; guess.disabled=true;
+    var payBar=$("#payBar");
+    requestAnimationFrame(function(){ payBar.style.width="100%"; });
+    var t0=null, dur=1000;
+    function step(ts){ if(!t0)t0=ts; var p=Math.min(1,(ts-t0)/dur);
+      var val=Math.round(actual*p/1000)*1000; payBar.textContent=fmt(val);
+      if(p<1) requestAnimationFrame(step); else payBar.textContent="$800k"; }
+    requestAnimationFrame(step);
+  }); }
+
+  /* ---------- Model (scene 5) ---------- */
+  var wind=$("#wind");
+  function xk(kt){ return 40+(kt-60)/120*280; }
+  function payoutFor(kt){ if(kt<100) return 0; if(kt<130) return 40; if(kt<160) return 80; return 100; }
+  function tierName(p){ return p===0?"Below floor":p===40?"Tier 1":p===80?"Tier 2":"Full payout"; }
+  function yp(p){ return 190-p/100*170; }
+  function lerpColor(t){
+    // teal -> coral by intensity t(0..1)
+    var a=[14,142,163], b=[239,106,73];
+    var c=a.map(function(v,i){return Math.round(v+(b[i]-v)*t);});
+    return "rgb("+c[0]+","+c[1]+","+c[2]+")";
+  }
+  function drawModel(){
+    var kt=+wind.value, p=payoutFor(kt), x=xk(kt), y=yp(p);
+    $("#ktOut").textContent=kt+" kt";
+    $("#mphOut").textContent="≈ "+Math.round(kt*1.15078)+" mph";
+    var pctEl=$("#pctOut"); pctEl.textContent=p+"%";
+    $("#tierOut").textContent=tierName(p);
+    var line=$("#indLine"); line.setAttribute("x1",x); line.setAttribute("x2",x); line.setAttribute("y2",y);
+    var dot=$("#indDot"); dot.setAttribute("cx",x); dot.setAttribute("cy",y);
+    var lab=$("#indLabel"); lab.setAttribute("x",Math.max(56,Math.min(304,x))); lab.setAttribute("y",y-11); lab.textContent=p+"%";
+    var t=Math.max(0,Math.min(1,(kt-60)/120));
+    var col=lerpColor(t);
+    var spin=$("#stormSpin"); if(spin){ spin.setAttribute("fill",col); spin.style.animationDuration=(6-4.6*t).toFixed(2)+"s"; }
+    pctEl.style.color=col; dot.setAttribute("fill",col);
+  }
+  if(wind){ wind.addEventListener("input",drawModel); drawModel(); }
+
+  /* ---------- Flip cards (scene 6) ---------- */
+  $$(".flip").forEach(function(f){
+    f.setAttribute("aria-pressed","false");
+    f.addEventListener("click",function(){
+      var on=f.classList.toggle("is-flipped");
+      f.setAttribute("aria-pressed",on?"true":"false");
+    });
+  });
+
+  /* ---------- Quiz (scene 10) ---------- */
+  var QUIZ=[
+    { q:"What actually pulls the trigger?",
+      a:["Sensors bolted to the reef itself",
+         "A modeled wind field, arbitrated by a body like the National Hurricane Center",
+         "Divers' post-storm damage reports"],
+      c:1,
+      e:"There's no sensor on the reef. Satellite, radar and ground stations are reconciled into one storm map — that reading is what pays, days before anyone counts coral." },
+    { q:"Zeta followed Delta's track weeks later but paid nothing. Why?",
+      a:["The fund had already run dry",
+         "It made landfall much weaker — under the wind floor",
+         "It struck a different, uninsured reef"],
+      c:1,
+      e:"Same track, different storm. The trigger is rated on intensity, not proximity — Zeta came ashore a full category softer (~85 vs ~110 mph)." },
+    { q:"Why is bleaching harder to insure than a hurricane?",
+      a:["Satellites can't measure ocean temperature",
+         "Heat is a cumulative \u2018dose\u2019 — no single threshold moment",
+         "Coral isn't actually harmed by heat"],
+      c:1,
+      e:"Scientists track heat in \u2018degree heating weeks\u2019 — a slow accumulation, not a spike. There's no clean instant to pay out on. That's the whole problem." }
+  ];
+  var quizBox=$("#quiz");
+  function renderQuiz(qi,score){
+    var item=QUIZ[qi];
+    quizBox.innerHTML="";
+    var prog=document.createElement("div"); prog.className="qprog"; prog.textContent="Question "+(qi+1)+" of "+QUIZ.length;
+    var qh=document.createElement("h2"); qh.style.fontSize="20px"; qh.style.margin="6px 0 4px"; qh.textContent=item.q;
+    quizBox.appendChild(prog); quizBox.appendChild(qh);
+    var ex=document.createElement("div"); ex.className="explain"; ex.hidden=true;
+    var opts=[];
+    item.a.forEach(function(txt,i){
+      var b=document.createElement("button"); b.className="btn opt"; b.textContent=txt;
+      b.addEventListener("click",function(){
+        if(ex.hidden===false) return;
+        opts.forEach(function(o,j){ o.disabled=true;
+          if(j===item.c) o.classList.add("correct");
+          if(j===i && i!==item.c) o.classList.add("wrong");
+        });
+        var right=(i===item.c);
+        ex.innerHTML="<b>"+(right?"Correct.":"Not quite.")+"</b> "+item.e;
+        ex.hidden=false;
+        var nb=document.createElement("button"); nb.className="btn primary block"; nb.style.marginTop="12px";
+        nb.textContent = (qi<QUIZ.length-1) ? "Next question →" : "See results";
+        nb.addEventListener("click",function(){
+          if(qi<QUIZ.length-1) renderQuiz(qi+1, score+(right?1:0));
+          else showResults(score+(right?1:0));
+        });
+        quizBox.appendChild(nb);
+      });
+      opts.push(b); quizBox.appendChild(b);
+    });
+    quizBox.appendChild(ex);
+  }
+  function showResults(score){
+    quizBox.innerHTML="";
+    var h=document.createElement("h2"); h.style.margin="4px 0"; h.textContent="You got "+score+" / "+QUIZ.length+".";
+    var p=document.createElement("p"); p.className="muted"; p.style.margin="6px 0 0";
+    p.textContent="But the explanations were the point. Now — the last question is yours to answer.";
+    quizBox.appendChild(h); quizBox.appendChild(p);
+  }
+  if(quizBox) renderQuiz(0,0);
+
+  /* ---------- Final stances + framing (scene 11) ---------- */
+  var stanceBtns=$$("#stances .opt"), reveal=$("#revealFrame");
+  stanceBtns.forEach(function(b){
+    b.addEventListener("click",function(){
+      stanceBtns.forEach(function(o){ o.classList.remove("correct"); });
+      b.classList.add("correct");
+      if(reveal) reveal.disabled=false;
+    });
+  });
+  if(reveal){ reveal.addEventListener("click",function(){
+    $("#framebox").hidden=false; reveal.disabled=true;
+    reveal.textContent="Framing revealed ↓";
+  }); }
+
+  go(0);
+})();
+</script>
+</body>
+</html>

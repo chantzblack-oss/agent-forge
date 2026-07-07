@@ -115,9 +115,16 @@ async def _make_lesson(update, context, topic: str):
     async def _send_doc_early(doc_path):
         # The research is the expensive part — deliver it the moment it exists,
         # so a later video failure never wastes what was already paid for.
-        with open(doc_path, "rb") as f:
+        # Render to a typeset PDF (raw .md shows as unformatted text on phones).
+        send_path = doc_path
+        try:
+            from .docrender import md_to_pdf
+            send_path = await _run_blocking(md_to_pdf, doc_path)
+        except Exception:
+            log.exception("pdf render failed; sending raw md")
+        with open(send_path, "rb") as f:
             await context.bot.send_document(chat_id=chat, document=f,
-                                            filename=doc_path.name,
+                                            filename=send_path.name,
                                             caption="cheat-sheet (video rendering…)")
 
     loop = asyncio.get_event_loop()

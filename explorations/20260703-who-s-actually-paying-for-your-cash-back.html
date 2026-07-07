@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Who's Actually Paying for Your Cash Back</title>
+<style>
+  :root{
+    --bg:#f3efe6; --surface:#fffdf8; --surface-2:#f7f3ea; --ink:#211d16; --muted:#726c5c;
+    --border:#e4ddcd; --accent:#1c7d51; --accent-ink:#0d5836; --on-accent:#ffffff;
+    --premium:#5b4bb0; --premium-soft:#ece8fa; --warn:#b23b3b; --warn-soft:#f6e2df;
+    --track:#e6e0d1; --shadow:0 6px 24px rgba(40,32,16,.10);
+    --z1:#cbe8d5; --z2:#f0e2b6; --z3:#f2cfa4; --z4:#efb4ab;
+    --serif:Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#121210; --surface:#1c1c17; --surface-2:#232319; --ink:#ece7db; --muted:#9c9686;
+      --border:#34332a; --accent:#4ac287; --accent-ink:#93e2b8; --on-accent:#0f140f;
+      --premium:#a99bea; --premium-soft:#231f40; --warn:#e58080; --warn-soft:#3a2320;
+      --track:#34332a; --shadow:0 6px 24px rgba(0,0,0,.4);
+      --z1:#1d3a2a; --z2:#3a3420; --z3:#3d2f1f; --z4:#3d2422;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f3efe6; --surface:#fffdf8; --surface-2:#f7f3ea; --ink:#211d16; --muted:#726c5c;
+    --border:#e4ddcd; --accent:#1c7d51; --accent-ink:#0d5836; --on-accent:#ffffff;
+    --premium:#5b4bb0; --premium-soft:#ece8fa; --warn:#b23b3b; --warn-soft:#f6e2df;
+    --track:#e6e0d1; --shadow:0 6px 24px rgba(40,32,16,.10);
+    --z1:#cbe8d5; --z2:#f0e2b6; --z3:#f2cfa4; --z4:#efb4ab;
+  }
+  :root[data-theme="dark"]{
+    --bg:#121210; --surface:#1c1c17; --surface-2:#232319; --ink:#ece7db; --muted:#9c9686;
+    --border:#34332a; --accent:#4ac287; --accent-ink:#93e2b8; --on-accent:#0f140f;
+    --premium:#a99bea; --premium-soft:#231f40; --warn:#e58080; --warn-soft:#3a2320;
+    --track:#34332a; --shadow:0 6px 24px rgba(0,0,0,.4);
+    --z1:#1d3a2a; --z2:#3a3420; --z3:#3d2f1f; --z4:#3d2422;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.5; -webkit-text-size-adjust:100%;
+  }
+  .wrap{
+    max-width:600px; margin:0 auto; min-height:100dvh; display:flex; flex-direction:column;
+    padding:0 16px; padding-bottom:calc(16px + env(safe-area-inset-bottom));
+  }
+
+  /* Header */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:14px 2px 8px; position:sticky; top:0; background:var(--bg); z-index:5;
+  }
+  .brand{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700}
+  .theme-btn{
+    border:1px solid var(--border); background:var(--surface); color:var(--ink);
+    width:40px; height:40px; border-radius:50%; font-size:18px; cursor:pointer; line-height:1;
+  }
+  .theme-btn:active{transform:scale(.94)}
+
+  /* Progress dots */
+  #dots{display:flex; gap:7px; flex-wrap:wrap; padding:2px 2px 12px}
+  .dot{
+    width:9px; height:9px; border-radius:50%; border:none; padding:0; cursor:pointer;
+    background:var(--border); transition:transform .2s, background .2s;
+  }
+  .dot.done{background:var(--accent); opacity:.55}
+  .dot.active{background:var(--accent); transform:scale(1.5)}
+
+  /* Stage + scenes */
+  .stage{flex:1; display:flex; flex-direction:column}
+  .scene{display:none; animation:fade .35s ease both; padding-bottom:8px}
+  .scene.active{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+
+  .kicker{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-ink); font-weight:800; margin-bottom:8px}
+  .kicker.plum{color:var(--premium)}
+  h1{font-family:var(--serif); font-size:30px; line-height:1.15; margin:4px 0 14px; font-weight:700}
+  h2{font-family:var(--serif); font-size:24px; line-height:1.2; margin:2px 0 12px; font-weight:700}
+  p{margin:0 0 12px}
+  .lead{font-size:17px}
+  .muted{color:var(--muted)}
+  .note{
+    font-size:14px; color:var(--muted); border-left:3px solid var(--accent);
+    padding:8px 0 8px 12px; margin:12px 0 0; background:var(--surface-2); border-radius:0 8px 8px 0;
+  }
+  .note.plum{border-left-color:var(--premium)}
+
+  /* Cards / stats */
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px; box-shadow:var(--shadow)}
+  .statgrid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0}
+  .stat{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px}
+  .stat .num{font-family:var(--serif); font-size:23px; font-weight:700; line-height:1}
+  .stat .num.plum{color:var(--premium)}
+  .stat .num.red{color:var(--warn)}
+  .stat .num.grn{color:var(--accent-ink)}
+  .stat .lbl{font-size:12.5px; color:var(--muted); margin-top:5px}
+  .full{grid-column:1 / -1}
+
+  /* Stacked bar */
+  .sbar{display:flex; height:34px; border-radius:9px; overflow:hidden; margin:10px 0 8px; border:1px solid var(--border)}
+  .sbar span{display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; min-width:0}
+  .seg-legend{display:flex; flex-wrap:wrap; gap:10px; font-size:12.5px; color:var(--muted)}
+  .seg-legend b{color:var(--ink)}
+  .swatch{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:middle}
+
+  /* Buttons */
+  .btn{
+    font-family:var(--sans); font-size:16px; font-weight:700; border-radius:12px; cursor:pointer;
+    min-height:48px; padding:12px 18px; border:1px solid var(--accent); background:var(--accent); color:var(--on-accent);
+    width:100%; transition:transform .12s;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn[disabled]{opacity:.5; cursor:default}
+  .btn-ghost{background:transparent; color:var(--ink); border:1px solid var(--border)}
+
+  /* Sliders */
+  .slabel{display:flex; justify-content:space-between; align-items:baseline; font-size:14px; color:var(--muted); margin-bottom:2px}
+  .slabel b{font-family:var(--serif); font-size:22px; color:var(--ink)}
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:44px; background:transparent; margin:0}
+  input[type=range]::-webkit-slider-runnable-track{height:12px; border-radius:999px;
+    background:linear-gradient(90deg,var(--accent) 0 var(--fill,0%), var(--track) var(--fill,0%))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:30px; height:30px; margin-top:-9px;
+    border-radius:50%; background:var(--accent); border:3px solid var(--surface); box-shadow:0 1px 5px rgba(0,0,0,.35)}
+  input[type=range]::-moz-range-track{height:12px; border-radius:999px; background:var(--track)}
+  input[type=range]::-moz-range-progress{height:12px; border-radius:999px; background:var(--accent)}
+  input[type=range]::-moz-range-thumb{width:26px; height:26px; border-radius:50%; background:var(--accent); border:3px solid var(--surface)}
+
+  /* Predict scale */
+  .scale{position:relative; height:64px; margin:18px 0 6px}
+  .scale-track{position:absolute; top:26px; left:0; right:0; height:12px; border-radius:999px; background:var(--track)}
+  .scale-band{position:absolute; top:26px; height:12px; border-radius:999px; background:var(--accent);
+    left:50%; width:0; opacity:0; transition:width .8s ease, opacity .5s ease}
+  .scale-band.show{width:50%; opacity:1}
+  .tick{position:absolute; top:20px; height:24px; width:2px; background:var(--premium); opacity:0; transition:opacity .4s}
+  .tick.show{opacity:1}
+  .tick b{position:absolute; top:26px; left:50%; transform:translateX(-50%); font-size:10px; color:var(--premium); white-space:nowrap; font-weight:700}
+  .pin{position:absolute; top:14px; width:4px; height:36px; border-radius:3px; background:var(--ink); transform:translateX(-50%)}
+  .pin b{position:absolute; bottom:38px; left:50%; transform:translateX(-50%); font-size:11px; font-weight:700; white-space:nowrap}
+  .scale-ends{display:flex; justify-content:space-between; font-size:11px; color:var(--muted)}
+  #pReveal{margin-top:14px}
+
+  /* Model SVG */
+  #modelSvg{width:100%; height:auto; display:block; margin:6px 0}
+  .svt{fill:var(--muted); font-size:11px; font-family:var(--sans)}
+  .svlbl{fill:var(--muted); font-size:10px; font-family:var(--sans); text-anchor:middle}
+  .readout{display:flex; gap:8px; margin-top:6px}
+  .readout .stat{flex:1; text-align:center}
+
+  /* Flip cards */
+  .flip-hint{font-size:13px; color:var(--muted); margin-bottom:10px}
+  .flip{perspective:1000px; min-height:176px; margin-bottom:12px; cursor:pointer}
+  .flip-inner{position:relative; width:100%; height:100%; min-height:176px; transition:transform .5s; transform-style:preserve-3d}
+  .flip.flipped .flip-inner{transform:rotateY(180deg)}
+  .flip-face{position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden;
+    border-radius:14px; padding:16px; display:flex; flex-direction:column; justify-content:center;
+    border:1px solid var(--border); box-shadow:var(--shadow); overflow:auto}
+  .flip-front{background:var(--surface)}
+  .flip-back{background:var(--premium-soft); transform:rotateY(180deg)}
+  .flip .tag{font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; margin-bottom:8px}
+  .flip-front .tag{color:var(--warn)}
+  .flip-back .tag{color:var(--premium)}
+  .flip-front .txt{font-family:var(--serif); font-size:19px; line-height:1.25}
+  .flip-back .txt{font-size:14.5px; line-height:1.4}
+  .flip .cue{position:absolute; bottom:9px; right:14px; font-size:11px; color:var(--muted)}
+
+  /* Quiz */
+  .qmeta{font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:6px}
+  .qtext{font-family:var(--serif); font-size:20px; line-height:1.25; margin-bottom:14px}
+  .opt{display:block; width:100%; text-align:left; margin-bottom:10px; padding:14px; min-height:48px;
+    border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--ink);
+    font-size:15px; cursor:pointer; transition:transform .1s}
+  .opt:active{transform:scale(.99)}
+  .opt.correct{border-color:var(--accent); background:var(--z1); font-weight:700}
+  .opt.wrong{border-color:var(--warn); background:var(--warn-soft)}
+  .opt[disabled]{cursor:default}
+  .explain{border-radius:12px; padding:13px; font-size:14.5px; margin-top:6px; display:none; animation:fade .3s both}
+  .explain.show{display:block}
+  .explain.good{background:var(--z1)}
+  .explain.bad{background:var(--warn-soft)}
+  .explain .verdict{font-weight:800; margin-bottom:4px}
+
+  /* Stances */
+  .stance{display:block; width:100%; text-align:left; margin-bottom:10px; padding:14px; min-height:48px;
+    border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:15px; cursor:pointer}
+  .stance.picked{border-color:var(--premium); background:var(--premium-soft); font-weight:700}
+  #framing{display:none; margin-top:14px; animation:fade .4s both}
+  #framing.show{display:block}
+  .framing-tag{font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:800; color:var(--premium); margin-bottom:8px}
+
+  /* Nav */
+  .nav{position:sticky; bottom:0; background:linear-gradient(180deg,transparent,var(--bg) 22%); padding-top:12px}
+  .navrow{display:flex; align-items:center; gap:12px}
+  .nav .btn{flex:1}
+  .counter{font-size:13px; color:var(--muted); min-width:52px; text-align:center; font-variant-numeric:tabular-nums}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">The Interchange Essay</div>
+    <button class="theme-btn" id="themeBtn" aria-label="Toggle light or dark theme">☾</button>
+  </div>
+  <div id="dots" aria-hidden="true"></div>
+
+  <main class="stage" id="stage">
+
+    <!-- 1 -->
+    <section class="scene" aria-label="Intro">
+      <div class="kicker">Follow the money</div>
+      <h1>Who's Actually Paying for Your Cash Back</h1>
+      <svg viewBox="0 0 320 118" role="img" aria-label="Two shoppers, one paying cash, one paying by premium card" style="width:100%;height:auto;margin:2px 0 10px">
+        <circle cx="70" cy="40" r="16" fill="var(--accent)"/>
+        <path d="M44 96 q26 -34 52 0" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round"/>
+        <circle cx="70" cy="86" r="12" fill="var(--surface)" stroke="var(--accent)" stroke-width="3"/>
+        <text x="70" y="90" text-anchor="middle" font-size="12" font-weight="800" fill="var(--accent-ink)">$</text>
+        <text x="70" y="114" text-anchor="middle" class="svlbl">cash</text>
+        <rect x="150" y="40" width="20" height="38" rx="4" fill="var(--border)"/>
+        <text x="160" y="34" text-anchor="middle" class="svlbl">same price</text>
+        <circle cx="250" cy="40" r="16" fill="var(--premium)"/>
+        <path d="M224 96 q26 -34 52 0" fill="none" stroke="var(--premium)" stroke-width="8" stroke-linecap="round"/>
+        <rect x="236" y="78" width="30" height="19" rx="3" fill="var(--surface)" stroke="var(--premium)" stroke-width="3"/>
+        <rect x="240" y="83" width="9" height="5" rx="1" fill="var(--premium)"/>
+        <text x="250" y="114" text-anchor="middle" class="svlbl">metal card</text>
+      </svg>
+      <p class="lead">Two people, back to back at Target. One pays cash. One taps a <b>$795-a-year</b> Sapphire Reserve and banks points. Identical receipt. Somebody's paying for those points — and it isn't Chase, or Target.</p>
+      <div class="note">Not a literal dollar passing between them. It's a store-wide, time-averaged effect — a fair dramatization of an average. Hold that thought; the rest holds up.</div>
+    </section>
+
+    <!-- 2 -->
+    <section class="scene" aria-label="The swipe fee">
+      <div class="kicker">The plumbing</div>
+      <h2>The swipe fee</h2>
+      <p>Every swipe, the merchant's bank pays a fee to the bank that issued the card — the <b>interchange fee</b>. Each network publishes 100+ category rates, and the rule of thumb holds: the richer the rewards, the higher the fee.</p>
+      <div class="stat full">
+        <div class="num grn">≈ 22–24¢</div>
+        <div class="lbl">The debit floor. The Durbin Amendment caps big banks ($10B+) at 21¢ + 0.05% — nearly flat, whatever you spend.</div>
+      </div>
+    </section>
+
+    <!-- 3 : PREDICT -->
+    <section class="scene" aria-label="Predict the premium rate">
+      <div class="kicker plum">Predict, then reveal</div>
+      <h2>Guess the premium rate</h2>
+      <p>A debit tap costs the store about a quarter. On a <b>$100</b> purchase with a premium metal card, how much does the store pay in swipe fees? Drag, then lock it in.</p>
+      <div class="slabel"><span>Your guess</span><b id="pVal">$2.00 · 2.0%</b></div>
+      <input type="range" id="pSlider" min="0" max="6" step="0.1" value="2" aria-label="Guess the premium swipe fee percentage">
+      <div class="scale">
+        <div class="scale-track"></div>
+        <div class="scale-band" id="pBand"></div>
+        <div class="tick" id="pDebit"><b>debit 24¢</b></div>
+        <div class="pin" id="pPin"><b id="pPinLbl">2.0%</b></div>
+      </div>
+      <div class="scale-ends"><span>0%</span><span>3%</span><span>6%</span></div>
+      <button class="btn" id="pLock">Lock in my guess</button>
+      <div id="pReveal" class="card" style="display:none">
+        <div class="kicker plum" style="margin-bottom:6px">The answer</div>
+        <p style="margin-bottom:6px"><b id="pVerdict"></b></p>
+        <p class="muted" id="pCompare" style="margin:0;font-size:14px"></p>
+      </div>
+    </section>
+
+    <!-- 4 : MODEL -->
+    <section class="scene" aria-label="Manipulable model">
+      <div class="kicker">Play with it</div>
+      <h2>The whole spread, in your hand</h2>
+      <p>Drag the card tier. Watch what the same <b>$100 sale</b> costs the store — the dashed line is the debit floor.</p>
+      <svg id="modelSvg" viewBox="0 0 320 116" role="img" aria-label="Interchange fee meter from debit to premium">
+        <text x="20" y="18" class="svt">$100 purchase — the store's swipe fee</text>
+        <rect x="20" y="44" width="48" height="34" fill="var(--z1)"/>
+        <rect x="68" y="44" width="128" height="34" fill="var(--z2)"/>
+        <rect x="196" y="44" width="64" height="34" fill="var(--z3)"/>
+        <rect x="260" y="44" width="40" height="34" fill="var(--z4)"/>
+        <rect id="mFill" x="20" y="44" width="0" height="34" fill="var(--ink)" opacity="0.10"/>
+        <line x1="39.2" y1="40" x2="39.2" y2="82" stroke="var(--premium)" stroke-width="2" stroke-dasharray="3 3"/>
+        <line id="mHandleLine" x1="200" y1="38" x2="200" y2="84" stroke="var(--ink)" stroke-width="3"/>
+        <circle id="mHandleDot" cx="200" cy="38" r="6" fill="var(--ink)"/>
+        <text id="mRateSvg" x="200" y="30" text-anchor="middle" font-size="12" font-weight="800" fill="var(--ink)">3.2%</text>
+        <text x="44" y="96" class="svlbl">debit</text>
+        <text x="132" y="96" class="svlbl">no-rewards</text>
+        <text x="228" y="96" class="svlbl">rewards</text>
+        <text x="280" y="96" class="svlbl">premium</text>
+      </svg>
+      <input type="range" id="mSlider" min="0.2" max="3.5" step="0.05" value="3.2" aria-label="Card tier interchange rate">
+      <div class="readout">
+        <div class="stat"><div class="num plum" id="mFee">$3.20</div><div class="lbl">this card</div></div>
+        <div class="stat"><div class="num grn">$0.24</div><div class="lbl">on debit</div></div>
+        <div class="stat"><div class="num" id="mMult">13×</div><div class="lbl" id="mTier">premium metal</div></div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="scene" aria-label="Where the money is">
+      <div class="kicker">2024, in dollars</div>
+      <h2>$47.5 billion in rewards</h2>
+      <p>What U.S. issuers paid cardholders in 2024, per the CFPB:</p>
+      <div class="sbar" aria-hidden="true">
+        <span style="flex:16.6;background:var(--accent)">$16.6B</span>
+        <span style="flex:6.6;background:var(--premium)">$6.6B</span>
+        <span style="flex:24.3;background:#c98a2e">$24.3B</span>
+      </div>
+      <div class="seg-legend">
+        <span><span class="swatch" style="background:var(--accent)"></span><b>Cash back</b> 16.6</span>
+        <span><span class="swatch" style="background:var(--premium)"></span><b>Miles</b> 6.6</span>
+        <span><span class="swatch" style="background:#c98a2e"></span><b>Points &amp; perks</b> 24.3</span>
+      </div>
+      <div class="note">A slice, not the pie. Merchants' total card-processing bill was ~<b>$187B</b>. Interchange is the biggest single channel funding rewards — but annual fees and interest on carried balances pay too.</div>
+    </section>
+
+    <!-- 6 -->
+    <section class="scene" aria-label="Baked into the price">
+      <div class="kicker">Why cash doesn't save you</div>
+      <h2>It's baked into the sticker</h2>
+      <p>For decades, network rules banned charging extra for premium cards. Surcharging is legal now in all but three states — <b>Connecticut, Massachusetts, Maine</b> — yet it still hasn't caught on.</p>
+      <p>So the average card cost gets folded into the shelf price. Everyone pays <b>$4.99</b> for the cereal — cash payers included, though they generate none of the cost.</p>
+    </section>
+
+    <!-- 7 : MYTH VS REALITY -->
+    <section class="scene" aria-label="Myth versus reality">
+      <div class="kicker plum">Myth vs reality</div>
+      <h2>Where the popular version oversells</h2>
+      <div class="flip-hint">Tap a card to flip it.</div>
+      <div class="flip" data-flip><div class="flip-inner">
+        <div class="flip-face flip-front"><div class="tag">The claim</div><div class="txt">The cash payer in line hands the cardholder their points.</div><span class="cue">tap →</span></div>
+        <div class="flip-face flip-back"><div class="tag">Defensible version</div><div class="txt">It's a diffuse, store-wide average blended across every customer, all year. Vivid shorthand — not a transaction between two people.</div></div>
+      </div></div>
+      <div class="flip" data-flip><div class="flip-inner">
+        <div class="flip-face flip-front"><div class="tag">The claim</div><div class="txt">It's $149 a year, cash to card. Settled.</div><span class="cue">tap →</span></div>
+        <div class="flip-face flip-back"><div class="tag">Defensible version</div><div class="txt">One 2010 model labeled "calibrations." A 2013 reexamination found it shrinks — or reverses. The dispute is over the sign, not just the size.</div></div>
+      </div></div>
+      <div class="flip" data-flip><div class="flip-inner">
+        <div class="flip-face flip-front"><div class="tag">The claim</div><div class="txt">Interchange is a clean ladder: debit → rewards → premium.</div><span class="cue">tap →</span></div>
+        <div class="flip-face flip-back"><div class="tag">Defensible version</div><div class="txt">It's 100+ category rates per network. And rewards are funded by a blend — interchange, annual fees, interest — not interchange alone.</div></div>
+      </div></div>
+      <div class="flip" data-flip><div class="flip-inner">
+        <div class="flip-face flip-front"><div class="tag">The claim</div><div class="txt">Issuers dangle low rates to bait poorer customers.</div><span class="cue">tap →</span></div>
+        <div class="flip-face flip-back"><div class="tag">Defensible version</div><div class="txt">The 2023 Fed paper blames an attention-and-sophistication gap that cuts across income levels. Rewards-card rates can even run higher for low-FICO borrowers.</div></div>
+      </div></div>
+    </section>
+
+    <!-- 8 -->
+    <section class="scene" aria-label="The 149 dollar model">
+      <div class="kicker">The number everyone quotes</div>
+      <h2>$149 a year — maybe</h2>
+      <p>A 2010 Boston Fed model — its own subtitle is "Theory and Calibrations" — put the transfer at <b>$149/yr</b>, average cash household to card users. And it runs uphill:</p>
+      <div class="statgrid">
+        <div class="stat"><div class="num red">−$21</div><div class="lbl">net, per year, for households under $20k</div></div>
+        <div class="stat"><div class="num grn">+$750</div><div class="lbl">net, per year, for households over $150k</div></div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="scene" aria-label="The reexamination">
+      <div class="kicker plum">The rebuttal</div>
+      <h2>…or maybe backwards</h2>
+      <p>A 2013 reexamination pushed back. Change the assumptions and the effect goes <b>"small, non-existent, or reversed"</b> — in one scenario, card users subsidize cash payers. Two models that can't agree on the direction.</p>
+      <div class="note plum">Meanwhile the fees keep climbing — pointing the unresolved number up, not down.
+        <div class="statgrid" style="margin-top:10px">
+          <div class="stat"><div class="num plum">$450 → $795</div><div class="lbl">Sapphire Reserve fee, 2016 → now</div></div>
+          <div class="stat"><div class="num plum">$895</div><div class="lbl">Amex Platinum, similar arc</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="scene" aria-label="The other leak and the unbanked">
+      <div class="kicker">A second leak</div>
+      <h2>Inside the card-owning crowd</h2>
+      <p>A 2023 Fed paper found <b>~$15B/yr</b> flowing from lower-income, less-educated, higher-minority zip codes to wealthier ones — driven, it says, by an attention gap, not income alone.</p>
+      <div class="stat full">
+        <div class="num">5.6 million</div>
+        <div class="lbl">U.S. households (4.2%) with no bank account at all, per the FDIC's 2023 survey — paying cash by default, locked out of a rewards economy entirely.</div>
+      </div>
+    </section>
+
+    <!-- 11 : QUIZ -->
+    <section class="scene" aria-label="Quiz">
+      <div class="kicker plum">Check yourself</div>
+      <h2 id="qHead">Three quick questions</h2>
+      <div class="qmeta" id="quizProgress">Question 1 of 3</div>
+      <div id="qStage"></div>
+    </section>
+
+    <!-- 12 -->
+    <section class="scene" aria-label="What happens next">
+      <div class="kicker">The fight, right now</div>
+      <h2>Two continents, opposite bets</h2>
+      <div class="card" style="margin-bottom:10px">
+        <div class="kicker" style="margin-bottom:4px">🇺🇸 Legalize the opt-out</div>
+        <p style="margin:0;font-size:14.5px">Merchants suing since 2005. A revised settlement (Nov 2025, preliminary approval June 2026) would let stores surcharge or decline premium cards by tier. The Credit Card Competition Act (Jan 2026) drew a Trump boost.</p>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div class="kicker" style="margin-bottom:4px">🇪🇺 Cap the fee</div>
+        <p style="margin:0;font-size:14.5px">Interchange capped at 0.3% credit / 0.2% debit since 2015 — a big reason Europe never grew a cash-back culture.</p>
+      </div>
+      <div class="card">
+        <div class="kicker" style="margin-bottom:4px">🇦🇺 Both at once</div>
+        <p style="margin:0;font-size:14.5px">From Oct 1, 2026: ban surcharging on Visa, Mastercard &amp; eftpos, and cut credit interchange 0.8% → 0.3%. Amex joins voluntarily.</p>
+      </div>
+    </section>
+
+    <!-- 13 : FINAL -->
+    <section class="scene" aria-label="Your call and the framing">
+      <div class="kicker plum">Your call first</div>
+      <h2>Which shrinks the transfer more?</h2>
+      <p class="muted" style="font-size:14.5px">Same problem, same year, opposite bets. Tap the one you'd back.</p>
+      <button class="stance" data-stance>🇦🇺 <b>Cap the fee at the source</b>, and ban the surcharge.</button>
+      <button class="stance" data-stance>🇺🇸 <b>Legalize the surcharge</b> — let stores opt out card by card.</button>
+      <button class="stance" data-stance>🤷 <b>Neither</b> — the 5.6M unbanked pay cash either way.</button>
+      <div id="framing">
+        <div class="framing-tag">The essay's framing — a lens, not a verdict</div>
+        <p style="margin-bottom:10px">A "free" reward is never free. It's a small charge collected, on average, across a merchant's whole customer base — then redistributed toward whoever qualifies for the shiniest card.</p>
+        <p style="margin:0">The courtroom and regulatory fights are really about <b>who gets to opt out of paying it</b> — over an amount economists still can't agree on the size of, or, in the tightest reading, even which way it runs.</p>
+        <p class="muted" style="font-size:12.5px;margin-top:14px">Every figure here comes from the essay's cited sources: Boston Fed, PERC, CFPB, Federal Reserve, FDIC, Nilson Report &amp; the RBA.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="nav">
+    <div class="navrow">
+      <button class="btn btn-ghost" id="backBtn">Back</button>
+      <div class="counter" id="counter">1 / 13</div>
+      <button class="btn" id="nextBtn">Next</button>
+    </div>
+  </nav>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var scenes = Array.prototype.slice.call(document.querySelectorAll('.scene'));
+  var idx = 0;
+  var dotsWrap = document.getElementById('dots');
+  var backBtn = document.getElementById('backBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var counter = document.getElementById('counter');
+  var stage = document.getElementById('stage');
+
+  // Build dots
+  scenes.forEach(function(_, i){
+    var d = document.createElement('button');
+    d.className = 'dot';
+    d.setAttribute('aria-label', 'Go to scene ' + (i+1));
+    d.addEventListener('click', function(){ go(i); });
+    dotsWrap.appendChild(d);
+  });
+  var dots = Array.prototype.slice.call(dotsWrap.children);
+
+  function render(){
+    scenes.forEach(function(s,i){ s.classList.toggle('active', i===idx); });
+    dots.forEach(function(d,i){
+      d.classList.toggle('active', i===idx);
+      d.classList.toggle('done', i<idx);
+    });
+    backBtn.disabled = idx===0;
+    nextBtn.textContent = idx===scenes.length-1 ? 'Start over' : 'Next';
+    counter.textContent = (idx+1) + ' / ' + scenes.length;
+    try{ window.scrollTo({top:0, behavior:'smooth'}); }catch(e){ window.scrollTo(0,0); }
+  }
+  function go(i){
+    idx = Math.max(0, Math.min(scenes.length-1, i));
+    render();
+  }
+  backBtn.addEventListener('click', function(){ go(idx-1); });
+  nextBtn.addEventListener('click', function(){
+    if(idx===scenes.length-1){ go(0); } else { go(idx+1); }
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key==='ArrowRight'){ if(idx<scenes.length-1) go(idx+1); }
+    if(e.key==='ArrowLeft'){ if(idx>0) go(idx-1); }
+  });
+
+  // Theme toggle
+  var root = document.documentElement;
+  var themeBtn = document.getElementById('themeBtn');
+  function systemDark(){ return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; }
+  function effectiveDark(){
+    var t = root.getAttribute('data-theme');
+    if(t==='dark') return true;
+    if(t==='light') return false;
+    return systemDark();
+  }
+  function syncIcon(){ themeBtn.textContent = effectiveDark() ? '☀' : '☾'; }
+  themeBtn.addEventListener('click', function(){
+    root.setAttribute('data-theme', effectiveDark() ? 'light' : 'dark');
+    syncIcon();
+  });
+  if(window.matchMedia){
+    try{ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncIcon); }catch(e){}
+  }
+  syncIcon();
+
+  /* ---------- PREDICT ---------- */
+  var pSlider = document.getElementById('pSlider');
+  var pVal = document.getElementById('pVal');
+  var pPin = document.getElementById('pPin');
+  var pPinLbl = document.getElementById('pPinLbl');
+  var pLock = document.getElementById('pLock');
+  var pReveal = document.getElementById('pReveal');
+  var pVerdict = document.getElementById('pVerdict');
+  var pCompare = document.getElementById('pCompare');
+  var pBand = document.getElementById('pBand');
+  var pDebit = document.getElementById('pDebit');
+  var pLocked = false;
+
+  function pUpdate(){
+    var g = parseFloat(pSlider.value);
+    var pct = (g/6)*100;
+    pVal.textContent = '$' + g.toFixed(2) + ' · ' + g.toFixed(1) + '%';
+    pPin.style.left = pct + '%';
+    pPinLbl.textContent = g.toFixed(1) + '%';
+    pSlider.style.setProperty('--fill', pct + '%');
+  }
+  pSlider.addEventListener('input', function(){ if(!pLocked) pUpdate(); });
+  pUpdate();
+
+  pLock.addEventListener('click', function(){
+    if(pLocked) return;
+    pLocked = true;
+    var g = parseFloat(pSlider.value);
+    pSlider.disabled = true;
+    pLock.disabled = true;
+    pLock.textContent = 'Locked in';
+    // position debit tick at 0.24%
+    pDebit.style.left = ((0.24/6)*100) + '%';
+    pDebit.classList.add('show');
+    pBand.classList.add('show');
+    var verdict;
+    if(g < 1.5){ verdict = 'Way off. Under 1.5% is debit or no-rewards territory — premium runs north of 3%.'; }
+    else if(g < 3.0){ verdict = 'Close, but you undershot. It\u2019s actually north of 3%.'; }
+    else if(g <= 4.0){ verdict = 'Nailed it — north of 3%, call it about $3.20 on this $100 sale.'; }
+    else { verdict = 'A touch high, but the direction\u2019s right: north of 3%, not ' + g.toFixed(1) + '%.'; }
+    pVerdict.textContent = verdict;
+    pCompare.textContent = 'Your guess $' + g.toFixed(2) + '  ·  actual ≈ $3.20  ·  debit ≈ $0.24 — roughly 13× more.';
+    pReveal.style.display = 'block';
+  });
+
+  /* ---------- MODEL ---------- */
+  var mSlider = document.getElementById('mSlider');
+  var mFill = document.getElementById('mFill');
+  var mLine = document.getElementById('mHandleLine');
+  var mDot = document.getElementById('mHandleDot');
+  var mRateSvg = document.getElementById('mRateSvg');
+  var mFee = document.getElementById('mFee');
+  var mMult = document.getElementById('mMult');
+  var mTier = document.getElementById('mTier');
+
+  function xFor(v){ return 20 + (v/3.5)*280; }
+  function tierName(v){
+    if(v < 0.6) return 'regulated debit';
+    if(v < 2.2) return 'no-rewards credit';
+    if(v < 3.0) return 'rewards credit';
+    return 'premium metal';
+  }
+  function mUpdate(){
+    var r = parseFloat(mSlider.value);
+    var x = xFor(r);
+    mFill.setAttribute('width', (x-20).toFixed(1));
+    mLine.setAttribute('x1', x.toFixed(1)); mLine.setAttribute('x2', x.toFixed(1));
+    mDot.setAttribute('cx', x.toFixed(1));
+    // keep rate label inside the box
+    var lx = Math.max(28, Math.min(292, x));
+    mRateSvg.setAttribute('x', lx.toFixed(1));
+    mRateSvg.textContent = r.toFixed(1) + '%';
+    mFee.textContent = '$' + r.toFixed(2);
+    mMult.textContent = Math.round(r/0.24) + '×';
+    mTier.textContent = tierName(r);
+    mSlider.style.setProperty('--fill', ((r-0.2)/(3.5-0.2)*100) + '%');
+  }
+  mSlider.addEventListener('input', mUpdate);
+  mUpdate();
+
+  /* ---------- FLIP CARDS ---------- */
+  Array.prototype.slice.call(document.querySelectorAll('[data-flip]')).forEach(function(card){
+    card.setAttribute('role','button');
+    card.setAttribute('tabindex','0');
+    function toggle(){ card.classList.toggle('flipped'); }
+    card.addEventListener('click', toggle);
+    card.addEventListener('keydown', function(e){
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); }
+    });
+  });
+
+  /* ---------- QUIZ ---------- */
+  var quiz = [
+    {
+      q: 'A store pays ~24¢ on a debit tap but north of 3% on a premium metal card. Who covers the gap?',
+      opts: [
+        {t:'Chase absorbs it', ok:false},
+        {t:'Everyone — it\u2019s folded into the shelf price, cash payers included', ok:true},
+        {t:'Target absorbs it', ok:false}
+      ],
+      why: 'The store can\u2019t charge by card type at the register, so it bakes the average into the sticker price. Cash customers generate none of the cost — and still pay it.'
+    },
+    {
+      q: 'The famous "$149 a year, cash to card" figure is…',
+      opts: [
+        {t:'A confirmed measurement', ok:false},
+        {t:'One 2010 model a 2013 study found could shrink to a few percent — or reverse', ok:true},
+        {t:'An EU fee cap', ok:false}
+      ],
+      why: 'PERC\u2019s 2013 range was "small, non-existent, or reversed." The literature disputes the direction, not just the size.'
+    },
+    {
+      q: 'What actually pays for a premium card\u2019s rewards?',
+      opts: [
+        {t:'Interchange fees, and nothing else', ok:false},
+        {t:'A blend: interchange (biggest), annual fees, and interest on carried balances', ok:true},
+        {t:'The card network\u2019s own profit', ok:false}
+      ],
+      why: 'Interchange is the largest single channel — not the only one. The $795 Sapphire and $895 Amex fees, plus revolvers\u2019 interest, chip in too.'
+    }
+  ];
+  var qi = 0;
+  var qStage = document.getElementById('qStage');
+  var quizProgress = document.getElementById('quizProgress');
+  var qHead = document.getElementById('qHead');
+
+  function renderQ(){
+    var item = quiz[qi];
+    quizProgress.textContent = 'Question ' + (qi+1) + ' of ' + quiz.length;
+    qStage.innerHTML = '';
+    var qt = document.createElement('div');
+    qt.className = 'qtext'; qt.textContent = item.q;
+    qStage.appendChild(qt);
+
+    var answered = false;
+    item.opts.forEach(function(o){
+      var b = document.createElement('button');
+      b.className = 'opt'; b.textContent = o.t;
+      b.addEventListener('click', function(){
+        if(answered) return; answered = true;
+        Array.prototype.slice.call(qStage.querySelectorAll('.opt')).forEach(function(x){ x.disabled = true; });
+        if(o.ok){ b.classList.add('correct'); }
+        else{
+          b.classList.add('wrong');
+          // reveal the right one
+          var kids = qStage.querySelectorAll('.opt');
+          item.opts.forEach(function(oo,k){ if(oo.ok) kids[k].classList.add('correct'); });
+        }
+        var ex = document.createElement('div');
+        ex.className = 'explain show ' + (o.ok ? 'good' : 'bad');
+        ex.innerHTML = '<div class="verdict">' + (o.ok ? 'Correct.' : 'Not quite.') + '</div>' + item.why;
+        qStage.appendChild(ex);
+
+        var nb = document.createElement('button');
+        nb.className = 'btn'; nb.style.marginTop = '12px';
+        nb.textContent = (qi < quiz.length-1) ? 'Next question' : 'Done — see the endgame';
+        nb.addEventListener('click', function(){
+          if(qi < quiz.length-1){ qi++; renderQ(); }
+          else{ go(idx+1); }
+        });
+        qStage.appendChild(nb);
+      });
+      qStage.appendChild(b);
+    });
+  }
+  renderQ();
+
+  /* ---------- FINAL STANCE ---------- */
+  var stances = Array.prototype.slice.call(document.querySelectorAll('[data-stance]'));
+  var framing = document.getElementById('framing');
+  stances.forEach(function(s){
+    s.addEventListener('click', function(){
+      stances.forEach(function(x){ x.classList.remove('picked'); });
+      s.classList.add('picked');
+      framing.classList.add('show');
+    });
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

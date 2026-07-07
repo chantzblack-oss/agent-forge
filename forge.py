@@ -324,6 +324,35 @@ def cmd_thread(args) -> int:
     return 0
 
 
+def cmd_queue(args) -> int:
+    """Batch: dive (and compile) several topics back to back, unattended."""
+    if not _require_claude():
+        return 2
+    if getattr(args, "fast", False):
+        os.environ["EXPLORER_FAST"] = "1"
+    from agent_forge import explorer
+    compile_fn = None
+    if not args.no_interactive:
+        from agent_forge.interactive import compile_interactive
+        compile_fn = compile_interactive
+
+    topics = args.topics or None
+    console.print(f"  [bold {ACCENT}]▤ Queue[/]  "
+                  + (f"{len(topics)} topics" if topics else f"{args.n} auto-picked"))
+    results = explorer.queue(
+        topics=topics, n=args.n,
+        on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]"),
+        compile_fn=compile_fn,
+    )
+    console.print()
+    console.print(f"  [bold green]✓ {len(results)} episode(s) ready[/]")
+    for r in results:
+        target = r.get("html") or r["path"]
+        console.print(f"    · [bold]{r['title']}[/]")
+        console.print(f"      [{MUTED}]{target}[/]")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="forge",
@@ -373,6 +402,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_thr.add_argument("pick", nargs="?", type=int, default=None,
                        help="thread number to follow (omit to list)")
     p_thr.set_defaults(func=cmd_thread)
+
+    p_q = sub.add_parser("queue", help="batch several dives (+compile) unattended")
+    p_q.add_argument("topics", nargs="*", help="topics to dive; omit to auto-pick")
+    p_q.add_argument("-n", type=int, default=3, help="how many to auto-pick (default 3)")
+    p_q.add_argument("--fast", action="store_true", help="sonnet writer, faster")
+    p_q.add_argument("--no-interactive", action="store_true",
+                     help="essays only, skip interactive HTML compile")
+    p_q.set_defaults(func=cmd_queue)
 
     return p
 

@@ -51,6 +51,11 @@ Hard requirements (violating any of these is failure):
 - Structure: tap-through scenes (divs shown one at a time) with progress
   dots and Back/Next buttons. 8-14 scenes total. NEVER a long scroll of
   paragraphs; max ~60 words of prose per scene.
+- CRITICAL (mobile blank-page bug): the FIRST scene must carry its visible
+  class in the STATIC HTML (e.g. class="scene is-active"), so the page shows
+  content before any JavaScript runs. Never rely on an onload script to
+  reveal scene 1. Include a <noscript> line at the top of the body telling
+  the reader to open the page in a browser if interactions don't respond.
 
 Required interactions (all of them, adapted to THIS content):
 1. Scene 2 or 3 is a PREDICT-BEFORE-REVEAL: the reader drags a slider or
@@ -111,4 +116,28 @@ def compile_interactive(md_path: str | Path, on_progress=None) -> Path:
 
     out = EXPLORATIONS_DIR / (md_path.stem + ".html")
     out.write_text(html, encoding="utf-8")
+
+    # Also emit an Artifact-ready fragment (no doctype/html/head/body wrapper)
+    # so the page can be published as a hosted claude.ai Artifact — the only
+    # delivery that reliably runs the JS on a phone.
+    try:
+        (EXPLORATIONS_DIR / (md_path.stem + ".artifact.html")).write_text(
+            to_artifact_fragment(html), encoding="utf-8"
+        )
+    except Exception:
+        pass
     return out
+
+
+def to_artifact_fragment(html: str) -> str:
+    """Strip the doctype/html/head/body skeleton, keeping <title>+<style>
+    from head and the body's markup+script — the shape the Artifact tool
+    wraps at publish time."""
+    head_m = re.search(r"<head[^>]*>(.*?)</head>", html, re.S | re.I)
+    body_m = re.search(r"<body[^>]*>(.*?)</body>", html, re.S | re.I)
+    head = head_m.group(1) if head_m else ""
+    body = body_m.group(1) if body_m else html
+    keep = re.findall(
+        r"<title[^>]*>.*?</title>|<style[^>]*>.*?</style>", head, re.S | re.I
+    )
+    return "\n".join(keep) + "\n" + body.strip() + "\n"

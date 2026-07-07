@@ -279,6 +279,50 @@ def threads() -> list[str]:
     return entries[-1].get("threads", []) if entries else []
 
 
+# ── queue (batch overnight) ──────────────────────────────
+
+def pick_topics(n: int = 3, topic: str | None = None) -> list[str]:
+    """Ask the menu for n topics and parse them into plain dive strings."""
+    raw = menu(n=n, topic=topic)
+    topics: list[str] = []
+    for line in raw.splitlines():
+        m = re.match(r"\s*\d+[.)]\s*(.+)", line)
+        if m:
+            topics.append(m.group(1).replace("**", "").strip())
+    return topics[:n]
+
+
+def queue(
+    topics: list[str] | None = None,
+    n: int = 3,
+    on_progress=None,
+    compile_fn=None,
+) -> list[dict]:
+    """Dive (and optionally compile) a batch of topics back to back.
+
+    ``compile_fn`` is injected by the caller (forge) to avoid an import
+    cycle; if given, it's called with the dive's .md path and its return
+    value is stored under result['html'].
+    """
+    say = on_progress or (lambda _m: None)
+    if not topics:
+        say(f"choosing {n} topics (avoiding your journal)…")
+        topics = pick_topics(n)
+    results: list[dict] = []
+    for i, topic in enumerate(topics, 1):
+        label = topic if len(topic) < 70 else topic[:67] + "…"
+        say(f"[{i}/{len(topics)}] dive: {label}")
+        try:
+            result = dive(topic, on_progress=say)
+            if compile_fn:
+                say(f"[{i}/{len(topics)}] compiling interactive…")
+                result["html"] = compile_fn(result["path"])
+            results.append(result)
+        except Exception as e:  # keep the batch alive if one topic fails
+            say(f"[{i}/{len(topics)}] FAILED: {e}")
+    return results
+
+
 # ── helpers ──────────────────────────────────────────────
 
 def _first_h1(md: str) -> str | None:

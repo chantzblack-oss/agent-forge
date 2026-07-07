@@ -131,7 +131,10 @@ def md_to_pdf(md_path: str | Path, subtitle: str = "Agent Forge lesson") -> Path
         import os
         exe = "/opt/pw-browsers/chromium"
         b = p.chromium.launch(
-            executable_path=exe if os.path.exists(exe) else None)
+            executable_path=exe if os.path.exists(exe) else None,
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
+                  "--renderer-process-limit=1", "--no-zygote",
+                  "--single-process"])
         pg = b.new_page()
         pg.goto("file://" + html_path)
         pg.pdf(path=str(pdf_path), format="A4", print_background=True)

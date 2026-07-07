@@ -213,28 +213,50 @@ def _safe_visual(scene: dict) -> str:
     return f'<div class="viz">{svg}</div>'
 
 
-def _render_still(scene: dict, idx: int, total: int, out_png: Path) -> None:
-    from playwright.sync_api import sync_playwright
+def _scene_html(scene: dict, idx: int, total: int) -> str:
     hl = (scene["headline"].replace("<", "&lt;"))
     viz = _safe_visual(scene)
-    html = _SLIDE_TMPL.format(
+    return _SLIDE_TMPL.format(
         w=W, h=H, idx=idx, total=total, barw=int(880 * idx / total),
         kicker=scene.get("kicker", "").replace("<", "&lt;"),
         headline=hl,
         hlsize=76 if viz else 96,   # smaller headline when a diagram shares the frame
         viz=viz,
     )
-    with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as f:
-        f.write(html)
-        htmlpath = f.name
+
+
+# Chromium flags that roughly halve its footprint — required to fit video
+# rendering inside a 512MB worker instance.
+_LOWMEM_ARGS = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
+                "--renderer-process-limit=1", "--no-zygote", "--single-process"]
+
+
+def _render_all_stills(scenes: list[dict], workdir: Path, say) -> list[Path]:
+    """Render every scene still in ONE low-memory browser session, then close
+    it completely before any ffmpeg work starts (peak-memory discipline)."""
+    from playwright.sync_api import sync_playwright
+    total = len(scenes)
+    pngs: list[Path] = []
+    exe = "/opt/pw-browsers/chromium"
     with sync_playwright() as p:
-        exe = "/opt/pw-browsers/chromium"
-        b = p.chromium.launch(executable_path=exe if os.path.exists(exe) else None)
+        b = p.chromium.launch(
+            executable_path=exe if os.path.exists(exe) else None,
+            args=_LOWMEM_ARGS)
         pg = b.new_page(viewport={"width": W, "height": H})
-        pg.goto("file://" + htmlpath)
-        pg.wait_for_timeout(200)
-        pg.screenshot(path=str(out_png))
+        for i, sc in enumerate(scenes, 1):
+            say(f"scene {i}/{total}: {sc['headline']}")
+            with tempfile.NamedTemporaryFile(
+                    "w", suffix=".html", delete=False, encoding="utf-8") as f:
+                f.write(_scene_html(sc, i, total))
+                htmlpath = f.name
+            pg.goto("file://" + htmlpath)
+            pg.wait_for_timeout(150)
+            png = workdir / f"s{i:02d}.png"
+            pg.screenshot(path=str(png))
+            pngs.append(png)
+            os.unlink(htmlpath)
         b.close()
+    return pngs
 
 
 # ── 4. assemble ──────────────────────────────────────────
@@ -249,7 +271,8 @@ def _clip(ff: str, png: Path, dur: float, out: Path, audio: Path | None) -> None
     if audio:
         cmd += ["-i", str(audio)]
     cmd += ["-t", f"{dur:.2f}", "-r", str(FPS), "-vf", vf,
-            "-c:v", "libx264", "-preset", "medium", "-pix_fmt", "yuv420p"]
+            "-threads", "1",
+            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p"]
     if audio:
         cmd += ["-c:a", "aac", "-b:a", "192k", "-shortest"]
     cmd += [str(out)]
@@ -270,13 +293,15 @@ def build_video(md_path: str | Path, on_progress=None,
 
     work = Path(tempfile.mkdtemp(prefix="forge_video_"))
     ff = _ffmpeg()
+    # Phase 1: all stills in one browser session, fully closed before ffmpeg
+    # ever runs — Chromium and ffmpeg together exceed a 512MB instance.
+    pngs = _render_all_stills(scenes, work, say)
     clips: list[Path] = []
     narrated = 0
     total = len(scenes)
     for i, sc in enumerate(scenes, 1):
-        say(f"scene {i}/{total}: {sc['headline']}")
-        png = work / f"s{i:02d}.png"
-        _render_still(sc, i, total, png)
+        say(f"encoding {i}/{total}")
+        png = pngs[i - 1]
         mp3 = work / f"s{i:02d}.mp3"
         has_audio = synth(sc["narration"], mp3)
         narrated += 1 if has_audio else 0

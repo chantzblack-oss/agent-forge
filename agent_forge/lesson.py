@@ -80,7 +80,7 @@ _LESSON_VIDEO_SYSTEM = (
 )
 
 
-def build_lesson(topic: str, on_progress=None) -> dict:
+def build_lesson(topic: str, on_progress=None, on_doc=None) -> dict:
     """Research a skill/topic, write a cheat-sheet doc, and render a video."""
     say = on_progress or (lambda _m: None)
 
@@ -100,6 +100,12 @@ def build_lesson(topic: str, on_progress=None) -> dict:
     doc_path.write_text(
         f"<!-- lesson: {topic} -->\n\n{doc}\n", encoding="utf-8"
     )
+
+    if on_doc is not None:
+        try:
+            on_doc(doc_path)
+        except Exception:
+            pass
 
     say("rendering the lesson video…")
     vid = _video.build_video(

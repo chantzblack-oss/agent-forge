@@ -107,12 +107,21 @@ class AnthropicProvider(Provider):
                     continue  # this model rejects that thinking form; try next
                 raise
 
+    # Remembers which thinking-variant index worked per resolved model, so a
+    # model that rejects adaptive costs exactly ONE failed (unbilled-output)
+    # probe per process, not one per call.
+    _variant_memo: dict[str, int] = {}
+
     def complete(self, system: str, user: str, model: str, max_tokens: int) -> str:
         base = self._call_kwargs(system, user, model, max_tokens)
+        variants = self._thinking_variants(base, max_tokens)
+        resolved = base["model"]
+        start = self._variant_memo.get(resolved, 0)
         last: Exception | None = None
-        for kwargs in self._thinking_variants(base, max_tokens):
+        for i in range(start, len(variants)):
             try:
-                msg = self._client.messages.create(**kwargs)
+                msg = self._client.messages.create(**variants[i])
+                self._variant_memo[resolved] = i
                 parts: list[str] = []
                 for block in msg.content:
                     if getattr(block, "type", "") == "thinking":
@@ -174,12 +183,12 @@ class AnthropicProvider(Provider):
             tools.append({
                 "type": "web_search_20250305",
                 "name": "web_search",
-                "max_uses": 15,
+                "max_uses": 8,
             })
         if self._enable_web_fetch:
             tools.append({
                 "type": "web_fetch_20250910",
                 "name": "web_fetch",
-                "max_uses": 15,
+                "max_uses": 8,
             })
         return tools

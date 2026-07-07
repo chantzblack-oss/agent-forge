@@ -89,23 +89,30 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def _make_lesson(update, context, topic: str):
     chat = update.effective_chat.id
     await context.bot.send_message(chat, f"Building your lesson on: {topic}\n(a few minutes…)")
-    last_err = None
-    for attempt in range(3):
-        try:
-            r = await _run_blocking(_lesson.build_lesson, topic)
-            break
-        except Exception as e:  # pragma: no cover
-            last_err = e
-            log.exception("lesson attempt %d failed", attempt + 1)
-            await asyncio.sleep(5 * (attempt + 1))
-    else:
+
+    async def _send_doc_early(doc_path):
+        # The research is the expensive part — deliver it the moment it exists,
+        # so a later video failure never wastes what was already paid for.
+        with open(doc_path, "rb") as f:
+            await context.bot.send_document(chat_id=chat, document=f,
+                                            filename=doc_path.name,
+                                            caption="cheat-sheet (video rendering…)")
+
+    loop = asyncio.get_event_loop()
+
+    def _on_doc(doc_path):
+        asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
+
+    try:
+        r = await _run_blocking(_lesson.build_lesson, topic, None, _on_doc)
+    except Exception as e:  # pragma: no cover
+        log.exception("lesson failed")
         await context.bot.send_message(
-            chat, f"That one failed after 3 tries: {type(last_err).__name__}: {last_err}"
+            chat, f"That one failed: {type(e).__name__}: {e}"
         )
         return
     tag = "" if r["voiced"] else " (silent — no TTS on this host)"
-    await _deliver_video(context, chat, r["video"],
-                         f"\U0001f393 {r['title']}{tag}", doc=r["doc"])
+    await _deliver_video(context, chat, r["video"], f"\U0001f393 {r['title']}{tag}")
 
 
 async def cmd_teach(update, context):

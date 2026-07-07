@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eighteen Bodies Short</title>
+<style>
+:root{
+  --bg:#f3efe7; --bg-elevated:#fff; --bg-sunken:#ece3d2;
+  --text:#201c16; --text-dim:#6b6255;
+  --border:rgba(32,28,22,.16); --shadow:rgba(32,28,22,.14);
+  --accent:#a3271f; --accent-ink:#fff8f0;
+  --gold:#8a6510; --gold-soft:#f1e3b8;
+  --green:#1f6d4a; --green-soft:#d9ecdf; --red-soft:#f3d9d6;
+  --focus:#1959c9;
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-serif:Georgia,"Iowan Old Style","Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171c; --bg-elevated:#1e2129; --bg-sunken:#101216;
+    --text:#f0ede4; --text-dim:#a9a49a;
+    --border:rgba(240,237,228,.16); --shadow:rgba(0,0,0,.5);
+    --accent:#e2564a; --accent-ink:#1b0f0d;
+    --gold:#e0b84a; --gold-soft:rgba(224,184,74,.18);
+    --green:#4caf82; --green-soft:rgba(76,175,130,.18); --red-soft:rgba(226,86,74,.18);
+    --focus:#6ea8ff;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171c; --bg-elevated:#1e2129; --bg-sunken:#101216;
+  --text:#f0ede4; --text-dim:#a9a49a;
+  --border:rgba(240,237,228,.16); --shadow:rgba(0,0,0,.5);
+  --accent:#e2564a; --accent-ink:#1b0f0d;
+  --gold:#e0b84a; --gold-soft:rgba(224,184,74,.18);
+  --green:#4caf82; --green-soft:rgba(76,175,130,.18); --red-soft:rgba(226,86,74,.18);
+  --focus:#6ea8ff;
+}
+*,*::before,*::after{ box-sizing:border-box; }
+html,body{ height:100%; margin:0; }
+body{ background:var(--bg); color:var(--text); font-family:var(--font-sans); -webkit-text-size-adjust:100%; }
+[hidden]{ display:none !important; }
+.noscript-banner{ max-width:600px;margin:0 auto;padding:14px 20px;background:var(--gold-soft);color:#201c16;font-size:14px;text-align:center; }
+.app{ max-width:600px; margin:0 auto; min-height:100vh; min-height:100dvh; background:var(--bg); display:flex; flex-direction:column; }
+.topbar{ flex:0 0 auto; padding:16px 20px 10px; text-align:center; border-bottom:1px solid var(--border); }
+.app-title{ margin:0 0 12px; font-family:var(--font-serif); font-size:13px; letter-spacing:.09em; text-transform:uppercase; color:var(--text-dim); }
+.progress{ display:flex; gap:6px; justify-content:center; }
+.dot{ width:7px; height:7px; border-radius:50%; background:var(--border); flex:0 0 auto; transition:background .2s,transform .2s; }
+.dot.active{ background:var(--accent); transform:scale(1.4); }
+.progress-count{ margin:7px 0 0; font-size:11px; color:var(--text-dim); }
+.stage{ flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:22px 20px 32px; }
+.scene{ display:none; flex-direction:column; gap:16px; }
+.scene.is-active{ display:flex; animation:sceneIn .4s ease; }
+@keyframes sceneIn{ from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+.kicker{ margin:0; text-transform:uppercase; letter-spacing:.08em; font-size:13px; font-weight:700; color:var(--accent); }
+.scene-title{ margin:0; font-family:var(--font-serif); font-size:29px; line-height:1.18; }
+.scene-body{ margin:0; font-size:17px; line-height:1.55; }
+.scene-body.dim{ font-size:14.5px; color:var(--text-dim); line-height:1.5; }
+.well{ display:flex; flex-direction:column; gap:14px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:0 1px 3px var(--shadow); }
+.btn{ min-height:44px; padding:0 18px; border-radius:12px; border:1px solid var(--border); background:var(--bg-elevated); color:var(--text); font-size:15.5px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:transform .12s,opacity .2s; -webkit-tap-highlight-color:transparent; user-select:none; touch-action:manipulation; }
+.btn:active{ transform:scale(.97); }
+.btn.primary{ background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+.btn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
+.btn:focus-visible{ outline:3px solid var(--focus); outline-offset:2px; }
+.navbar{ flex:0 0 auto; padding:10px 20px 20px; border-top:1px solid var(--border); }
+.nav-hint{ min-height:16px; margin:0 0 8px; text-align:center; font-size:12.5px; font-weight:700; color:var(--gold); }
+.nav-buttons{ display:flex; gap:12px; }
+.nav-btn{ flex:1 1 0; }
+.control-row{ display:flex; flex-direction:column; gap:8px; }
+.control-label{ display:flex; justify-content:space-between; align-items:baseline; font-size:14px; font-weight:600; color:var(--text-dim); }
+.control-label b{ color:var(--text); font-size:16px; font-weight:800; }
+input[type="range"]{ width:100%; height:44px; margin:0; background:transparent; -webkit-appearance:none; appearance:none; }
+input[type="range"]::-webkit-slider-runnable-track{ height:6px; border-radius:3px; background:var(--border); }
+input[type="range"]::-moz-range-track{ height:6px; border-radius:3px; background:var(--border); }
+input[type="range"]::-webkit-slider-thumb{ -webkit-appearance:none; width:26px; height:26px; margin-top:-10px; border-radius:50%; background:var(--accent); border:3px solid var(--bg-elevated); box-shadow:0 1px 4px var(--shadow); cursor:pointer; }
+input[type="range"]::-moz-range-thumb{ width:20px; height:20px; border-radius:50%; background:var(--accent); border:3px solid var(--bg-elevated); cursor:pointer; }
+.segmented{ display:flex; border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.segmented button{ flex:1; min-height:44px; border:none; background:var(--bg-elevated); color:var(--text); font-size:14.5px; font-weight:700; cursor:pointer; user-select:none; }
+.segmented button+button{ border-left:1px solid var(--border); }
+.segmented button.active{ background:var(--accent); color:var(--accent-ink); }
+.chart-wrap{ background:var(--bg-elevated); border:1px solid var(--border); border-radius:16px; padding:10px; }
+.chart-wrap svg{ width:100%; height:auto; display:block; }
+.bar{ fill:var(--accent); transition:height .25s,y .25s,fill .25s; }
+.bar.over{ fill:var(--green); }
+.threshold-line{ stroke:var(--gold); stroke-width:2; stroke-dasharray:6 5; }
+.base-line{ stroke:var(--border); stroke-width:2; }
+.chart-label{ font-size:11px; fill:var(--text-dim); font-family:var(--font-sans); }
+.chart-label.gold-text{ fill:var(--gold); }
+.model-readout{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.readout-tile{ background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; padding:10px 8px; text-align:center; }
+.readout-tile .num{ font-size:19px; font-weight:800; }
+.readout-tile .lbl{ font-size:10.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; margin-top:2px; }
+.status-banner{ border-radius:12px; padding:14px 16px; font-weight:800; text-align:center; font-size:16px; }
+.status-banner.pay{ background:var(--green-soft); color:var(--green); }
+.status-banner.nopay{ background:var(--red-soft); color:var(--accent); }
+.status-reason{ margin:0; font-size:13.5px; color:var(--text-dim); text-align:center; }
+.pulse-wrap{ display:flex; flex-direction:column; align-items:center; gap:8px; padding:8px 0 4px; }
+.pulse-ring{ fill:none; stroke:var(--accent); stroke-width:3; opacity:.85; transform-box:fill-box; transform-origin:50% 50%; animation:pulseOut 2.6s ease-out infinite; }
+.pulse-ring.delay{ animation-delay:1.3s; }
+.pulse-core{ fill:var(--accent); }
+.pulse-caption{ margin:0; font-size:13px; color:var(--text-dim); }
+@keyframes pulseOut{ 0%{transform:scale(.32);opacity:.9;} 100%{transform:scale(1);opacity:0;} }
+.myth-grid{ display:flex; flex-direction:column; gap:14px; }
+.myth-card{ display:block; height:210px; perspective:1200px; -webkit-tap-highlight-color:transparent; }
+.myth-card-inner{ position:relative; display:block; width:100%; height:210px; transition:transform .5s cubic-bezier(.4,.2,.2,1); transform-style:preserve-3d; cursor:pointer; }
+.myth-card.flipped .myth-card-inner{ transform:rotateY(180deg); }
+.myth-face{ position:absolute; top:0; left:0; width:100%; height:210px; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:16px; border:1px solid var(--border); padding:18px; display:flex; flex-direction:column; justify-content:center; gap:8px; background:var(--bg-elevated); box-shadow:0 1px 3px var(--shadow); color:var(--text); }
+.myth-face.back{ transform:rotateY(180deg); background:var(--accent); color:var(--accent-ink); border-color:transparent; }
+.myth-face .tag{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:800; opacity:.68; }
+.myth-face p{ margin:0; font-size:15.5px; line-height:1.45; }
+.myth-hint{ margin:0; text-align:center; font-size:12px; color:var(--text-dim); }
+.quote{ margin:0; border-left:3px solid var(--accent); padding:2px 0 2px 14px; font-family:var(--font-serif); font-style:italic; font-size:16.5px; line-height:1.5; }
+.quote-cite{ display:block; margin-top:8px; font-family:var(--font-sans); font-style:normal; font-size:12.5px; color:var(--text-dim); }
+.quote-year{ display:block; font-size:11.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; }
+.quote-step+.quote-step{ margin-top:4px; padding-top:14px; border-top:1px dashed var(--border); }
+.timeline{ display:flex; align-items:center; }
+.tl-node{ width:13px; height:13px; border-radius:50%; background:var(--accent); flex:0 0 auto; }
+.tl-line{ flex:1 1 auto; height:3px; background:var(--border); margin:0 4px; }
+.timeline-labels{ display:flex; justify-content:space-between; gap:10px; font-size:12.5px; color:var(--text-dim); }
+.ledger{ display:flex; flex-direction:column; border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.ledger-row{ display:flex; justify-content:space-between; gap:10px; padding:11px 14px; font-size:14px; border-bottom:1px solid var(--border); background:var(--bg-elevated); }
+.ledger-row:last-child{ border-bottom:none; }
+.ledger-row .k{ color:var(--text-dim); }
+.ledger-row .v{ font-weight:800; text-align:right; white-space:nowrap; }
+.ledger-row.total{ background:var(--bg-sunken); }
+.meter-row+.meter-row{ margin-top:12px; }
+.meter-label{ display:flex; justify-content:space-between; font-size:13px; color:var(--text-dim); margin-bottom:5px; }
+.meter-track{ background:var(--bg-sunken); border-radius:8px; height:23px; overflow:hidden; }
+.meter-fill{ display:block; height:100%; width:0%; border-radius:8px 0 0 8px; transition:width 1s cubic-bezier(.3,.9,.4,1); }
+.meter-fill.c1{ background:var(--text-dim); }
+.meter-fill.c2{ background:var(--gold); }
+.meter-fill.c3{ background:var(--accent); }
+.meter-fill.c4{ background:var(--green); }
+.verdict{ margin:0; font-weight:800; font-size:15.5px; text-align:center; padding:11px; border-radius:10px; background:var(--gold-soft); color:var(--gold); }
+.quiz-progress{ margin:0; font-size:12.5px; font-weight:700; color:var(--text-dim); }
+.quiz-q{ display:none; flex-direction:column; gap:12px; }
+.quiz-q.is-current{ display:flex; }
+.quiz-prompt{ margin:0; font-size:16.5px; font-weight:700; line-height:1.4; }
+.quiz-options{ display:flex; flex-direction:column; gap:10px; }
+.quiz-opt{ min-height:44px; text-align:left; padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:var(--bg-elevated); color:var(--text); font-size:15px; line-height:1.3; cursor:pointer; user-select:none; }
+.quiz-opt.correct{ background:var(--green-soft); border-color:var(--green); }
+.quiz-opt.incorrect{ background:var(--red-soft); border-color:var(--accent); }
+.quiz-opt:disabled{ cursor:default; opacity:.9; }
+.quiz-feedback{ background:var(--bg-sunken); border-radius:12px; padding:14px 16px; font-size:14.5px; line-height:1.5; }
+.quiz-feedback strong{ display:block; margin-bottom:4px; color:var(--accent); }
+.stance-list{ display:flex; flex-direction:column; gap:10px; }
+.stance-opt{ min-height:54px; text-align:left; padding:12px 16px; border-radius:14px; border:1px solid var(--border); background:var(--bg-elevated); color:var(--text); font-size:15px; line-height:1.4; cursor:pointer; user-select:none; }
+.stance-opt.selected{ border-color:var(--accent); background:var(--red-soft); }
+.framing-tag{ display:block; font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); }
+.framing-reveal{ border-style:dashed; }
+.pop-in{ animation:popIn .45s ease; }
+@keyframes popIn{ from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+@media (prefers-reduced-motion:reduce){ *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; } }
+@media (min-width:640px){ body{ padding:28px 16px; } .app{ margin:0 auto; min-height:calc(100vh - 56px); min-height:calc(100dvh - 56px); border-radius:20px; box-shadow:0 12px 40px var(--shadow); overflow:hidden; } }
+</style>
+</head>
+<body>
+<noscript><div class="noscript-banner">This page uses JavaScript for its interactive parts — please open it in a standard web browser to see everything.</div></noscript>
+<div class="app">
+  <header class="topbar">
+    <p class="app-title">Eighteen Bodies Short</p>
+    <div class="progress" id="progress">
+      <span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    </div>
+    <p class="progress-count" id="progressCount">1 / 11</p>
+  </header>
+
+  <main class="stage" id="stage">
+
+    <section class="scene is-active" data-scene="1" id="scene-1">
+      <p class="kicker">A True Story</p>
+      <h1 class="scene-title">Eighteen Bodies Short</h1>
+      <p class="scene-body">June 2019, Kasese District, Uganda. A five-year-old boy dies of Ebola. His three-year-old brother and grandmother are infected too — three cases, one household. Ten days later, the chain stops cold. A $45 million contract was watching. It needed far more than this to pay a dollar.</p>
+      <div class="pulse-wrap" aria-hidden="true">
+        <svg viewBox="0 0 200 200" width="140" height="140">
+          <circle class="pulse-ring" cx="100" cy="100" r="70"></circle>
+          <circle class="pulse-ring delay" cx="100" cy="100" r="70"></circle>
+          <circle class="pulse-core" cx="100" cy="100" r="11"></circle>
+        </svg>
+        <p class="pulse-caption">Kasese, Uganda — June 2019</p>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="2" id="scene-2">
+      <p class="kicker">The Instrument</p>
+      <p class="scene-body">In 2017 the World Bank sold investors bonds paying rich interest — 6.5 to 11.1 points over LIBOR, junk-bond territory. If a pandemic struck, principal would redirect to the countries fighting it. Insurance for humanity, underwritten by capital markets instead of taxpayers. Demand ran 200% over supply.</p>
+      <div class="well">
+        <p class="scene-body dim">A bond desk doesn’t buy “insurance for humanity.” It buys a rare, priceable trigger with a fat coupon attached. Both descriptions are true. Only one was on the brochure.</p>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="3" id="scene-3">
+      <p class="kicker">Before We Tell You</p>
+      <p class="scene-body">Guess: how many confirmed deaths did a country need to log before this $45 million contract paid a single dollar?</p>
+      <div class="well">
+        <div class="control-row">
+          <div class="control-label"><span>Your guess</span><b id="guessLabel">10</b></div>
+          <input type="range" id="guessSlider" min="0" max="100" value="10" step="1" aria-label="Guess the required death toll">
+        </div>
+        <button type="button" class="btn primary" id="lockGuessBtn">Lock in my guess</button>
+      </div>
+      <div class="well pop-in" id="predictReveal" hidden>
+        <div class="meter-row">
+          <div class="meter-label"><span>Your guess</span><span id="pbarGuessNum">10</span></div>
+          <div class="meter-track"><div class="meter-fill c1" id="pbarGuessFill"></div></div>
+        </div>
+        <div class="meter-row">
+          <div class="meter-label"><span>Real threshold</span><span>20+</span></div>
+          <div class="meter-track"><div class="meter-fill c2" id="pbarThresholdFill"></div></div>
+        </div>
+        <div class="meter-row">
+          <div class="meter-label"><span>Uganda’s actual toll</span><span>2 (maybe 3)</span></div>
+          <div class="meter-track"><div class="meter-fill c3" id="pbarActualFill"></div></div>
+        </div>
+        <p class="verdict" id="predictVerdict"></p>
+        <p class="scene-body dim">Uganda needed roughly eighteen more bodies to unlock a cent of the $45 million earmarked for exactly this. It never did.</p>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="4" id="scene-4">
+      <p class="kicker">The Mechanism</p>
+      <p class="scene-body">The contract needed three things at once: two countries each past a death-toll line, plus — the clause that could override everything — the outbreak still mathematically accelerating the moment anyone checked. Try it.</p>
+      <div class="well">
+        <div class="control-row">
+          <div class="control-label"><span>Country A — deaths logged</span><b id="labelA">28</b></div>
+          <input type="range" id="sliderA" min="0" max="45" value="28" step="1" aria-label="Country A death toll">
+        </div>
+        <div class="control-row">
+          <div class="control-label"><span>Country B — deaths logged</span><b id="labelB">24</b></div>
+          <input type="range" id="sliderB" min="0" max="45" value="24" step="1" aria-label="Country B death toll">
+        </div>
+        <div class="control-row">
+          <div class="control-label"><span>Outbreak trajectory</span></div>
+          <div class="segmented" role="group" aria-label="Outbreak growth trajectory">
+            <button type="button" id="segAccel" aria-pressed="false">Accelerating</button>
+            <button type="button" id="segSlow" class="active" aria-pressed="true">Slowing</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 300 190" role="img" aria-label="Bar chart of two countries' death tolls against the twenty-death threshold line">
+          <line x1="14" y1="98" x2="286" y2="98" class="threshold-line"></line>
+          <text x="286" y="90" text-anchor="end" class="chart-label gold-text">20-death line</text>
+          <rect id="barA" class="bar" x="72" y="90" width="56" height="60" rx="8"></rect>
+          <rect id="barB" class="bar" x="172" y="88" width="56" height="62" rx="8"></rect>
+          <line x1="14" y1="150" x2="286" y2="150" class="base-line"></line>
+          <text x="100" y="172" text-anchor="middle" class="chart-label">Country A</text>
+          <text x="200" y="172" text-anchor="middle" class="chart-label">Country B</text>
+        </svg>
+      </div>
+      <div class="model-readout">
+        <div class="readout-tile"><div class="num" id="tilePastCount">0 / 2</div><div class="lbl">Past 20-line</div></div>
+        <div class="readout-tile"><div class="num" id="tileTraj">Slowing</div><div class="lbl">Trajectory</div></div>
+      </div>
+      <div class="status-banner nopay" id="statusBanner">NO PAYOUT</div>
+      <p class="status-reason" id="statusReason">Both countries cleared the bar — but growth has already slowed. No payout.</p>
+      <p class="scene-body dim">A simplified model of the rule, not the historical case counts.</p>
+    </section>
+
+    <section class="scene" data-scene="5" id="scene-5">
+      <p class="kicker">Myth vs. Reality</p>
+      <p class="scene-body dim">Tap each card to flip it.</p>
+      <div class="myth-grid">
+        <div class="myth-card">
+          <div class="myth-card-inner">
+            <div class="myth-face front"><span class="tag">The claim</span><p>“It’s pandemic insurance — it pays out when a pandemic hits.”</p></div>
+            <div class="myth-face back"><span class="tag">The reality</span><p>COVID: WHO declared a pandemic March 11, 2020. The bonds paid April 17 — five-plus weeks later, after 150,000+ deaths — because the contract required 12 straight weeks of accelerating growth first.</p></div>
+          </div>
+        </div>
+        <div class="myth-card">
+          <div class="myth-card-inner">
+            <div class="myth-face front"><span class="tag">The claim</span><p>Congo’s outbreak was the second-deadliest Ebola epidemic ever. Surely that triggered a payout.</p></div>
+            <div class="myth-face back"><span class="tag">The reality</span><p>Congo cleared the threshold a hundredfold. But payout needed two countries past 20 deaths. Uganda, where the chain reached, logged two. Eighteen short. No payout.</p></div>
+          </div>
+        </div>
+        <div class="myth-card">
+          <div class="myth-card-inner">
+            <div class="myth-face front"><span class="tag">The claim</span><p>When COVID hit, bondholders lost their bet.</p></div>
+            <div class="myth-face back"><span class="tag">The reality</span><p>They’d already banked roughly $96 million in coupon interest. Absent COVID, Class B was on pace for a 40% three-year return. The “insurance” paid its holders either way.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="6" id="scene-6">
+      <p class="kicker">Why So Narrow?</p>
+      <p class="scene-body">To sell risk to capital markets, you need a payout rare enough to price. The trigger wasn’t “a pandemic is happening” — it was death tolls, case counts, spread across countries, plus one clause that could override them all: accelerating growth, measured the moment anyone checked.</p>
+      <div class="well">
+        <p class="quote">“The triggers had to be late and they had to be convoluted and complex to reduce the probability that the financing would be triggered.”<span class="quote-cite">— Olga Jonas, World Bank pandemic economist, to <em>Nature</em>, 2019</span></p>
+        <p class="scene-body dim">One insider’s account — real weight, not a paper trail. The more mundane reading, that narrow triggers are simply a pricing necessity, is equally well supported by the same reporting.</p>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="7" id="scene-7">
+      <p class="kicker">When It Actually Happened</p>
+      <p class="scene-body">WHO declared a pandemic March 11, 2020. The bonds paid out April 17 — five-plus weeks later, with global deaths already past 150,000. A twelve-week growth window plus a verification lag meant it structurally could not arrive sooner.</p>
+      <div class="well">
+        <div class="timeline"><div class="tl-node"></div><div class="tl-line"></div><div class="tl-node"></div></div>
+        <div class="timeline-labels"><span>Mar 11 — pandemic declared</span><span>Apr 17 — bonds pay</span></div>
+      </div>
+      <div class="ledger">
+        <div class="ledger-row"><span class="k">Class B ($95M bonds + $55M swap)</span><span class="v">Wiped out</span></div>
+        <div class="ledger-row"><span class="k">Class A ($225M bonds + $50M swap)</span><span class="v">&minus;16.67%</span></div>
+        <div class="ledger-row total"><span class="k">Total capital at risk</span><span class="v">$425M</span></div>
+        <div class="ledger-row total"><span class="k">Combined payout</span><span class="v">$195.84M</span></div>
+      </div>
+      <p class="scene-body dim">Investors had already banked roughly $96M in coupon interest over the bonds’ life — a financial-press tally, not checked here against a primary Bank filing.</p>
+    </section>
+
+    <section class="scene" data-scene="8" id="scene-8">
+      <p class="kicker">Same Man, Same Idea</p>
+      <p class="scene-body dim">Larry Summers on pandemic bonds, in his own words, over five years:</p>
+      <div class="well">
+        <div class="quote-step">
+          <span class="quote-year">2015 — the idea’s champion</span>
+          <p class="quote">“Win-win-win.”</p>
+        </div>
+        <div class="quote-step">
+          <span class="quote-year">Feb 2020 — private email</span>
+          <p class="quote">“A dumb idea&hellip; like insuring my toaster.”<span class="quote-cite">— per Bloomberg’s later reporting, which Summers reportedly confirmed</span></p>
+        </div>
+        <div class="quote-step">
+          <span class="quote-year">After COVID — publicly</span>
+          <p class="quote">“An embarrassing mistake,” born of “financial goofiness.”<span class="quote-cite">— at a Center for Global Development event</span></p>
+        </div>
+      </div>
+      <p class="scene-body">Jim Yong Kim, the idea’s original champion, resigned the Bank presidency in January 2019 for a private infrastructure investment firm. Anthropologist Susan Erikson’s 2025 book <em>Investable!</em> calls the episode the first real experiment in pricing epidemic mortality itself.</p>
+    </section>
+
+    <section class="scene" data-scene="9" id="scene-9">
+      <p class="kicker">A Control Group, Sort Of</p>
+      <p class="scene-body">In 2026, a different Ebola species — Bundibugyo virus — hit Congo and Uganda again. Within three weeks of WHO’s May 17 emergency declaration, the Pandemic Fund authorized up to $220.6 million — a grant trust created in 2022, not the old bond program.</p>
+      <div class="well">
+        <div class="meter-row">
+          <div class="meter-label"><span>Bonds → COVID payout</span><span>5+ weeks</span></div>
+          <div class="meter-track"><div class="meter-fill c3" id="compareBondsFill"></div></div>
+        </div>
+        <div class="meter-row">
+          <div class="meter-label"><span>Pandemic Fund → 2026 authorization</span><span>~3 weeks</span></div>
+          <div class="meter-track"><div class="meter-fill c4" id="compareFundFill"></div></div>
+        </div>
+      </div>
+      <p class="scene-body dim">Faster isn’t the same as fast enough: the Independent Panel for Pandemic Preparedness and Response was, in that same window, warning the money wasn’t reaching the front line.</p>
+    </section>
+
+    <section class="scene" data-scene="10" id="scene-10">
+      <p class="kicker">Check Yourself</p>
+      <div class="quiz" id="quiz">
+        <p class="quiz-progress" id="quizProgress">Question 1 of 3</p>
+
+        <div class="quiz-q is-current" data-qi="0">
+          <p class="quiz-prompt">Uganda’s Kasese cluster logged how many confirmed Ebola deaths, against the 20-plus needed for a payout?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-opt" data-oi="0">About five short of the bar</button>
+            <button type="button" class="quiz-opt" data-oi="1">About eighteen short of the bar</button>
+            <button type="button" class="quiz-opt" data-oi="2">About thirty short of the bar</button>
+          </div>
+          <div class="quiz-feedback pop-in" hidden><strong class="qf-verdict"></strong><span class="qf-explain"></span></div>
+          <button type="button" class="btn quiz-next" hidden>Next question →</button>
+        </div>
+
+        <div class="quiz-q" data-qi="1">
+          <p class="quiz-prompt">Why did the COVID payout take five-plus weeks after WHO’s March 11 pandemic declaration?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-opt" data-oi="0">Paperwork moved slowly at the Bank</button>
+            <button type="button" class="quiz-opt" data-oi="1">The contract required 12 weeks of sustained, verified growth</button>
+            <button type="button" class="quiz-opt" data-oi="2">Investors voted to delay the payout</button>
+          </div>
+          <div class="quiz-feedback pop-in" hidden><strong class="qf-verdict"></strong><span class="qf-explain"></span></div>
+          <button type="button" class="btn quiz-next" hidden>Next question →</button>
+        </div>
+
+        <div class="quiz-q" data-qi="2">
+          <p class="quiz-prompt">What does Olga Jonas’s quote to <em>Nature</em> actually establish?</p>
+          <div class="quiz-options">
+            <button type="button" class="quiz-opt" data-oi="0">Documented proof the triggers were deliberately rigged</button>
+            <button type="button" class="quiz-opt" data-oi="1">One insider’s characterization — real weight, not a paper trail</button>
+            <button type="button" class="quiz-opt" data-oi="2">Nothing; she had no role in the design</button>
+          </div>
+          <div class="quiz-feedback pop-in" hidden><strong class="qf-verdict"></strong><span class="qf-explain"></span></div>
+          <p class="scene-body dim" id="quizDone" hidden>Quiz complete — tap Next below to continue.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="11" id="scene-11">
+      <p class="kicker">Who Gets To Set The Dial?</p>
+      <p class="scene-body">Every early-warning system — smoke detector, mammogram, pandemic bond — sits on a dial between two failures: too sensitive drowns you in false alarms; too strict costs you the lead time on the real emergency. Before we frame it, pick a stance:</p>
+      <div class="stance-list" id="stanceList">
+        <button type="button" class="stance-opt" data-s="0">Actuaries should set it — they can actually price the risk.</button>
+        <button type="button" class="stance-opt" data-s="1">Epidemiologists should set it — they understand the disease, not just the odds.</button>
+        <button type="button" class="stance-opt" data-s="2">No one party should — spread the power, the way medicine argues over mammogram guidelines.</button>
+      </div>
+      <div class="well framing-reveal pop-in" id="framingReveal" hidden>
+        <span class="framing-tag">The essay’s framing — a lens, not a fact</span>
+        <p class="scene-body">Medicine’s mammogram fight is diffuse; no single party owns that threshold. Pandemic bonds never had that diffusion — a small set of counterparties set the dial, and paid only for one kind of mistake: a trigger that fired on nothing. Kasese, and a locked-down planet, paid for the other kind.</p>
+        <p class="scene-body dim">One case. A hypothesis, not a verdict.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="navbar">
+    <p class="nav-hint" id="navHint"></p>
+    <div class="nav-buttons">
+      <button type="button" class="btn nav-btn" id="btnBack" disabled>Back</button>
+      <button type="button" class="btn nav-btn primary" id="btnNext">Begin</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var scenes = Array.prototype.slice.call(document.querySelectorAll(".scene"));
+  var dots = Array.prototype.slice.call(document.querySelectorAll(".dot"));
+  var btnBack = document.getElementById("btnBack");
+  var btnNext = document.getElementById("btnNext");
+  var navHint = document.getElementById("navHint");
+  var progressCount = document.getElementById("progressCount");
+  var stage = document.getElementById("stage");
+  var idx = 0, guessLocked = false, quizAnsweredCount = 0;
+  var enterHandlers = {};
+
+  function canProceed(i){
+    if(i === 2){ return guessLocked; }
+    if(i === 9){ return quizAnsweredCount >= 3; }
+    return true;
+  }
+
+  function refreshNav(){
+    btnBack.disabled = idx === 0;
+    var atEnd = idx === scenes.length - 1;
+    btnNext.textContent = idx === 0 ? "Begin" : (atEnd ? "Start over" : "Next");
+    btnNext.disabled = atEnd ? false : !canProceed(idx);
+    if(idx === 2 && !guessLocked){ navHint.textContent = "Lock in a guess to continue"; }
+    else if(idx === 9 && quizAnsweredCount < 3){ navHint.textContent = "Answer all three to continue (" + quizAnsweredCount + "/3)"; }
+    else { navHint.textContent = ""; }
+    progressCount.textContent = (idx + 1) + " / " + scenes.length;
+    dots.forEach(function(d, i){ d.classList.toggle("active", i === idx); });
+  }
+
+  function goTo(n){
+    n = Math.max(0, Math.min(scenes.length - 1, n));
+    scenes[idx].classList.remove("is-active");
+    idx = n;
+    scenes[idx].classList.add("is-active");
+    stage.scrollTop = 0;
+    refreshNav();
+    if(enterHandlers[idx]){ enterHandlers[idx](); }
+  }
+
+  btnNext.addEventListener("click", function(){
+    if(idx === scenes.length - 1){ goTo(0); return; }
+    if(!canProceed(idx)){ return; }
+    goTo(idx + 1);
+  });
+  btnBack.addEventListener("click", function(){ goTo(idx - 1); });
+
+  var guessSlider = document.getElementById("guessSlider");
+  var guessLabel = document.getElementById("guessLabel");
+  var lockGuessBtn = document.getElementById("lockGuessBtn");
+  var predictReveal = document.getElementById("predictReveal");
+  var pbarGuessFill = document.getElementById("pbarGuessFill");
+  var pbarThresholdFill = document.getElementById("pbarThresholdFill");
+  var pbarActualFill = document.getElementById("pbarActualFill");
+  var pbarGuessNum = document.getElementById("pbarGuessNum");
+  var predictVerdict = document.getElementById("predictVerdict");
+
+  guessSlider.addEventListener("input", function(){ guessLabel.textContent = guessSlider.value; });
+
+  lockGuessBtn.addEventListener("click", function(){
+    if(guessLocked){ return; }
+    guessLocked = true;
+    var guessVal = parseInt(guessSlider.value, 10);
+    guessSlider.disabled = true;
+    lockGuessBtn.disabled = true;
+    lockGuessBtn.textContent = "Locked in";
+    predictReveal.hidden = false;
+    pbarGuessNum.textContent = guessVal;
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        pbarGuessFill.style.width = guessVal + "%";
+        pbarThresholdFill.style.width = "20%";
+        pbarActualFill.style.width = "2%";
+      });
+    });
+    var diff = Math.abs(guessVal - 20), verdict;
+    if(diff <= 3){ verdict = "Bullseye — that’s almost exactly the real bar."; }
+    else if(diff <= 10){ verdict = "Close — you had the right ballpark."; }
+    else if(diff <= 30){ verdict = "Off, but not unreasonable."; }
+    else { verdict = "Way off — almost everyone misses this one."; }
+    predictVerdict.textContent = verdict;
+    refreshNav();
+  });
+
+  var sliderA = document.getElementById("sliderA");
+  var sliderB = document.getElementById("sliderB");
+  var labelA = document.getElementById("labelA");
+  var labelB = document.getElementById("labelB");
+  var barA = document.getElementById("barA");
+  var barB = document.getElementById("barB");
+  var tilePastCount = document.getElementById("tilePastCount");
+  var tileTraj = document.getElementById("tileTraj");
+  var statusBanner = document.getElementById("statusBanner");
+  var statusReason = document.getElementById("statusReason");
+  var segAccel = document.getElementById("segAccel");
+  var segSlow = document.getElementById("segSlow");
+  var accelerating = false;
+
+  function updateModel(){
+    var a = parseInt(sliderA.value, 10), b = parseInt(sliderB.value, 10);
+    labelA.textContent = a; labelB.textContent = b;
+    var scale = 2.6, baseY = 150, maxH = 140;
+    var hA = Math.min(a * scale, maxH), hB = Math.min(b * scale, maxH);
+    barA.setAttribute("height", hA); barA.setAttribute("y", baseY - hA);
+    barB.setAttribute("height", hB); barB.setAttribute("y", baseY - hB);
+    barA.classList.toggle("over", a > 20);
+    barB.classList.toggle("over", b > 20);
+    var pastCount = (a > 20 ? 1 : 0) + (b > 20 ? 1 : 0);
+    tilePastCount.textContent = pastCount + " / 2";
+    tileTraj.textContent = accelerating ? "Accelerating" : "Slowing";
+    var meetsDeath = a > 20 && b > 20;
+    var pays = meetsDeath && accelerating;
+    statusBanner.classList.toggle("pay", pays);
+    statusBanner.classList.toggle("nopay", !pays);
+    statusBanner.textContent = pays ? "PAYS OUT" : "NO PAYOUT";
+    var reason;
+    if(a <= 20 && b <= 20){ reason = "Neither country has crossed the 20-death line yet."; }
+    else if(a <= 20){ reason = "Country A hasn’t crossed the 20-death line yet."; }
+    else if(b <= 20){ reason = "Country B hasn’t crossed the 20-death line yet."; }
+    else if(!accelerating){ reason = "Both countries cleared the bar — but growth has already slowed. No payout."; }
+    else { reason = "Two countries past the line, growth still accelerating — this is the scenario that pays."; }
+    statusReason.textContent = reason;
+  }
+  sliderA.addEventListener("input", updateModel);
+  sliderB.addEventListener("input", updateModel);
+  segAccel.addEventListener("click", function(){
+    accelerating = true;
+    segAccel.classList.add("active"); segSlow.classList.remove("active");
+    segAccel.setAttribute("aria-pressed", "true"); segSlow.setAttribute("aria-pressed", "false");
+    updateModel();
+  });
+  segSlow.addEventListener("click", function(){
+    accelerating = false;
+    segSlow.classList.add("active"); segAccel.classList.remove("active");
+    segSlow.setAttribute("aria-pressed", "true"); segAccel.setAttribute("aria-pressed", "false");
+    updateModel();
+  });
+  updateModel();
+
+  document.querySelectorAll(".myth-card").forEach(function(card){
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-pressed", "false");
+    function flip(){
+      var f = card.classList.toggle("flipped");
+      card.setAttribute("aria-pressed", f ? "true" : "false");
+    }
+    card.addEventListener("click", flip);
+    card.addEventListener("keydown", function(e){ if(e.key === "Enter" || e.key === " "){ e.preventDefault(); flip(); } });
+  });
+
+  enterHandlers[8] = function(){
+    var bf = document.getElementById("compareBondsFill"), ff = document.getElementById("compareFundFill");
+    if(!bf || !ff){ return; }
+    bf.style.width = "0%"; ff.style.width = "0%";
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ bf.style.width = "100%"; ff.style.width = "60%"; });
+    });
+  };
+
+  var quizData = [
+    { correct:1, explain:"Uganda’s toll was two deaths (some accounts say three) against a threshold north of twenty. Congo, next door, cleared that same bar a hundredfold — but the contract only ever watched each country’s own line." },
+    { correct:1, explain:"The lag wasn’t bureaucratic friction — it was written into the contract. A twelve-week growth window plus a verification lag meant the instrument could not structurally pay out any sooner. It performed exactly as designed." },
+    { correct:1, explain:"Jonas’s position inside the Bank gives her account real evidential weight. But it’s testimony, not a memo. The more mundane reading — narrow triggers as a pricing necessity — is equally well supported by the same reporting." }
+  ];
+  var quizIdx = 0;
+  var quizEl = document.getElementById("quiz");
+  quizEl.addEventListener("click", function(e){
+    var optBtn = e.target.closest(".quiz-opt");
+    var nextBtn = e.target.closest(".quiz-next");
+    if(optBtn){
+      var qDiv = optBtn.closest(".quiz-q");
+      if(qDiv.dataset.answered === "true"){ return; }
+      qDiv.dataset.answered = "true";
+      var qi = parseInt(qDiv.dataset.qi, 10);
+      var oi = parseInt(optBtn.dataset.oi, 10);
+      var data = quizData[qi];
+      var allOpts = qDiv.querySelectorAll(".quiz-opt");
+      allOpts.forEach(function(b, i){
+        b.disabled = true;
+        if(i === data.correct){ b.classList.add("correct"); b.textContent = b.textContent + " ✓"; }
+        else if(i === oi){ b.classList.add("incorrect"); b.textContent = b.textContent + " ✗"; }
+      });
+      var feedback = qDiv.querySelector(".quiz-feedback");
+      var correct = oi === data.correct;
+      feedback.querySelector(".qf-verdict").textContent = correct ? "Correct. " : "Not quite. ";
+      feedback.querySelector(".qf-explain").textContent = data.explain;
+      feedback.hidden = false;
+      quizAnsweredCount++;
+      if(qi < 2){ var nb = qDiv.querySelector(".quiz-next"); if(nb){ nb.hidden = false; } }
+      else { var done = document.getElementById("quizDone"); if(done){ done.hidden = false; } }
+      refreshNav();
+    } else if(nextBtn){
+      quizIdx++;
+      document.querySelectorAll(".quiz-q").forEach(function(q){ q.classList.remove("is-current"); });
+      var nq = quizEl.querySelector('.quiz-q[data-qi="' + quizIdx + '"]');
+      if(nq){ nq.classList.add("is-current"); }
+      var qp = document.getElementById("quizProgress");
+      if(qp){ qp.textContent = "Question " + (quizIdx + 1) + " of 3"; }
+    }
+  });
+
+  document.querySelectorAll(".stance-opt").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".stance-opt").forEach(function(b){ b.classList.remove("selected"); });
+      btn.classList.add("selected");
+      var framing = document.getElementById("framingReveal");
+      if(framing.hidden){ framing.hidden = false; }
+    });
+  });
+
+  refreshNav();
+})();
+</script>
+</body>
+</html>

@@ -59,10 +59,17 @@ _SCRIPT_SYSTEM = (
     "- headline: <= 7 words, the on-screen text for that beat (also serves "
     "as the caption for muted viewing).\n"
     "- kicker: 2-4 word eyebrow label.\n"
+    "- visual: for scenes where a picture teaches more than words, an inline "
+    "SVG diagram for that exact beat (viewBox='0 0 880 700', no external "
+    "refs, no <script>). Design real diagrams: graphs with labeled nodes, "
+    "timelines, before/after, flows with arrows, simple scene illustrations. "
+    "Palette on dark: ink #eaf3f2, accent #ff7a5e, accent2 #35c2d6, "
+    "muted #5d7a84. Text >= 26px. Aim for a visual on at least half the "
+    "scenes; omit the key (or null) when typography alone is stronger.\n"
     "- Every fact/number must come from the essay; where it hedges, hedge.\n"
     "- Build momentum; end on the essay's most mind-bending point, then one "
     "closing beat that names the open question.\n"
-    "Return ONLY a JSON array of {kicker, headline, narration}."
+    "Return ONLY a JSON array of {kicker, headline, narration, visual?}."
 )
 
 
@@ -107,27 +114,48 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  html,body{{margin:0;width:{w}px;height:{h}px;overflow:hidden}}
  body{{background:radial-gradient(120% 90% at 50% 12%,#12333f,#06141b 70%);
    color:#eaf3f2;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-   display:flex;flex-direction:column;justify-content:center;padding:120px 96px;box-sizing:border-box}}
- .kicker{{color:#ff7a5e;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:34px;margin-bottom:40px}}
- .headline{{font-weight:800;font-size:96px;line-height:1.05;letter-spacing:-.02em}}
+   display:flex;flex-direction:column;justify-content:center;padding:110px 96px;box-sizing:border-box}}
+ .kicker{{color:#ff7a5e;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:34px;margin-bottom:36px}}
+ .headline{{font-weight:800;font-size:{hlsize}px;line-height:1.05;letter-spacing:-.02em}}
  .accent{{color:#35c2d6}}
+ .viz{{margin-top:64px}}
+ .viz svg{{width:100%;height:auto;display:block}}
  .n{{position:absolute;top:70px;right:96px;color:#3f5a63;font-size:30px;font-weight:700}}
  .bar{{position:absolute;left:96px;bottom:120px;height:8px;width:{barw}px;background:#ff7a5e;border-radius:99px}}
 </style></head><body>
  <div class=n>{idx} / {total}</div>
  <div class=kicker>{kicker}</div>
  <div class=headline>{headline}</div>
+ {viz}
  <div class=bar></div>
 </body></html>"""
+
+
+_SVG_FORBIDDEN = re.compile(
+    r"<\s*(script|foreignObject|iframe)|href\s*=|url\s*\(|javascript:", re.I
+)
+
+
+def _safe_visual(scene: dict) -> str:
+    """Return the scene's SVG wrapped for layout, or '' if absent/unsafe."""
+    svg = (scene.get("visual") or "").strip()
+    if not svg or "<svg" not in svg.lower():
+        return ""
+    if _SVG_FORBIDDEN.search(svg):
+        return ""
+    return f'<div class="viz">{svg}</div>'
 
 
 def _render_still(scene: dict, idx: int, total: int, out_png: Path) -> None:
     from playwright.sync_api import sync_playwright
     hl = (scene["headline"].replace("<", "&lt;"))
+    viz = _safe_visual(scene)
     html = _SLIDE_TMPL.format(
         w=W, h=H, idx=idx, total=total, barw=int(880 * idx / total),
         kicker=scene.get("kicker", "").replace("<", "&lt;"),
         headline=hl,
+        hlsize=76 if viz else 96,   # smaller headline when a diagram shares the frame
+        viz=viz,
     )
     with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False, encoding="utf-8") as f:
         f.write(html)

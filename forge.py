@@ -353,6 +353,22 @@ def cmd_queue(args) -> int:
     return 0
 
 
+def cmd_deck(args) -> int:
+    """Compile an existing dive .md into a swipeable card deck (PNGs)."""
+    if not _require_claude():
+        return 2
+    from agent_forge.cards import compile_deck
+    try:
+        cards = compile_deck(
+            args.md, on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]")
+        )
+    except Exception as e:
+        console.print(f"  [red]deck failed:[/] {e}")
+        return 1
+    console.print(f"  [bold green]✓ {len(cards)} cards:[/] {cards[0].parent}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="forge",
@@ -410,6 +426,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_q.add_argument("--no-interactive", action="store_true",
                      help="essays only, skip interactive HTML compile")
     p_q.set_defaults(func=cmd_queue)
+
+    p_deck = sub.add_parser("deck", help="compile a dive .md into swipeable card images")
+    p_deck.add_argument("md", help="path to an explorations/*.md dive")
+    p_deck.set_defaults(func=cmd_deck)
 
     return p
 

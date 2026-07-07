@@ -370,6 +370,25 @@ def cmd_deck(args) -> int:
     return 0
 
 
+def cmd_feed(args) -> int:
+    """Show the browsable feed of ready explorations."""
+    from agent_forge.feed import feed
+    console.print(feed(n=args.n))
+    return 0
+
+
+def cmd_play(args) -> int:
+    """Play (print) a feed item as clean readable text."""
+    from agent_forge.feed import play
+    try:
+        r = play(args.n)
+    except IndexError as e:
+        console.print(f"  [red]{e}[/]")
+        return 2
+    console.print(r["text"])
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="forge",
@@ -431,6 +450,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_deck = sub.add_parser("deck", help="compile a dive .md into swipeable card images")
     p_deck.add_argument("md", help="path to an explorations/*.md dive")
     p_deck.set_defaults(func=cmd_deck)
+
+    p_feed = sub.add_parser("feed", help="browse your feed of ready explorations")
+    p_feed.add_argument("-n", type=int, default=12, help="how many rows")
+    p_feed.set_defaults(func=cmd_feed)
+
+    p_play = sub.add_parser("play", help="play a feed item as text")
+    p_play.add_argument("n", type=int, help="feed row number")
+    p_play.set_defaults(func=cmd_play)
 
     return p
 

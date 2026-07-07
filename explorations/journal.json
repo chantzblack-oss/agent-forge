@@ -66,5 +66,22 @@
       "**Test the RAID hypothesis.** If shatter-and-splice repair really does lean on homeologous copies the way a storage array leans on parity data, that predicts something checkable: foreign DNA insertions should cluster in genomic neighborhoods with higher homeolog divergence or copy number. Nobody has looked for that correlation yet.",
       "**Mine the pirated chemistry.** Bdelloids fight a fungal parasite using stolen bacterial polyketide and NRPS gene clusters related to real antibiotic pathways. Whether those specific bdelloid-hosted clusters produce a compound that works outside the animal — and whether it's something new — is open, and would be worth knowing."
     ]
+  },
+  {
+    "date": "2026-07-07",
+    "topic": "How Old Is the World's Oldest Fire? Nobody Has Actually Dated It",
+    "tags": [
+      "world",
+      "oldest",
+      "nobody",
+      "actually",
+      "dated"
+    ],
+    "file": "explorations/20260707-how-old-is-the-world-s-oldest-fire-nobody-has-ac.md",
+    "threads": [
+      "What would it actually take to date this fire properly — charcoal dating at the ignition end, paleomagnetic readings from baked clay along the scar, something else — and why, more than a century after Abbott's guess, nobody appears to have funded it.",
+      "How Cara Cross's more careful \"among the earliest documented\" claim became \"the first culture on Earth\" in secondary coverage: a live, traceable case of a hedge dissolving into a superlative within a few retellings — the exact process this essay just accused Abbott's number of running.",
+      "A proper side-by-side of the world's other long-burning coal and peat fires — Centralia, Jharia, the Brennender Berg, Burning Mountain — sorted by confirmed ignition date, human versus natural cause, and years actually measured versus years merely inferred."
+    ]
   }
 ]

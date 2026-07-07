@@ -1,0 +1,906 @@
+<title>How Old Is the World's Oldest Fire? Nobody Has Actually Dated It</title>
+<style>
+  :root{
+    color-scheme: light dark;
+    --page-bg:#e9e1d0;
+    --bg:#faf5eb;
+    --bg-soft:#f1e8d8;
+    --surface:#ffffff;
+    --card-back-bg:#efe2c8;
+    --text:#241a12;
+    --text-dim:#6e5f4d;
+    --accent:#c1440e;
+    --accent-strong:#96330a;
+    --accent-2:#8a7215;
+    --border:#e3d5bd;
+    --good:#2f7a4f;
+    --good-bg:#e5f4ea;
+    --bad:#b3261e;
+    --bad-bg:#fbeceb;
+    --shadow:rgba(30,20,10,0.18);
+    --mountain-fill:#cdbd93;
+    --scar-fill:#a3937c;
+    --serif: Georgia, 'Times New Roman', Times, serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --page-bg:#0a0807;
+      --bg:#161009;
+      --bg-soft:#1e150d;
+      --surface:#201810;
+      --card-back-bg:#2a1e12;
+      --text:#f3e9db;
+      --text-dim:#b7a690;
+      --accent:#ff7a3c;
+      --accent-strong:#ffb37a;
+      --accent-2:#e3c25a;
+      --border:#3a2c1c;
+      --good:#6fce97;
+      --good-bg:#173a26;
+      --bad:#ff8a80;
+      --bad-bg:#3a1e1a;
+      --shadow:rgba(0,0,0,0.5);
+      --mountain-fill:#3a2f1e;
+      --scar-fill:#544632;
+    }
+  }
+  :root[data-theme="dark"]{
+    --page-bg:#0a0807;
+    --bg:#161009;
+    --bg-soft:#1e150d;
+    --surface:#201810;
+    --card-back-bg:#2a1e12;
+    --text:#f3e9db;
+    --text-dim:#b7a690;
+    --accent:#ff7a3c;
+    --accent-strong:#ffb37a;
+    --accent-2:#e3c25a;
+    --border:#3a2c1c;
+    --good:#6fce97;
+    --good-bg:#173a26;
+    --bad:#ff8a80;
+    --bad-bg:#3a1e1a;
+    --shadow:rgba(0,0,0,0.5);
+    --mountain-fill:#3a2f1e;
+    --scar-fill:#544632;
+  }
+
+  *,*::before,*::after{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--page-bg);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.5;
+    -webkit-text-size-adjust:100%;
+    display:flex;
+    justify-content:center;
+  }
+  h1,h2,h3{ font-family:var(--serif); margin:0 0 8px; line-height:1.22; font-weight:700; }
+  p{ margin:0 0 12px; }
+  p:last-child{ margin-bottom:0; }
+  button{ font-family:inherit; }
+  img,svg{ max-width:100%; display:block; }
+
+  .app{
+    width:100%;
+    max-width:600px;
+    min-height:100vh;
+    min-height:100dvh;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  @media (min-width:640px){
+    body{ align-items:flex-start; padding:28px 16px; }
+    .app{
+      min-height:min(880px,100dvh);
+      border-radius:22px;
+      box-shadow:0 24px 70px var(--shadow);
+      border:1px solid var(--border);
+      overflow:hidden;
+      margin:0 auto;
+    }
+  }
+
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:16px 16px 8px;
+  }
+  .brand{
+    font-family:var(--serif);
+    font-size:13px;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+  }
+  .theme-toggle{
+    width:44px;height:44px;
+    min-height:44px;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:var(--surface);
+    font-size:17px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    flex:none;
+    padding:0;
+  }
+  .dots{
+    display:flex;
+    gap:5px;
+    padding:0 16px 6px;
+    flex-wrap:wrap;
+  }
+  .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--border);
+    transition:width .25s ease, background .25s ease;
+    flex:none;
+  }
+  .dot.is-current{ width:20px; border-radius:4px; background:var(--accent); }
+  .counter{
+    font-size:12px;color:var(--text-dim); padding:0 16px 8px;
+  }
+
+  .viewport{
+    flex:1 1 auto;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:6px 20px 24px;
+  }
+  .scene{ display:none; }
+  .scene.is-active{ display:block; animation:fadeIn .35s ease; }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+  .eyebrow{
+    font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:8px;
+  }
+  h1.title{ font-size:26px; margin-bottom:8px; }
+  h2.title{ font-size:22px; margin-bottom:10px; }
+  .subtitle{ font-family:var(--serif); font-style:italic; color:var(--text-dim); font-size:16px; margin-bottom:14px; }
+  .lede{ font-size:16px; }
+  .dim{ color:var(--text-dim); }
+  .small{ font-size:13.5px; }
+
+  .navbar{
+    display:flex; align-items:center; gap:10px;
+    padding:12px 16px calc(14px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--border);
+    background:var(--bg);
+    flex:none;
+  }
+  .btn{
+    min-height:44px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text);
+    font-size:15px;
+    font-weight:700;
+    padding:0 18px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    flex:1;
+  }
+  .btn-primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn:disabled{ opacity:.4; cursor:default; }
+  .btn-ghost{
+    min-height:44px; border-radius:12px; border:1px dashed var(--border);
+    background:transparent; color:var(--text-dim); font-size:14px; font-weight:600;
+    padding:0 16px; cursor:pointer;
+  }
+
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .card h3{ font-size:15px; font-family:var(--sans); margin-bottom:6px; color:var(--accent-strong); }
+  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 4px; }
+  .chip{
+    background:var(--bg-soft); border:1px solid var(--border); border-radius:999px;
+    padding:7px 12px; font-size:12.5px; color:var(--text-dim);
+  }
+  .equation{
+    font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background:var(--bg-soft); border:1px dashed var(--border); border-radius:10px;
+    padding:14px; text-align:center; font-size:16px; margin:14px 0; color:var(--accent-strong);
+    font-weight:700;
+  }
+  .field-note{
+    margin-top:14px; padding:12px 14px; border-left:3px solid var(--accent-2);
+    background:var(--bg-soft); border-radius:0 10px 10px 0; font-size:14px;
+    color:var(--text-dim); font-style:italic;
+  }
+
+  .slider-group{ margin:18px 0; }
+  .slider-label{ display:flex; justify-content:space-between; align-items:baseline; font-size:13.5px; margin-bottom:8px; color:var(--text-dim); }
+  .slider-label strong{ color:var(--text); font-size:15px; }
+  input[type="range"]{
+    width:100%; accent-color:var(--accent); height:28px; display:block; background:transparent;
+  }
+  .range-endpoints{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+
+  .reveal-panel{
+    margin-top:16px; padding:16px; border-radius:14px; background:var(--bg-soft);
+    border:1px solid var(--border); opacity:0; transform:translateY(6px);
+    transition:opacity .4s ease, transform .4s ease; display:none;
+  }
+  .reveal-panel.shown{ opacity:1; transform:translateY(0); display:block; }
+  .fact-list{ list-style:none; margin:12px 0 0; padding:0; font-size:13.5px; color:var(--text-dim); }
+  .fact-list li{ padding:8px 0; border-top:1px solid var(--border); }
+  .fact-list li:first-child{ border-top:none; padding-top:0; }
+
+  .model-svg-wrap{ background:var(--bg-soft); border:1px solid var(--border); border-radius:14px; padding:10px; margin:14px 0; }
+  .model-svg{ width:100%; height:auto; display:block; }
+  .mountain-shape{ fill:var(--mountain-fill); stroke:var(--border); stroke-width:1; }
+  .ground-line{ stroke:var(--border); stroke-width:1; }
+  .seam-line{ stroke:var(--text-dim); stroke-width:1; opacity:.6; }
+  .scar-rect{ fill:var(--scar-fill); }
+  .ember-glow{ fill:var(--accent); opacity:.4; filter:blur(6px); animation:emberPulse 2s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 50%; }
+  .ember-dot{ fill:var(--accent-strong); animation:emberPulse 2s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 50%; }
+  @keyframes emberPulse{ 0%,100%{ transform:scale(1); opacity:.85; } 50%{ transform:scale(1.3); opacity:1; } }
+  .readout{ display:flex; flex-direction:column; align-items:center; gap:4px; margin:12px 0 6px; text-align:center; }
+  .readout .big{ font-family:var(--serif); font-size:25px; color:var(--accent-strong); font-weight:700; }
+  .readout .compare{ font-size:13.5px; color:var(--text-dim); }
+
+  .myth-grid{ display:grid; grid-template-columns:1fr; gap:14px; margin-top:6px; }
+  @media (min-width:480px){ .myth-grid{ grid-template-columns:1fr 1fr; } }
+  .flip-card{ min-height:196px; display:block; }
+  .flip-card-inner{
+    position:relative; min-height:196px; width:100%;
+    transform-style:preserve-3d; transition:transform .6s cubic-bezier(.4,.2,.2,1);
+    display:block; cursor:pointer;
+  }
+  .flip-card.is-flipped .flip-card-inner{ transform:rotateY(180deg); }
+  .flip-face{
+    position:absolute; inset:0; backface-visibility:hidden;
+    border-radius:14px; padding:16px; border:1px solid var(--border);
+    display:flex; flex-direction:column; justify-content:center; gap:8px;
+    overflow-y:auto;
+  }
+  .flip-front{ background:var(--surface); }
+  .flip-back{ background:var(--card-back-bg); transform:rotateY(180deg); }
+  .flip-tag{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); font-weight:700; }
+  .flip-front .flip-tag{ color:var(--accent); }
+  .flip-back .flip-tag{ color:var(--accent-2); }
+  .flip-text{ font-size:15px; }
+  .flip-hint{ position:absolute; bottom:10px; right:12px; font-size:11px; color:var(--text-dim); opacity:.7; }
+
+  .choice-list{ display:flex; flex-direction:column; gap:10px; margin-top:4px; }
+  .choice-btn{
+    min-height:44px; text-align:left; padding:11px 14px; border-radius:12px;
+    border:1px solid var(--border); background:var(--surface); color:var(--text);
+    font-size:14.5px; cursor:pointer; line-height:1.35;
+  }
+  .choice-btn.is-correct{ border-color:var(--good); background:var(--good-bg); }
+  .choice-btn.is-incorrect{ border-color:var(--bad); background:var(--bad-bg); }
+  .choice-btn.is-selected{ border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+  .choice-btn:disabled{ cursor:default; }
+
+  .quiz-progress{ font-size:12.5px; color:var(--text-dim); margin-bottom:6px; font-weight:600; letter-spacing:.03em; }
+  .quiz-question{ font-family:var(--serif); font-size:18px; margin-bottom:12px; font-weight:700; }
+  .quiz-feedback{
+    margin-top:14px; padding:14px; border-radius:12px; background:var(--bg-soft);
+    border:1px solid var(--border); font-size:14px;
+  }
+  .quiz-done{ margin-top:16px; text-align:center; }
+  .quiz-done .score{ font-family:var(--serif); font-size:22px; color:var(--accent-strong); font-weight:700; }
+
+  .scale-bar{ position:relative; height:26px; border-radius:8px; background:var(--accent-2); overflow:hidden; margin:16px 0 6px; }
+  .scale-fire{ position:absolute; top:0; right:0; bottom:0; width:5px; background:var(--accent-strong); box-shadow:0 0 8px var(--accent-strong); }
+  .scale-caption{ display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--text-dim); }
+
+  .compare-list{ display:flex; flex-direction:column; gap:12px; margin-top:4px; }
+  .compare-item{ padding:14px; border-radius:12px; border:1px solid var(--border); background:var(--surface); }
+  .compare-item h3{ font-size:15px; margin-bottom:4px; font-family:var(--sans); color:var(--accent-strong); }
+  .compare-item p{ font-size:14px; color:var(--text-dim); margin:0; }
+
+  .reveal-toggle{
+    min-height:44px; width:100%; border-radius:12px; border:1px dashed var(--accent-2);
+    background:transparent; color:var(--accent-strong); font-size:14px; font-weight:700;
+    cursor:pointer; margin-top:10px;
+  }
+  .story-panel{
+    margin-top:12px; padding:14px; border-radius:12px; background:var(--bg-soft);
+    border:1px solid var(--border); font-size:14.5px;
+  }
+
+  .framing-panel{
+    margin-top:16px; padding:16px; border-radius:14px; background:var(--bg-soft);
+    border:1px solid var(--accent-2); display:none;
+  }
+  .framing-panel.shown{ display:block; }
+  .framing-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent-2); font-weight:700; margin-bottom:8px; }
+  .stance-ack{ margin-top:10px; font-size:14px; color:var(--text-dim); display:none; }
+  .stance-ack.shown{ display:block; }
+
+  .hero-svg{ margin:4px 0 14px; }
+  .smoke{ fill:var(--text-dim); animation:drift 6s ease-in-out infinite; transform-box:fill-box; transform-origin:50% 100%; }
+  .smoke.s2{ animation-delay:1.3s; }
+  .smoke.s3{ animation-delay:2.6s; }
+  @keyframes drift{
+    0%{ transform:translateY(0) scale(1); opacity:.55; }
+    50%{ transform:translateY(-11px) scale(1.1); opacity:.85; }
+    100%{ transform:translateY(-24px) scale(1.2); opacity:0; }
+  }
+
+  .sources{ font-size:12.5px; color:var(--text-dim); border-top:1px solid var(--border); padding-top:14px; margin-top:18px; }
+
+  @media (prefers-reduced-motion: reduce){
+    .smoke, .ember-glow, .ember-dot, .scene.is-active{ animation:none !important; }
+  }
+</style>
+<noscript>This page is interactive and needs JavaScript. Please open it in a standard web browser with JavaScript enabled.</noscript>
+<div class="app">
+
+  <header class="topbar">
+    <span class="brand">Burning Mountain</span>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle color theme">🌗</button>
+  </header>
+  <div class="dots" id="dotsContainer" aria-hidden="true"></div>
+  <div class="counter" id="counterEl"></div>
+
+  <main class="viewport" id="viewport">
+
+    <!-- SCENE 1 : HOOK -->
+    <section class="scene is-active" id="scene-1" aria-label="Introduction">
+      <div class="eyebrow">AN ESSAY, INTERACTIVELY</div>
+      <svg class="hero-svg" viewBox="0 0 320 130" role="img" aria-label="A mountain ridge with smoke rising from a crack near its summit">
+        <path class="mountain-shape" d="M0,110 L50,50 L90,82 L140,26 L190,78 L230,46 L320,100 L320,130 L0,130 Z"/>
+        <ellipse class="smoke s1" cx="140" cy="22" rx="10" ry="7" opacity="0.5"/>
+        <ellipse class="smoke s2" cx="146" cy="16" rx="8" ry="6" opacity="0.4"/>
+        <ellipse class="smoke s3" cx="135" cy="12" rx="6" ry="5" opacity="0.3"/>
+      </svg>
+      <h1 class="title">How Old Is the World's Oldest Fire?</h1>
+      <div class="subtitle">Nobody has actually dated it.</div>
+      <p class="lede">March 1828: a farmhand named Smart sees smoke on a ridge in the Hunter Valley that won't clear — not by afternoon, not the next day. He climbs up, comes back down, and reports a volcano. He's wrong. What's actually underneath is older, stranger, and far less certain than almost anything written about it since.</p>
+      <p class="dim small">Tap <strong>Next</strong> to keep going →</p>
+    </section>
+
+    <!-- SCENE 2 : PREDICT BEFORE REVEAL -->
+    <section class="scene" id="scene-2" aria-label="Guess the fire's age">
+      <div class="eyebrow">BEFORE YOU READ ON</div>
+      <h2 class="title">Guess the fire's age</h2>
+      <p class="lede">Every article about this place quotes the same number. Before you see it — how old do you think a still-burning coal fire actually is? Drag the slider, then lock in your guess.</p>
+
+      <div class="slider-group">
+        <div class="slider-label"><span>Your guess</span><strong id="guessValue">2,400 years</strong></div>
+        <input type="range" id="guessSlider" min="0" max="100" step="1" value="15" aria-label="Guess the fire's age in years">
+        <div class="range-endpoints"><span>younger</span><span>older</span></div>
+      </div>
+
+      <button class="btn btn-primary" id="lockGuessBtn" type="button" style="width:100%;">Lock in my guess</button>
+
+      <div class="reveal-panel" id="guessReveal">
+        <p id="verdictText" class="lede"></p>
+        <ul class="fact-list">
+          <li>Popular claim: about 6,000 years — unverified</li>
+          <li>One fire scientist's floor: could run into the hundreds of thousands</li>
+          <li>Peer-reviewed date published so far: none</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SCENE 3 : DISCOVERY -->
+    <section class="scene" id="scene-3" aria-label="The 1828 discovery">
+      <div class="eyebrow">1828 – 1829</div>
+      <h2 class="title">The volcano that wasn't</h2>
+      <p class="lede">Smart told the station he'd found a volcano. Newspapers argued for months; nobody sent a geologist for nearly a year. When Reverend Charles Wilton finally climbed up in 1829 — almost by accident — he found sulphur vapour, stumps scorched from below, and no volcanic rock anywhere. His conclusion: coal, burning underground. He never dug to confirm it.</p>
+      <div class="chip-row">
+        <span class="chip">🌋 No volcanic rock</span>
+        <span class="chip">🪵 Stumps scorched from below</span>
+        <span class="chip">💨 Sulphur vapour from cracks</span>
+      </div>
+      <p class="small dim">A presumption, not a diagnosis — and it happened to hold up anyway.</p>
+    </section>
+
+    <!-- SCENE 4 : ABBOTT'S ARITHMETIC -->
+    <section class="scene" id="scene-4" aria-label="Abbott's 1918 calculation">
+      <div class="eyebrow">1918</div>
+      <h2 class="title">Where &ldquo;6,000 years&rdquo; really comes from</h2>
+      <p class="lede">Ninety years later, a pastoralist named William Abbott paced out the fire's dead, ash-grey scar: 6.5 kilometres, by his own count alone — never independently resurveyed since. He assumed the fire had always crept forward at the metre a year it seemed to manage then. One measurement. One assumption.</p>
+      <div class="equation">6,500 m ÷ 1 m/year = 6,500 years</div>
+      <p class="small dim">Almost every popular retelling since has repeated this as settled fact. It's arithmetic, not a dating method.</p>
+    </section>
+
+    <!-- SCENE 5 : MANIPULABLE MODEL -->
+    <section class="scene" id="scene-5" aria-label="Interactive model of Abbott's calculation">
+      <div class="eyebrow">TRY IT YOURSELF</div>
+      <h2 class="title">Rebuild Abbott's sum</h2>
+      <p class="lede">Abbott's whole method was one pacing divided by one assumed speed. Both were guesses. Move them yourself and watch the fire's &ldquo;age&rdquo; swing.</p>
+
+      <div class="model-svg-wrap">
+        <svg class="model-svg" viewBox="0 0 320 150" role="img" aria-label="Diagram of the ember creeping through the coal seam, leaving a scar behind it">
+          <path class="mountain-shape" d="M0,120 L40,72 L70,96 L110,42 L150,86 L190,58 L230,100 L260,76 L320,112 L320,150 L0,150 Z"/>
+          <line class="ground-line" x1="0" y1="120" x2="320" y2="120"/>
+          <line class="seam-line" x1="18" y1="112" x2="300" y2="112" stroke-dasharray="4 3"/>
+          <rect id="scarRect" class="scar-rect" x="30" y="106" width="150" height="12" rx="3"/>
+          <circle id="emberGlow" class="ember-glow" cx="180" cy="112" r="14"/>
+          <circle id="emberDot" class="ember-dot" cx="180" cy="112" r="5"/>
+        </svg>
+      </div>
+
+      <div class="readout">
+        <div class="big" id="impliedYears">Implied age: 6,500 years</div>
+        <div class="compare" id="impliedCompare">This is essentially Abbott's 1918 number.</div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label"><span>Assumed creep speed</span><strong id="speedVal">1.00 m/yr</strong></div>
+        <input type="range" id="speedSlider" min="0.03" max="3" step="0.01" value="1" aria-label="Assumed creep speed in metres per year">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Scar length paced</span><strong id="distVal">6.5 km</strong></div>
+        <input type="range" id="distSlider" min="4" max="9" step="0.1" value="6.5" aria-label="Scar length in kilometres">
+      </div>
+      <button class="btn-ghost" id="resetModelBtn" type="button">Reset to Abbott's numbers</button>
+
+      <p class="small dim" style="margin-top:14px;">A single lit ember running along a ribbon of coal inside solid rock — like a cigarette burning down its own length without the flame touching the ash beside it.</p>
+    </section>
+
+    <!-- SCENE 6 : MYTH VS REALITY -->
+    <section class="scene" id="scene-6" aria-label="Myth versus reality cards">
+      <div class="eyebrow">CLAIM VS CATCH</div>
+      <h2 class="title">Tap each card to flip it</h2>
+
+      <div class="myth-grid">
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <div class="flip-face flip-front">
+              <div class="flip-tag">The claim</div>
+              <div class="flip-text">&ldquo;It's been dated at 6,000 years.&rdquo;</div>
+              <div class="flip-hint">tap ↻</div>
+            </div>
+            <div class="flip-face flip-back">
+              <div class="flip-tag">The catch</div>
+              <div class="flip-text">A 1918 grazier's arithmetic — one pacing of the scar, one assumed constant speed. No carbon date, no core sample, ever published.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <div class="flip-face flip-front">
+              <div class="flip-tag">The claim</div>
+              <div class="flip-text">&ldquo;Burning Mountain was discovered in 1828.&rdquo;</div>
+              <div class="flip-hint">tap ↻</div>
+            </div>
+            <div class="flip-face flip-back">
+              <div class="flip-tag">The catch</div>
+              <div class="flip-text">Wonnarua people already knew the mountain intimately, mining its sulphur and alum for medicine long before a colonist saw smoke.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <div class="flip-face flip-front">
+              <div class="flip-tag">The claim</div>
+              <div class="flip-text">&ldquo;It's a raging underground inferno.&rdquo;</div>
+              <div class="flip-hint">tap ↻</div>
+            </div>
+            <div class="flip-face flip-back">
+              <div class="flip-tag">The catch</div>
+              <div class="flip-text">It's one small ember — maybe the size of a shipping container — creeping through a coal seam. Everything behind it is already dead and cold.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flip-card">
+          <div class="flip-card-inner">
+            <div class="flip-face flip-front">
+              <div class="flip-tag">The claim</div>
+              <div class="flip-text">&ldquo;Its size and heat are precisely measured.&rdquo;</div>
+              <div class="flip-hint">tap ↻</div>
+            </div>
+            <div class="flip-face flip-back">
+              <div class="flip-tag">The catch</div>
+              <div class="flip-text">Nobody's drilled into the fire. The ~1,000°C, five-to-ten-metre estimates are inferred from what leaks to the surface — some accounts say 1,700°C.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCENE 7 : REIN'S CORRECTION -->
+    <section class="scene" id="scene-7" aria-label="The fire scientist's correction">
+      <div class="eyebrow">THE OTHER HALF OF THE STORY</div>
+      <h2 class="title">A floor, not an answer</h2>
+
+      <div class="card">
+        <p style="margin:0;">Guillermo Rein studies smouldering combustion at Imperial College London and has visited the mountain himself. His view: 6,000 years is the least it could be, not a confirmed date — because a fire's speed through coal depends on seam thickness, oxygen, and ground cover, all of which vary across 6.5 kilometres.</p>
+      </div>
+
+      <div class="card">
+        <h3>Nobody's measured the size, either</h3>
+        <p style="margin:0;">The five-to-ten-metre hot zone everyone quotes — something between a shipping container and a small house, burning around 1,000°C — is inferred from what vents to the surface. Some accounts say 1,700°C. Nobody has drilled in to check.</p>
+      </div>
+
+      <div class="field-note">Climb the marked track today — four kilometres over ground still too scorched for much to grow — and you reach a platform crusted in sulphur, gypsum and alum, with a rotten-egg whiff of hydrogen sulphide even in summer.</div>
+
+      <p class="small dim" style="margin-top:14px;">&ldquo;Unresolved&rdquo; is the honest word. Not &ldquo;6,000, confirmed.&rdquo; Not &ldquo;probably 600,000.&rdquo;</p>
+    </section>
+
+    <!-- SCENE 8 : THE COAL ITSELF -->
+    <section class="scene" id="scene-8" aria-label="The age of the coal itself">
+      <div class="eyebrow">THE FUEL, NOT THE FLAME</div>
+      <h2 class="title">6,000 years is a rounding error</h2>
+      <p class="lede">The coal this ember is eating — the Greta Coal Measures — formed in the Early Permian, roughly 260 to 290 million years ago. (You'll sometimes see 235 million quoted; that figure looks garbled, and I can't confirm it either.) Even the fire's wildest guessed age barely registers against that.</p>
+
+      <div class="scale-bar"><div class="scale-fire" aria-hidden="true"></div></div>
+      <div class="scale-caption">
+        <span>Coal: ~260–290 million years</span>
+        <span>Fire, at most: ~0.2% of that</span>
+      </div>
+    </section>
+
+    <!-- SCENE 9 : WONNARUA -->
+    <section class="scene" id="scene-9" aria-label="Wonnarua knowledge of the site">
+      <div class="eyebrow">BEFORE 1828</div>
+      <h2 class="title">Already known, already used</h2>
+      <p class="lede">&ldquo;Discovered in 1828&rdquo; means &ldquo;noticed by a colonist.&rdquo; Wonnarua women were grinding sulphur and alum crystallised at the mountain's vents into medicine long before Smart saw smoke — among the earliest documented uses of either mineral anywhere, feeding a trade network colonial dispossession later severed.</p>
+
+      <button class="reveal-toggle" id="wonnaruaToggle" type="button">How the Wonnarua tell the fire's origin ▾</button>
+      <div class="story-panel" id="wonnaruaStory" hidden>A warrior dies defending his people. The woman who loved him climbs the summit and won't leave. Her grief becomes too much for the sky-god Baiame to let run its course — so he turns her to stone rather than let it kill her. Her grief becomes the fire that still burns beneath where she stood.</div>
+
+      <p class="small dim" style="margin-top:14px;">Some retellings inflate &ldquo;among the earliest documented&rdquo; into &ldquo;the first culture on Earth&rdquo; — a claim that's close to unprovable either way.</p>
+    </section>
+
+    <!-- SCENE 10 : OTHER BURNING MOUNTAINS -->
+    <section class="scene" id="scene-10" aria-label="Other long burning fires around the world">
+      <div class="eyebrow">NOT A ONE-OFF</div>
+      <h2 class="title">The world has more than one</h2>
+
+      <div class="compare-list">
+        <div class="compare-item">
+          <h3>Brennender Berg, Germany</h3>
+          <p>Ignited in 1668 — a mining accident, or by legend a shepherd's fire. Goethe detoured to see it in 1770. At &ldquo;only&rdquo; three and a half centuries old, it makes Wingen's claimed six millennia look almost implausible by comparison.</p>
+        </div>
+        <div class="compare-item">
+          <h3>Jharia, India</h3>
+          <p>Burning continuously since 1916. A 1970s survey counted roughly seventy fires at once — though they've merged, died out and reignited ever since, even as the ground above keeps sinking.</p>
+        </div>
+        <div class="compare-item">
+          <h3>China, ongoing</h3>
+          <p>On the order of 20 million tonnes of coal burn in uncontrolled fires yearly, by common estimates — with perhaps ten times that much more sealed off as unminable.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCENE 11 : QUIZ -->
+    <section class="scene" id="scene-11" aria-label="Quiz">
+      <div class="eyebrow">QUICK CHECK</div>
+      <h2 class="title">Three questions</h2>
+
+      <div class="quiz-progress" id="quizProgress">Question 1 of 3</div>
+      <div class="quiz-question" id="quizQuestion"></div>
+      <div class="choice-list" id="quizOptions"></div>
+      <div class="quiz-feedback" id="quizFeedback" hidden></div>
+      <button class="btn btn-primary" id="quizContinueBtn" type="button" style="width:100%; margin-top:14px;" hidden>Next question</button>
+
+      <div class="quiz-done" id="quizDone" hidden>
+        <div class="score"><span id="quizScoreVal">0</span> / 3</div>
+        <p class="small dim">The score matters less than the explanations above — that's the whole point of this essay.</p>
+      </div>
+    </section>
+
+    <!-- SCENE 12 : FINAL SYNTHESIS -->
+    <section class="scene" id="scene-12" aria-label="Closing question and framing">
+      <div class="eyebrow">ONE LAST CONNECTION</div>
+      <h2 class="title">Why did the number stick?</h2>
+      <p class="lede">Here's a question with no graded answer. Why do you think &ldquo;6,000 years, older than the pyramids&rdquo; spread so fast and stuck so hard?</p>
+
+      <div class="choice-list" id="stanceList">
+        <button class="choice-btn stance-btn" type="button" data-i="0">It's probably close to true</button>
+        <button class="choice-btn stance-btn" type="button" data-i="1">Nobody had a reason to check it</button>
+        <button class="choice-btn stance-btn" type="button" data-i="2">Round numbers travel better than hedges</button>
+      </div>
+
+      <p class="stance-ack" id="stanceAck"></p>
+
+      <div class="framing-panel" id="framingPanel">
+        <div class="framing-label">The essay's own framing — a pattern, not a proof</div>
+        <p style="margin:0;">Picture the mountain itself: one small live ember trailing a long dead scar. Abbott struck the spark in 1918 — one grazier, one guess. Every retelling since is scar tissue: distance added by repetition, not by heat. The still-hot edge, where the number is actually contested, is Rein's objection — small, and persistently underweighted.</p>
+      </div>
+    </section>
+
+    <!-- SCENE 13 : CLOSING -->
+    <section class="scene" id="scene-13" aria-label="Closing">
+      <div class="eyebrow">STILL BURNING</div>
+      <h2 class="title">What's still unresolved</h2>
+      <p class="lede">No one's funded a real date for this fire. No one's traced exactly how &ldquo;among the earliest&rdquo; became &ldquo;the first culture on Earth.&rdquo; No one's built a clean side-by-side of the world's long-burning fires — Wingen, Jharia, the Brennender Berg — by what's measured versus merely inferred.</p>
+      <p class="lede">Somewhere in the Hunter Valley right now, a two-hundred-year-old newspaper argument is still, technically, unresolved — and about a metre further along than when you started reading this.</p>
+      <div class="sources">Referenced: Trove (National Library of Australia); Rev. C.P.N. Wilton, 1829; William Abbott, &ldquo;Mt. Wingen and the Wingen Coal Measures,&rdquo; 1918; Guillermo Rein, Imperial College London; Cara Cross, &ldquo;Our Country, Our Healer,&rdquo; ANU Press, 2021; the Wonnarua Nation.</div>
+    </section>
+
+  </main>
+
+  <footer class="navbar">
+    <button class="btn" id="backBtn" type="button">Back</button>
+    <button class="btn btn-primary" id="nextBtn" type="button">Next</button>
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var root = document.documentElement;
+  var themeBtn = document.getElementById("themeToggle");
+  var themeMode = "auto";
+  function applyTheme(){
+    if (themeMode === "auto"){ root.removeAttribute("data-theme"); themeBtn.textContent = "🌗"; }
+    else if (themeMode === "dark"){ root.setAttribute("data-theme","dark"); themeBtn.textContent = "🌙"; }
+    else { root.setAttribute("data-theme","light"); themeBtn.textContent = "☀️"; }
+  }
+  themeBtn.addEventListener("click", function(){
+    themeMode = themeMode === "auto" ? "dark" : (themeMode === "dark" ? "light" : "auto");
+    applyTheme();
+  });
+  applyTheme();
+
+  var scenes = Array.prototype.slice.call(document.querySelectorAll(".scene"));
+  var dotsContainer = document.getElementById("dotsContainer");
+  var counterEl = document.getElementById("counterEl");
+  var backBtn = document.getElementById("backBtn");
+  var nextBtn = document.getElementById("nextBtn");
+  var viewport = document.getElementById("viewport");
+  var current = 0;
+
+  scenes.forEach(function(){
+    var d = document.createElement("div");
+    d.className = "dot";
+    dotsContainer.appendChild(d);
+  });
+  var dotEls = Array.prototype.slice.call(dotsContainer.children);
+
+  function render(){
+    scenes.forEach(function(s,i){ s.classList.toggle("is-active", i === current); });
+    dotEls.forEach(function(d,i){ d.classList.toggle("is-current", i === current); });
+    backBtn.disabled = current === 0;
+    nextBtn.textContent = (current === scenes.length - 1) ? "Restart ↺" : "Next →";
+    counterEl.textContent = (current + 1) + " of " + scenes.length;
+    viewport.scrollTop = 0;
+  }
+  backBtn.addEventListener("click", function(){
+    if (current > 0){ current--; render(); }
+  });
+  nextBtn.addEventListener("click", function(){
+    current = (current === scenes.length - 1) ? 0 : current + 1;
+    render();
+  });
+  document.addEventListener("keydown", function(e){
+    if (e.key === "ArrowRight") nextBtn.click();
+    if (e.key === "ArrowLeft") backBtn.click();
+  });
+  render();
+
+  function formatNum(n){
+    return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+
+  var guessSlider = document.getElementById("guessSlider");
+  var guessValue = document.getElementById("guessValue");
+  var lockGuessBtn = document.getElementById("lockGuessBtn");
+  var guessReveal = document.getElementById("guessReveal");
+  var verdictText = document.getElementById("verdictText");
+
+  function sliderToYears(v){
+    return Math.round((1000 * Math.pow(300, v/100)) / 100) * 100;
+  }
+  function updateGuessLabel(){
+    guessValue.textContent = formatNum(sliderToYears(Number(guessSlider.value))) + " years";
+  }
+  function verdictFor(g){
+    if (g < 4000) return "Even the popular (unverified) figure of about 6,000 years beats your guess — and plenty of people think 6,000 is itself too low.";
+    if (g <= 9000) return "You landed almost exactly on the number every article quotes. One catch: that number is a grazier's back-of-envelope guess from 1918, not a measurement.";
+    if (g <= 90000) return "You're already more skeptical than most tourism brochures — right around where the one scientist who's studied this seriously thinks the truth might sit.";
+    return "You're thinking like Guillermo Rein, the fire scientist who calls 6,000 years \u201ca floor, not an answer.\u201d Nobody can confirm your number either — that's really the point.";
+  }
+  guessSlider.addEventListener("input", updateGuessLabel);
+  lockGuessBtn.addEventListener("click", function(){
+    var years = sliderToYears(Number(guessSlider.value));
+    verdictText.textContent = verdictFor(years);
+    guessReveal.classList.add("shown");
+    lockGuessBtn.disabled = true;
+    guessSlider.disabled = true;
+  });
+  updateGuessLabel();
+
+  var speedSlider = document.getElementById("speedSlider");
+  var distSlider = document.getElementById("distSlider");
+  var speedVal = document.getElementById("speedVal");
+  var distVal = document.getElementById("distVal");
+  var impliedYearsEl = document.getElementById("impliedYears");
+  var impliedCompareEl = document.getElementById("impliedCompare");
+  var scarRect = document.getElementById("scarRect");
+  var emberDot = document.getElementById("emberDot");
+  var emberGlow = document.getElementById("emberGlow");
+  var resetModelBtn = document.getElementById("resetModelBtn");
+
+  var SCAR_X0 = 30;
+  var WPX_MIN = 40, WPX_MAX = 260;
+
+  function compareText(years){
+    if (years <= 2500) return "Faster than the mountain's own current pace really supports.";
+    if (years <= 9500) return "This is essentially Abbott's 1918 number.";
+    if (years <= 60000) return "Past the popular claim — into territory Rein won't rule out.";
+    return "Six-figure territory now — the scale of Rein's \u201ccould be hundreds of thousands\u201d hunch.";
+  }
+
+  function updateModel(){
+    var speed = Number(speedSlider.value);
+    var dist = Number(distSlider.value);
+    speedVal.textContent = speed.toFixed(2) + " m/yr";
+    distVal.textContent = dist.toFixed(1) + " km";
+
+    var years = (dist * 1000) / speed;
+    impliedYearsEl.textContent = "Implied age: " + formatNum(years) + " years";
+    impliedCompareEl.textContent = compareText(years);
+
+    var wpx = WPX_MIN + ((dist - 4) / (9 - 4)) * (WPX_MAX - WPX_MIN);
+    scarRect.setAttribute("width", wpx.toFixed(1));
+    var cx = SCAR_X0 + wpx;
+    emberDot.setAttribute("cx", cx.toFixed(1));
+    emberGlow.setAttribute("cx", cx.toFixed(1));
+
+    var dur = Math.max(0.4, Math.min(3, 2.6 / speed));
+    emberDot.style.animationDuration = dur.toFixed(2) + "s";
+    emberGlow.style.animationDuration = dur.toFixed(2) + "s";
+  }
+  speedSlider.addEventListener("input", updateModel);
+  distSlider.addEventListener("input", updateModel);
+  resetModelBtn.addEventListener("click", function(){
+    speedSlider.value = 1;
+    distSlider.value = 6.5;
+    updateModel();
+  });
+  updateModel();
+
+  var flipCards = document.querySelectorAll(".flip-card");
+  flipCards.forEach(function(card){
+    card.setAttribute("tabindex", "0");
+    card.setAttribute("role", "button");
+    var front = card.querySelector(".flip-front .flip-text");
+    if (front) card.setAttribute("aria-label", "Flip card: " + front.textContent.trim());
+    function toggle(){ card.classList.toggle("is-flipped"); }
+    card.addEventListener("click", toggle);
+    card.addEventListener("keydown", function(e){
+      if (e.key === "Enter" || e.key === " "){ e.preventDefault(); toggle(); }
+    });
+  });
+
+  var wonnaruaToggle = document.getElementById("wonnaruaToggle");
+  var wonnaruaStory = document.getElementById("wonnaruaStory");
+  wonnaruaToggle.addEventListener("click", function(){
+    var isHidden = wonnaruaStory.hasAttribute("hidden");
+    if (isHidden){
+      wonnaruaStory.removeAttribute("hidden");
+      wonnaruaToggle.textContent = "Hide the Wonnarua origin story ▴";
+    } else {
+      wonnaruaStory.setAttribute("hidden", "");
+      wonnaruaToggle.textContent = "How the Wonnarua tell the fire's origin ▾";
+    }
+  });
+
+  var QUIZ = [
+    {
+      q: "Who first published the \u201c6,000 years\u201d figure for Burning Mountain?",
+      options: [
+        "A team of geologists, in a peer-reviewed journal",
+        "A grazier named William Abbott, in a 1918 book",
+        "Reverend Charles Wilton, in 1829",
+        "The Wonnarua Nation's oral history"
+      ],
+      correct: 1,
+      explain: "Abbott paced the 6.5km scar and divided by an assumed 1 metre/year. No dating method, no peer review — just one man's arithmetic in a self-published book."
+    },
+    {
+      q: "What does fire scientist Guillermo Rein actually claim?",
+      options: [
+        "6,000 years is precisely correct",
+        "The fire is much younger than 6,000 years",
+        "6,000 years is a floor — the real age could be far higher",
+        "The fire's age is unknowable and not worth discussing"
+      ],
+      correct: 2,
+      explain: "Rein isn't saying Abbott was wrong — he's saying 6,000 is the least it could be. Speed depends on coal thickness, oxygen and ground cover, all of which vary along the scar. His 'hundreds of thousands' is an informed hunch, not a published figure either."
+    },
+    {
+      q: "What was happening at Burning Mountain before 1828?",
+      options: [
+        "Nothing — the site was untouched",
+        "Wonnarua people were grinding its sulphur and alum into medicine",
+        "It was a dormant, unremarkable hill",
+        "European colonists were already mining it"
+      ],
+      correct: 1,
+      explain: "\u201cDiscovered in 1828\u201d just means \u201cnoticed by a colonial farmhand.\u201d Wonnarua women worked the mountain's vents for sulphur and alum, feeding a trade network — among the earliest documented medicinal use of either mineral anywhere, per a 2021 study."
+    }
+  ];
+  var quizIndex = 0, quizScore = 0, quizAnswered = false;
+  var quizProgress = document.getElementById("quizProgress");
+  var quizQuestion = document.getElementById("quizQuestion");
+  var quizOptions = document.getElementById("quizOptions");
+  var quizFeedback = document.getElementById("quizFeedback");
+  var quizContinueBtn = document.getElementById("quizContinueBtn");
+  var quizDone = document.getElementById("quizDone");
+  var quizScoreVal = document.getElementById("quizScoreVal");
+
+  function renderQuiz(){
+    var item = QUIZ[quizIndex];
+    quizAnswered = false;
+    quizProgress.textContent = "Question " + (quizIndex + 1) + " of " + QUIZ.length;
+    quizQuestion.textContent = item.q;
+    quizOptions.innerHTML = "";
+    quizFeedback.hidden = true;
+    quizContinueBtn.hidden = true;
+    quizDone.hidden = true;
+
+    item.options.forEach(function(opt, i){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "choice-btn";
+      b.textContent = opt;
+      b.addEventListener("click", function(){ selectAnswer(i); });
+      quizOptions.appendChild(b);
+    });
+  }
+  function selectAnswer(i){
+    if (quizAnswered) return;
+    quizAnswered = true;
+    var item = QUIZ[quizIndex];
+    var buttons = quizOptions.querySelectorAll(".choice-btn");
+    buttons.forEach(function(b, idx){
+      b.disabled = true;
+      if (idx === item.correct) b.classList.add("is-correct");
+      else if (idx === i) b.classList.add("is-incorrect");
+    });
+    if (i === item.correct) quizScore++;
+    quizFeedback.hidden = false;
+    quizFeedback.textContent = (i === item.correct ? "Right. " : "Not quite. ") + item.explain;
+
+    if (quizIndex < QUIZ.length - 1){
+      quizContinueBtn.hidden = false;
+    } else {
+      quizScoreVal.textContent = quizScore;
+      quizDone.hidden = false;
+    }
+  }
+  quizContinueBtn.addEventListener("click", function(){
+    quizIndex++;
+    renderQuiz();
+  });
+  renderQuiz();
+
+  var stanceBtns = document.querySelectorAll(".stance-btn");
+  var stanceAck = document.getElementById("stanceAck");
+  var framingPanel = document.getElementById("framingPanel");
+  var STANCE_ACK = [
+    "Maybe — and nobody's disproven it. But \u201cnot disproven\u201d isn't the same as \u201cconfirmed.\u201d",
+    "Close to what actually happened: for over a century, almost nobody with the right tools looked hard.",
+    "This essay's own writer would bet on this one too."
+  ];
+  stanceBtns.forEach(function(btn, i){
+    btn.addEventListener("click", function(){
+      stanceBtns.forEach(function(b){ b.classList.remove("is-selected"); });
+      btn.classList.add("is-selected");
+      stanceAck.textContent = STANCE_ACK[i];
+      stanceAck.classList.add("shown");
+      framingPanel.classList.add("shown");
+    });
+  });
+
+})();
+</script>

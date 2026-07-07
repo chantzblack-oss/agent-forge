@@ -15,5 +15,22 @@
       "The 2010/2013 dispute was fought entirely with assumption-sensitive models that can't agree on the transfer's sign. Is there a way to estimate it directly from real transaction and pricing data instead?",
       "Australia (cap the fee, ban the surcharge) and the U.S. (legalize the surcharge, leave the fee alone) are running opposite bets on the same problem starting the same year. Which actually shrinks the transfer more — and does either one do anything for the unbanked households sitting outside the mechanism entirely?"
     ]
+  },
+  {
+    "date": "2026-07-07",
+    "topic": "The Reef With an Insurance Policy",
+    "tags": [
+      "insurance",
+      "policy",
+      "insuring",
+      "coral",
+      "mexico"
+    ],
+    "file": "explorations/20260707-the-reef-with-an-insurance-policy.md",
+    "threads": [
+      "Has anyone retuned the Puerto Morelos-specific payout tiers against brigade throughput, the way WTW reportedly did for the Belize sister-policy after Hurricane Lisa — or is the original 2018/2019 wind-mortality calibration still setting today's thresholds?",
+      "Did Hurricane Grace cause reef damage in 2021 that went uncompensated? A post-storm damage assessment checked against the wind-speed record could actually settle whether that non-payout was basis risk or correct calibration — nobody seems to have run it yet.",
+      "The Maldives sea-surface-temperature pilot is the first real attempt at a \"dosimeter\" trigger for reefs. Can a cumulative-exposure instrument pay out fast and cheap enough to function the way the wind trigger does, or does insuring a slope instead of a spike break the economics that make parametric coral insurance work at all?"
+    ]
   }
 ]

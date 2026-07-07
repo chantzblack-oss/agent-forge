@@ -143,7 +143,7 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
     provider = get_provider("anthropic")
     raw = provider.complete(
         system=system, user=f"Essay:\n\n{essay}",
-        model=WRITER_MODEL, max_tokens=24000,
+        model=WRITER_MODEL, max_tokens=16000,
     )
     scenes = _parse_scenes(raw)
     if scenes:
@@ -159,7 +159,7 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
               f"fences, no commentary, starting with '[' and ending with ']'. "
               f"Keep the visual diagrams, but each svg must be a SINGLE "
               f"line and no string may contain raw newlines."),
-        model=WRITER_MODEL, max_tokens=24000,
+        model=WRITER_MODEL, max_tokens=16000,
     )
     return _parse_scenes(raw2)
 

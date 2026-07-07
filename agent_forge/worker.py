@@ -144,6 +144,32 @@ async def cmd_surprise(update, context):
     await _deliver_video(context, chat, vid["path"], f"✨ {dive['title']}{tag}")
 
 
+async def cmd_diag(update, context):
+    """Run the Anthropic selfcheck and reply with the raw result — no log
+    digging needed."""
+    if not _ok(update):
+        return
+    chat = update.effective_chat.id
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    head = key[:14] + "…" if key else "(missing)"
+    await context.bot.send_message(
+        chat, f"key: {head} len={len(key)}\ntesting a live call…")
+
+    def _test() -> str:
+        try:
+            from .providers import get_provider
+            out = get_provider("anthropic").complete(
+                system="Reply with exactly: ok", user="ping",
+                model="claude-sonnet-5", max_tokens=2048,
+            )
+            return f"✅ WORKS — reply: {out[:60]}"
+        except Exception as e:
+            return f"❌ {type(e).__name__}: {str(e)[:600]}"
+
+    result = await _run_blocking(_test)
+    await context.bot.send_message(chat, result)
+
+
 async def cmd_feed(update, context):
     if not _ok(update):
         return
@@ -179,7 +205,7 @@ def _selfcheck() -> None:
         from .providers import get_provider
         out = get_provider("anthropic").complete(
             system="Reply with exactly: ok", user="ping",
-            model="haiku", max_tokens=16,
+            model="haiku", max_tokens=2048,
         )
         log.info("selfcheck: Anthropic reachable, reply=%r", out[:40])
     except Exception:
@@ -241,6 +267,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("teach", cmd_teach))
     app.add_handler(CommandHandler("surprise", cmd_surprise))
+    app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(CommandHandler("feed", cmd_feed))
     app.add_handler(CommandHandler("play", cmd_play))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))

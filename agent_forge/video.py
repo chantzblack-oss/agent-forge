@@ -37,7 +37,7 @@ from .explorer import EXPLORATIONS_DIR, WRITER_MODEL
 
 W, H = 1080, 1920          # vertical, phone-native
 FPS = 30
-VOICE = os.environ.get("FORGE_TTS_VOICE", "en-US-GuyNeural")
+VOICE = os.environ.get("FORGE_TTS_VOICE", "en-US-AndrewMultilingualNeural")
 
 
 def _ffmpeg() -> str:
@@ -65,8 +65,9 @@ _SCRIPT_SYSTEM = (
     "cannot contain raw newlines). Design real diagrams: graphs with labeled nodes, "
     "timelines, before/after, flows with arrows, simple scene illustrations. "
     "Palette on dark: ink #eaf3f2, accent #ff7a5e, accent2 #35c2d6, "
-    "muted #5d7a84. Text >= 26px. Aim for a visual on at least half the "
-    "scenes; omit the key (or null) when typography alone is stronger.\n"
+    "muted #5d7a84. Text >= 26px. A visual is REQUIRED on every scene that "
+    "explains a mechanism, number, comparison, or sequence — typography-only "
+    "is acceptable only for pure emotional beats (max 3 per video).\n"
     "- Every fact/number must come from the essay; where it hedges, hedge.\n"
     "- Build momentum; end on the essay's most mind-bending point, then one "
     "closing beat that names the open question.\n"
@@ -143,8 +144,8 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
         user=(f"Essay:\n\n{essay}\n\nYour previous output could not be "
               f"parsed as JSON. Output ONLY the raw JSON array — no code "
               f"fences, no commentary, starting with '[' and ending with ']'. "
-              f'Set "visual" to null for every scene (no SVG this time), '
-              f"and ensure no string contains raw newlines."),
+              f"Keep the visual diagrams, but each svg must be a SINGLE "
+              f"line and no string may contain raw newlines."),
         model=WRITER_MODEL, max_tokens=8000,
     )
     return _parse_scenes(raw2)
@@ -160,12 +161,18 @@ def synth(text: str, out_mp3: Path) -> bool:
         os.environ.setdefault("SSL_CERT_FILE", "/root/.ccr/ca-bundle.crt")
         proxy = os.environ.get("HTTPS_PROXY")
 
-        async def _go():
-            c = edge_tts.Communicate(text, VOICE, proxy=proxy)
+        async def _go(voice):
+            c = edge_tts.Communicate(text, voice, rate="+4%", proxy=proxy)
             await c.save(str(out_mp3))
 
-        asyncio.run(_go())
-        return out_mp3.exists() and out_mp3.stat().st_size > 0
+        for voice in (VOICE, "en-US-GuyNeural"):
+            try:
+                asyncio.run(_go(voice))
+                if out_mp3.exists() and out_mp3.stat().st_size > 0:
+                    return True
+            except Exception:
+                continue
+        return False
     except Exception:
         return False
 
@@ -181,19 +188,29 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  html,body{{margin:0;width:{w}px;height:{h}px;overflow:hidden}}
  body{{background:radial-gradient(120% 90% at 50% 12%,#12333f,#06141b 70%);
    color:#eaf3f2;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-   display:flex;flex-direction:column;justify-content:center;padding:110px 96px;box-sizing:border-box}}
- .kicker{{color:#ff7a5e;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:34px;margin-bottom:36px}}
+   display:flex;flex-direction:column;justify-content:center;padding:110px 96px;box-sizing:border-box;position:relative}}
+ .orb{{position:absolute;top:-260px;right:-260px;width:680px;height:680px;border-radius:50%;
+   background:radial-gradient(circle at 35% 35%,rgba(53,194,214,.20),rgba(53,194,214,0) 65%)}}
+ .orb2{{position:absolute;bottom:-320px;left:-280px;width:760px;height:760px;border-radius:50%;
+   background:radial-gradient(circle at 60% 40%,rgba(255,122,94,.13),rgba(255,122,94,0) 65%)}}
+ .bignum{{position:absolute;top:44px;left:96px;font-size:150px;font-weight:800;
+   color:rgba(53,194,214,.10);letter-spacing:-.04em;line-height:1}}
+ .kicker{{color:#ff7a5e;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:34px;margin-bottom:30px}}
  .headline{{font-weight:800;font-size:{hlsize}px;line-height:1.05;letter-spacing:-.02em}}
  .accent{{color:#35c2d6}}
- .viz{{margin-top:64px}}
- .viz svg{{width:100%;height:auto;display:block}}
+ .caption{{margin-top:44px;font-size:36px;line-height:1.5;color:#a7c2c9;max-width:860px}}
+ .viz{{margin-top:56px}}
+ .viz svg{{width:100%;height:auto;display:block;max-height:640px}}
  .n{{position:absolute;top:70px;right:96px;color:#3f5a63;font-size:30px;font-weight:700}}
  .bar{{position:absolute;left:96px;bottom:120px;height:8px;width:{barw}px;background:#ff7a5e;border-radius:99px}}
 </style></head><body>
+ <div class=orb></div><div class=orb2></div>
+ <div class=bignum>{idx:02d}</div>
  <div class=n>{idx} / {total}</div>
  <div class=kicker>{kicker}</div>
  <div class=headline>{headline}</div>
  {viz}
+ <div class=caption>{caption}</div>
  <div class=bar></div>
 </body></html>"""
 
@@ -216,12 +233,16 @@ def _safe_visual(scene: dict) -> str:
 def _scene_html(scene: dict, idx: int, total: int) -> str:
     hl = (scene["headline"].replace("<", "&lt;"))
     viz = _safe_visual(scene)
+    caption = scene.get("narration", "").replace("<", "&lt;")
+    if len(caption) > 240:
+        caption = caption[:237] + "…"
     return _SLIDE_TMPL.format(
         w=W, h=H, idx=idx, total=total, barw=int(880 * idx / total),
         kicker=scene.get("kicker", "").replace("<", "&lt;"),
         headline=hl,
-        hlsize=76 if viz else 96,   # smaller headline when a diagram shares the frame
+        hlsize=72 if viz else 92,   # smaller headline when a diagram shares the frame
         viz=viz,
+        caption=caption,
     )
 
 
@@ -266,7 +287,7 @@ def _clip(ff: str, png: Path, dur: float, out: Path, audio: Path | None) -> None
     frames = max(1, int(dur * FPS))
     vf = (f"scale={W}:{H},zoompan=z='min(zoom+0.0006,1.10)':"
           f"d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H},"
-          f"format=yuv420p")
+          f"fade=t=in:st=0:d=0.35,format=yuv420p")
     cmd = [ff, "-y", "-loop", "1", "-i", str(png)]
     if audio:
         cmd += ["-i", str(audio)]

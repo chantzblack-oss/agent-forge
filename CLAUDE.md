@@ -19,6 +19,24 @@ Optimize for that.
   what would change your mind. No option-listing without a verdict.
 - **Push back by default.** Flag what Chantz might be wrong about, unprompted.
 
+## Exploration engine (Chantz's primary use — forge.py)
+
+The exploration engine is the main event. Standing preferences:
+
+- **Topic diet: total surprise.** Let `surprise` / `queue` roam anywhere —
+  science, history, money, tech, the weird. Do NOT constrain to a theme or
+  to Chantz's work unless asked in the moment. The menu's obscurity test is
+  load-bearing: never pick topics a mainstream explainer already covered.
+- **Depth: deep & fewer.** Default to full opus dives with the scout pass
+  (the reef-level quality), NOT `--fast`. Fewer, richer episodes beat a
+  stream of shallow ones.
+- **Always compile interactive** (`-i`) and **deliver as an inline preview
+  card** via SendUserFile `display:"render"` — that is the ONLY channel that
+  renders on Chantz's phone. Raw .html file downloads open blank; hosted
+  Artifacts were unreliable. Inline render card works.
+- A full deep dive+compile takes ~30-40 min; run it in the background and
+  deliver when done. Use `queue` to batch several overnight.
+
 ## Choosing the machinery
 
 - Factual / research questions → prefer `/deep-research` (multi-agent,

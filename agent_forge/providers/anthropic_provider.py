@@ -128,12 +128,12 @@ class AnthropicProvider(Provider):
             "tools": self._tools(),
         }
         if self._enable_thinking:
-            # Anthropic API rule: when extended thinking is on, temperature
-            # must be exactly 1.0 (or omitted, which defaults to 1.0).
-            kwargs["thinking"] = {
-                "type": "enabled",
-                "budget_tokens": _thinking_budget(max_tokens),
-            }
+            # Claude 4.6+ models use adaptive thinking; the old
+            # {"type": "enabled", "budget_tokens": N} form is rejected with a
+            # 400 on Sonnet 5 / Opus 4.7+. Depth is controlled by
+            # output_config.effort instead of a token budget.
+            kwargs["thinking"] = {"type": "adaptive"}
+            kwargs["output_config"] = {"effort": "high"}
         return kwargs
 
     # ── tools ────────────────────────────────────────────

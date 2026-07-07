@@ -389,6 +389,32 @@ def cmd_play(args) -> int:
     return 0
 
 
+def cmd_restock(args) -> int:
+    """Discover fresh real-world topics via web search, then dive them into
+    the feed. This is the feed's restocker."""
+    if not _require_claude():
+        return 2
+    from agent_forge import sources, explorer
+    from agent_forge.cards import compile_deck  # noqa: F401 (kept for parity)
+
+    avoid = [e.get("topic", "") for e in explorer.load_journal()]
+    console.print(f"  [bold {ACCENT}]⟳ Restock[/]  discovering {args.n} fresh topics via web search…")
+    cands = sources.discover(n=args.n, avoid=avoid)
+    if not cands:
+        console.print("  [red]discovery returned nothing[/]")
+        return 1
+    console.print(f"  found {len(cands)} candidates:")
+    for c in cands:
+        console.print(f"    • [{c['field']}] [bold]{c['title']}[/] — {c['hook']}")
+    if args.discover_only:
+        return 0
+    topics = [c["topic"] for c in cands[:args.dive]]
+    console.print(f"
+  diving the top {len(topics)} into the feed…")
+    explorer.queue(topics=topics, on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]"))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="forge",
@@ -458,6 +484,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_play = sub.add_parser("play", help="play a feed item as text")
     p_play.add_argument("n", type=int, help="feed row number")
     p_play.set_defaults(func=cmd_play)
+
+    p_re = sub.add_parser("restock", help="discover real topics via web search and dive them")
+    p_re.add_argument("-n", type=int, default=10, help="candidates to discover")
+    p_re.add_argument("--dive", type=int, default=5, help="how many to actually dive")
+    p_re.add_argument("--discover-only", action="store_true", help="just list candidates")
+    p_re.set_defaults(func=cmd_restock)
 
     return p
 

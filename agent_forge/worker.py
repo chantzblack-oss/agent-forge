@@ -267,13 +267,26 @@ async def _restock_loop(app: Application):
                 await asyncio.sleep(every)
                 continue
             avoid = [e.get("topic", "") for e in _explorer.load_journal()]
-            cands = await _run_blocking(_sources.discover, 3, avoid)
-            if cands:
-                dive = await _run_blocking(_explorer.dive, cands[0]["topic"])
+            cands = await _run_blocking(_sources.discover, 4, avoid)
+            # Curator-first: recommend existing great coverage (pennies);
+            # GENERATE only for a topic nothing good covers (the gap).
+            links = [c for c in cands if c.get("best_existing")]
+            gaps = [c for c in cands if not c.get("best_existing")]
+            for c in links[:2]:
+                b = c["best_existing"]
+                msg = (f"\U0001f4a1 {c['title']}\n{c['hook']}\n\n"
+                       f"Best thing on this already exists — watch/read:\n"
+                       f"{b.get('title','')} — {b.get('creator','')}\n"
+                       f"{b['url']}\n{b.get('why','')}")
+                for uid in _ALLOWED:
+                    await app.bot.send_message(uid, msg)
+            if gaps:
+                dive = await _run_blocking(_explorer.dive, gaps[0]["topic"])
                 vid = await _run_blocking(_video.build_video, dive["path"])
                 for uid in _ALLOWED:
                     await _deliver_video(app.bot, uid, vid["path"],
-                                         f"\U0001f195 {dive['title']}")
+                                         f"\U0001f195 {dive['title']} — "
+                                         "made because nothing good covers this")
         except Exception as e:  # pragma: no cover
             log.warning("restock failed: %s", e)
         await asyncio.sleep(every)

@@ -203,19 +203,35 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
    color:#eaf3f2;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
    display:flex;flex-direction:column;justify-content:center;padding:110px 96px;box-sizing:border-box;position:relative}}
  .orb{{position:absolute;top:-260px;right:-260px;width:680px;height:680px;border-radius:50%;
-   background:radial-gradient(circle at 35% 35%,rgba(53,194,214,.20),rgba(53,194,214,0) 65%)}}
+   background:radial-gradient(circle at 35% 35%,rgba(53,194,214,.20),rgba(53,194,214,0) 65%);
+   animation:drift {dur}s ease-in-out infinite alternate}}
  .orb2{{position:absolute;bottom:-320px;left:-280px;width:760px;height:760px;border-radius:50%;
-   background:radial-gradient(circle at 60% 40%,rgba(255,122,94,.13),rgba(255,122,94,0) 65%)}}
+   background:radial-gradient(circle at 60% 40%,rgba(255,122,94,.13),rgba(255,122,94,0) 65%);
+   animation:drift2 {dur}s ease-in-out infinite alternate}}
+ @keyframes drift{{from{{transform:translate(0,0) scale(1)}}to{{transform:translate(-60px,40px) scale(1.08)}}}}
+ @keyframes drift2{{from{{transform:translate(0,0) scale(1)}}to{{transform:translate(50px,-40px) scale(1.06)}}}}
  .bignum{{position:absolute;top:44px;left:96px;font-size:150px;font-weight:800;
-   color:rgba(53,194,214,.10);letter-spacing:-.04em;line-height:1}}
- .kicker{{color:#ff7a5e;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:34px;margin-bottom:30px}}
+   color:rgba(53,194,214,.10);letter-spacing:-.04em;line-height:1;
+   opacity:0;animation:rise .8s .1s ease-out forwards}}
+ .kicker{{color:#ff7a5e;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:34px;margin-bottom:30px;
+   opacity:0;animation:rise .6s .15s ease-out forwards}}
  .headline{{font-weight:800;font-size:{hlsize}px;line-height:1.05;letter-spacing:-.02em}}
+ .headline .w{{display:inline-block;opacity:0;transform:translateY(26px);
+   animation:wordin .55s ease-out forwards}}
+ @keyframes wordin{{to{{opacity:1;transform:none}}}}
  .accent{{color:#35c2d6}}
- .caption{{margin-top:44px;font-size:36px;line-height:1.5;color:#a7c2c9;max-width:860px}}
- .viz{{margin-top:56px}}
+ .caption{{margin-top:44px;font-size:36px;line-height:1.5;color:#a7c2c9;max-width:860px;
+   opacity:0;animation:rise .8s {capdelay}s ease-out forwards}}
+ .viz{{margin-top:56px;opacity:0;animation:rise .8s {vizdelay}s ease-out forwards}}
  .viz svg{{width:100%;height:auto;display:block;max-height:640px}}
- .n{{position:absolute;top:70px;right:96px;color:#3f5a63;font-size:30px;font-weight:700}}
- .bar{{position:absolute;left:96px;bottom:120px;height:8px;width:{barw}px;background:#ff7a5e;border-radius:99px}}
+ .viz svg > *{{opacity:0;animation:vizin .5s ease-out forwards}}
+ @keyframes vizin{{to{{opacity:1}}}}
+ @keyframes rise{{from{{opacity:0;transform:translateY(22px)}}to{{opacity:1;transform:none}}}}
+ .n{{position:absolute;top:70px;right:96px;color:#3f5a63;font-size:30px;font-weight:700;
+   opacity:0;animation:rise .6s .2s ease-out forwards}}
+ .bar{{position:absolute;left:96px;bottom:120px;height:8px;background:#ff7a5e;border-radius:99px;
+   width:0;animation:grow {dur}s linear forwards}}
+ @keyframes grow{{to{{width:{barw}px}}}}
 </style></head><body>
  <div class=orb></div><div class=orb2></div>
  <div class=bignum>{idx:02d}</div>
@@ -225,6 +241,12 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  {viz}
  <div class=caption>{caption}</div>
  <div class=bar></div>
+ <script>
+  // stagger svg children so diagrams draw themselves in
+  document.querySelectorAll('.viz svg > *').forEach(function(el, i) {{
+    el.style.animationDelay = ({vizdelay} + 0.15 + i * 0.22) + 's';
+  }});
+ </script>
 </body></html>"""
 
 
@@ -243,8 +265,11 @@ def _safe_visual(scene: dict) -> str:
     return f'<div class="viz">{svg}</div>'
 
 
-def _scene_html(scene: dict, idx: int, total: int) -> str:
-    hl = (scene["headline"].replace("<", "&lt;"))
+def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
+    words = scene["headline"].replace("<", "&lt;").split()
+    hl = " ".join(
+        f'<span class="w" style="animation-delay:{0.25 + i * 0.09:.2f}s">{w}</span>'
+        for i, w in enumerate(words))
     viz = _safe_visual(scene)
     caption = scene.get("narration", "").replace("<", "&lt;")
     if len(caption) > 240:
@@ -256,6 +281,9 @@ def _scene_html(scene: dict, idx: int, total: int) -> str:
         hlsize=72 if viz else 92,   # smaller headline when a diagram shares the frame
         viz=viz,
         caption=caption,
+        dur=max(dur, 3.0),
+        vizdelay=0.9,
+        capdelay=1.3,
     )
 
 
@@ -265,50 +293,54 @@ _LOWMEM_ARGS = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
                 "--renderer-process-limit=1", "--no-zygote", "--single-process"]
 
 
-def _render_all_stills(scenes: list[dict], workdir: Path, say) -> list[Path]:
-    """Render every scene still in ONE low-memory browser session, then close
-    it completely before any ffmpeg work starts (peak-memory discipline)."""
+def _record_scenes(scenes: list[dict], durs: list[float],
+                   workdir: Path, say) -> list[Path]:
+    """Record each scene as ANIMATED video (CSS motion design captured from a
+    real browser) in one low-memory browser, fully closed before ffmpeg."""
     from playwright.sync_api import sync_playwright
     total = len(scenes)
-    pngs: list[Path] = []
+    webms: list[Path] = []
     exe = "/opt/pw-browsers/chromium"
     with sync_playwright() as p:
         b = p.chromium.launch(
             executable_path=exe if os.path.exists(exe) else None,
             args=_LOWMEM_ARGS)
-        pg = b.new_page(viewport={"width": W, "height": H})
-        for i, sc in enumerate(scenes, 1):
-            say(f"scene {i}/{total}: {sc['headline']}")
+        for i, (sc, dur) in enumerate(zip(scenes, durs), 1):
+            say(f"animating {i}/{total}: {sc['headline']}")
+            ctx = b.new_context(
+                viewport={"width": W, "height": H},
+                record_video_dir=str(workdir / f"rec{i:02d}"),
+                record_video_size={"width": W, "height": H})
+            pg = ctx.new_page()
             with tempfile.NamedTemporaryFile(
                     "w", suffix=".html", delete=False, encoding="utf-8") as f:
-                f.write(_scene_html(sc, i, total))
+                f.write(_scene_html(sc, i, total, dur))
                 htmlpath = f.name
             pg.goto("file://" + htmlpath)
-            pg.wait_for_timeout(150)
-            png = workdir / f"s{i:02d}.png"
-            pg.screenshot(path=str(png))
-            pngs.append(png)
+            pg.wait_for_timeout(int(dur * 1000))
+            ctx.close()  # finalizes the recording
             os.unlink(htmlpath)
+            vids = list((workdir / f"rec{i:02d}").glob("*.webm"))
+            if not vids:
+                raise RuntimeError(f"scene {i} recording missing")
+            webms.append(vids[0])
         b.close()
-    return pngs
+    return webms
 
 
 # ── 4. assemble ──────────────────────────────────────────
 
-def _clip(ff: str, png: Path, dur: float, out: Path, audio: Path | None) -> None:
-    # Ken Burns slow zoom over the still.
-    frames = max(1, int(dur * FPS))
-    vf = (f"scale={W}:{H},zoompan=z='min(zoom+0.0006,1.10)':"
-          f"d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H},"
-          f"fade=t=in:st=0:d=0.35,format=yuv420p")
-    cmd = [ff, "-y", "-loop", "1", "-i", str(png)]
+def _clip(ff: str, webm: Path, dur: float, out: Path, audio: Path | None) -> None:
+    # Transcode the recorded animation to h264 and lay the narration under it.
+    cmd = [ff, "-y", "-i", str(webm)]
     if audio:
         cmd += ["-i", str(audio)]
-    cmd += ["-t", f"{dur:.2f}", "-r", str(FPS), "-vf", vf,
+    cmd += ["-t", f"{dur:.2f}", "-r", str(FPS),
+            "-vf", f"scale={W}:{H},fade=t=in:st=0:d=0.25,format=yuv420p",
             "-threads", "1",
             "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p"]
     if audio:
-        cmd += ["-c:a", "aac", "-b:a", "192k", "-shortest"]
+        cmd += ["-c:a", "aac", "-b:a", "160k"]
     cmd += [str(out)]
     subprocess.run(cmd, check=True, capture_output=True)
 
@@ -327,24 +359,29 @@ def build_video(md_path: str | Path, on_progress=None,
 
     work = Path(tempfile.mkdtemp(prefix="forge_video_"))
     ff = _ffmpeg()
-    # Phase 1: all stills in one browser session, fully closed before ffmpeg
-    # ever runs — Chromium and ffmpeg together exceed a 512MB instance.
-    pngs = _render_all_stills(scenes, work, say)
-    clips: list[Path] = []
-    narrated = 0
     total = len(scenes)
+    # Phase 1: narration first — scene durations come from the audio.
+    mp3s: list[Path | None] = []
+    durs: list[float] = []
+    narrated = 0
     for i, sc in enumerate(scenes, 1):
-        say(f"encoding {i}/{total}")
-        png = pngs[i - 1]
+        say(f"narrating {i}/{total}")
         mp3 = work / f"s{i:02d}.mp3"
-        has_audio = synth(sc["narration"], mp3)
-        narrated += 1 if has_audio else 0
-        if has_audio:
-            dur = _audio_dur(ff, mp3) + 0.4
+        if synth(sc["narration"], mp3):
+            narrated += 1
+            mp3s.append(mp3)
+            durs.append(_audio_dur(ff, mp3) + 0.4)
         else:
-            dur = _reading_seconds(sc["narration"])
-        clip = work / f"c{i:02d}.mp4"
-        _clip(ff, png, dur, clip, mp3 if has_audio else None)
+            mp3s.append(None)
+            durs.append(_reading_seconds(sc["narration"]))
+    # Phase 2: record animated scenes (one browser, closed before ffmpeg).
+    webms = _record_scenes(scenes, durs, work, say)
+    # Phase 3: mux narration under each animation.
+    clips: list[Path] = []
+    for i in range(total):
+        say(f"encoding {i + 1}/{total}")
+        clip = work / f"c{i + 1:02d}.mp4"
+        _clip(ff, webms[i], durs[i], clip, mp3s[i])
         clips.append(clip)
 
     say("stitching…")

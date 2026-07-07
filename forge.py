@@ -414,6 +414,21 @@ def cmd_restock(args) -> int:
     return 0
 
 
+def cmd_video(args) -> int:
+    """Compile a dive .md into a narrated (host) or silent-captioned (sandbox) MP4."""
+    if not _require_claude():
+        return 2
+    from agent_forge.video import build_video
+    try:
+        r = build_video(args.md, on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]"))
+    except Exception as e:
+        console.print(f"  [red]video failed:[/] {e}")
+        return 1
+    voice = "narrated" if r["voiced"] else "SILENT (no TTS here — voice needs a host)"
+    console.print(f"  [bold green]✓ {r['scenes']}-scene video ({voice}):[/] {r['path']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="forge",
@@ -489,6 +504,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_re.add_argument("--dive", type=int, default=5, help="how many to actually dive")
     p_re.add_argument("--discover-only", action="store_true", help="just list candidates")
     p_re.set_defaults(func=cmd_restock)
+
+    p_vid = sub.add_parser("video", help="compile a dive .md into an MP4 (narrated on a host)")
+    p_vid.add_argument("md", help="path to explorations/*.md")
+    p_vid.set_defaults(func=cmd_video)
 
     return p
 

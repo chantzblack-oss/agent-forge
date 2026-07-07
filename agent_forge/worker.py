@@ -214,9 +214,22 @@ async def _restock_loop(app: Application):
         await asyncio.sleep(every)
 
 
+def _sanitize_env() -> None:
+    """Strip stray whitespace/newlines that sneak in when secrets are pasted
+    into dashboard forms (a leading \\n in an API key makes every HTTP
+    request die with 'Illegal header value')."""
+    for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS",
+              "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY",
+              "FORGE_TTS_VOICE"):
+        v = os.environ.get(k)
+        if v is not None and v != v.strip():
+            os.environ[k] = v.strip()
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+    _sanitize_env()
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         raise SystemExit("TELEGRAM_BOT_TOKEN not set")

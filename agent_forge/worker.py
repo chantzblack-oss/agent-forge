@@ -222,8 +222,11 @@ def _sanitize_env() -> None:
               "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY",
               "FORGE_TTS_VOICE"):
         v = os.environ.get(k)
-        if v is not None and v != v.strip():
-            os.environ[k] = v.strip()
+        if v is None:
+            continue
+        cleaned = v.strip().strip("'\"").strip()
+        if cleaned != v:
+            os.environ[k] = cleaned
 
 
 def main() -> None:

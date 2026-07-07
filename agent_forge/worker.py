@@ -160,6 +160,13 @@ async def cmd_play(update, context):
 
 # ── background auto-feed ─────────────────────────────────
 
+async def _post_init(app: Application) -> None:
+    """Runs inside the bot's event loop — safe to schedule background tasks."""
+    every = int(os.environ.get("RESTOCK_EVERY", "0"))
+    if every and _ALLOWED:
+        asyncio.create_task(_restock_loop(app))
+
+
 async def _restock_loop(app: Application):
     every = int(os.environ.get("RESTOCK_EVERY", "0"))
     if not every or not _ALLOWED:
@@ -187,9 +194,7 @@ def main() -> None:
     if not token:
         raise SystemExit("TELEGRAM_BOT_TOKEN not set")
 
-    app = Application.builder().token(token).post_init(
-        lambda a: a.create_task(_restock_loop(a))
-    ).build()
+    app = Application.builder().token(token).post_init(_post_init).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("teach", cmd_teach))
     app.add_handler(CommandHandler("surprise", cmd_surprise))

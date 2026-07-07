@@ -127,13 +127,11 @@ class AnthropicProvider(Provider):
             "messages": [{"role": "user", "content": user}],
             "tools": self._tools(),
         }
-        if self._enable_thinking:
-            # Claude 4.6+ models use adaptive thinking; the old
-            # {"type": "enabled", "budget_tokens": N} form is rejected with a
-            # 400 on Sonnet 5 / Opus 4.7+. Depth is controlled by
-            # output_config.effort instead of a token budget.
-            kwargs["thinking"] = {"type": "adaptive"}
-            kwargs["output_config"] = {"effort": "high"}
+        # Thinking config is intentionally NOT sent. Its accepted form differs
+        # by model generation (older models want {"type":"enabled",
+        # budget_tokens}; 4.6+ want {"type":"adaptive"}; some reject adaptive),
+        # and any mismatch is a hard 400. Omitting it works on every model and
+        # doesn't hurt content-generation quality. Depth is steered by prompts.
         return kwargs
 
     # ── tools ────────────────────────────────────────────

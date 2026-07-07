@@ -1,0 +1,36 @@
+# Agent Forge — learning-feed worker (narrated video + Telegram delivery).
+#
+# Built on the official Playwright Python image so Chromium and all its system
+# libraries are already present (the video engine renders scenes with it).
+# ffmpeg comes from the pip-bundled imageio-ffmpeg binary — no apt needed.
+#
+# Build:  docker build -f deploy/Dockerfile.worker -t forge-worker .
+# Run:    docker run --env-file .env forge-worker
+#
+# Required env (see deploy/.env.worker.example):
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_ALLOWED_USERS,
+#   ANTHROPIC_API_KEY (+ GEMINI_API_KEY / OPENAI_API_KEY as used),
+#   RESTOCK_EVERY (seconds; 0 = no auto-feed)
+
+FROM mcr.microsoft.com/playwright/python:v1.47.0-jammy
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+WORKDIR /app
+
+RUN pip install --upgrade pip && pip install \
+    "rich>=13.0.0" \
+    "edge-tts>=7.0.0" \
+    "imageio-ffmpeg>=0.5.1" \
+    "anthropic>=0.40.0" \
+    "google-genai>=1.0.0" \
+    "openai>=1.50.0" \
+    "python-telegram-bot>=21.0"
+
+COPY agent_forge ./agent_forge
+
+# Explorations (the growing library + rendered media) persist on a volume.
+VOLUME ["/app/explorations"]
+
+CMD ["python", "-m", "agent_forge.worker"]

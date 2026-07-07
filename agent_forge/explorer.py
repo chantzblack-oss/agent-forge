@@ -111,6 +111,11 @@ _MENU_SYSTEM = (
     "('the ocean' is bad; 'why the deepest fish have no swim bladders and "
     "what the pressure does to their bodies instead' is good).\n\n"
     "Rules:\n"
+    "- OBSCURITY TEST (most important): if a mainstream podcast or a viral "
+    "explainer has probably covered it, it's too familiar — reach for the "
+    "thing one layer deeper or one field over. Prefer topics where the "
+    "interesting part is NOT a debunk of a famous claim but a mechanism, "
+    "story, or connection the person has likely never encountered at all.\n"
     "- NEVER repeat or closely paraphrase anything in the already-explored "
     "list you are given.\n"
     "- Make 1-2 options adjacent to the most recent explorations (a thread "
@@ -137,13 +142,44 @@ def menu(n: int = 6, topic: str | None = None) -> str:
 
 # ── dive (draft → skeptic → final) ───────────────────────
 
+_SCOUT_SYSTEM = (
+    "You are a research scout for a science/history storyteller. Given a "
+    "topic, use web search to hunt for the material that would surprise "
+    "even a well-read person: the counterintuitive mechanism, the primary-"
+    "source detail everyone omits, the researcher feud, the recent finding "
+    "(last 2-3 years) that changed the picture, the killer concrete number, "
+    "the vivid scene or character the story can hang on. Explicitly SKIP "
+    "what every explainer already says — note it in one line as 'the "
+    "familiar version' and spend your effort beyond it.\n\n"
+    "Output a terse briefing:\n"
+    "FAMILIAR VERSION: one sentence.\n"
+    "SURPRISES: 5-8 bullets, each a specific finding with its source and "
+    "why it's not commonly known.\n"
+    "CHARACTERS & SCENES: 1-3 bullets of vivid, real narrative material.\n"
+    "BEST ANGLE: two sentences — the freshest through-line for an essay.\n"
+    "No prose beyond this briefing."
+)
+
 _DRAFT_SYSTEM = (
     "You write deep-dive explorations for one sharp, curious generalist — "
     "Veritasium/Kurzgesagt register in prose: vivid, concrete, mechanism-"
-    "first, zero filler. 800-1200 words. Structure: a hook, the core story "
-    "or mechanism with specifics (names, dates, numbers where real), and a "
-    "closing 'where this leads'. State facts plainly; you will be fact-"
-    "checked by an adversary, so do not embellish."
+    "first, zero filler. You are given a scout's briefing of surprising "
+    "material; the briefing is your spine — build the essay around the "
+    "SURPRISES and BEST ANGLE, not around the familiar version (compress "
+    "any necessary background to a few sentences).\n\n"
+    "Craft requirements:\n"
+    "- Open on a concrete scene, character, or paradox — never a "
+    "definition.\n"
+    "- Surprise density: something the reader almost certainly didn't know "
+    "in every section; if a paragraph teaches nothing new, cut it.\n"
+    "- Entertain like a great narrator: momentum, stakes, an occasional "
+    "dry aside — but never at the cost of precision.\n"
+    "- Generative, not just reportive: end the body with one section "
+    "connecting this to something from a different field — an original "
+    "'nobody frames it this way' synthesis, clearly flagged as your "
+    "framing rather than established fact.\n"
+    "- 900-1400 words. State facts plainly; you will be fact-checked by "
+    "an adversary, so do not embellish."
 )
 
 _SKEPTIC_SYSTEM = (
@@ -161,7 +197,11 @@ _FINAL_SYSTEM = (
     "Produce the final essay in clean markdown:\n"
     "- Fix or hedge every claim the critique flagged; drop what can't be "
     "defended.\n"
-    "- Keep the vivid register — corrections should not flatten the prose.\n"
+    "- Keep the vivid register and surprise density — corrections must not "
+    "flatten the prose into hedge-soup; where a claim gets hedged, keep it "
+    "interesting by saying precisely WHAT is uncertain and why.\n"
+    "- Keep the cross-field synthesis section (clearly flagged as your "
+    "framing), tightened by the critique rather than deleted.\n"
     "- End with two short sections: '## Where the pop version oversells "
     "it' (2-4 honest bullets from the critique) and '## Open threads' "
     "(exactly 3 numbered follow-up explorations this opens).\n"
@@ -175,12 +215,20 @@ def dive(topic: str, on_progress=None) -> dict:
     say = on_progress or (lambda _msg: None)
     claude = _claude()
 
+    say("scouting for the non-obvious…")
+    briefing = claude.complete(
+        system=_SCOUT_SYSTEM,
+        user=f"Scout this topic: {topic}",
+        model=SKEPTIC_MODEL,   # fast model; the searching does the work
+        max_tokens=2000,
+    )
+
     say("drafting…")
     draft = claude.complete(
         system=_DRAFT_SYSTEM,
-        user=f"Deep dive topic: {topic}",
+        user=f"Deep dive topic: {topic}\n\nScout briefing:\n\n{briefing}",
         model=WRITER_MODEL,
-        max_tokens=3000,
+        max_tokens=3500,
     )
 
     skeptic, sk_model, sk_family = _skeptic_provider()

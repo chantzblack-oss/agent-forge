@@ -429,6 +429,23 @@ def cmd_video(args) -> int:
     return 0
 
 
+def cmd_lesson(args) -> int:
+    """Teach me X: research a skill into a cheat-sheet doc + a lesson video."""
+    if not _require_claude():
+        return 2
+    from agent_forge.lesson import build_lesson
+    try:
+        r = build_lesson(args.topic, on_progress=lambda m: console.print(f"  [{MUTED}]{m}[/]"))
+    except Exception as e:
+        console.print(f"  [red]lesson failed:[/] {e}")
+        return 1
+    voice = "narrated" if r["voiced"] else "silent-captioned (voice needs a host)"
+    console.print(f"  [bold green]✓ lesson ready[/] — {r['title']}")
+    console.print(f"    cheat-sheet: {r['doc']}")
+    console.print(f"    video ({r['scenes']} scenes, {voice}): {r['video']}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="forge",
@@ -508,6 +525,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_vid = sub.add_parser("video", help="compile a dive .md into an MP4 (narrated on a host)")
     p_vid.add_argument("md", help="path to explorations/*.md")
     p_vid.set_defaults(func=cmd_video)
+
+    p_les = sub.add_parser("lesson", help="teach me X: cheat-sheet doc + lesson video")
+    p_les.add_argument("topic", help="the skill/topic to learn")
+    p_les.set_defaults(func=cmd_lesson)
 
     return p
 

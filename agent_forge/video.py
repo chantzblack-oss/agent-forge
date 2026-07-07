@@ -66,9 +66,9 @@ _SCRIPT_SYSTEM = (
 )
 
 
-def script_from_essay(essay: str) -> list[dict]:
+def script_from_essay(essay: str, script_system: str | None = None) -> list[dict]:
     raw = get_provider("anthropic").complete(
-        system=_SCRIPT_SYSTEM, user=f"Essay:\n\n{essay}",
+        system=script_system or _SCRIPT_SYSTEM, user=f"Essay:\n\n{essay}",
         model=WRITER_MODEL, max_tokens=4000,
     )
     m = re.search(r"\[.*\]", raw, re.DOTALL)
@@ -161,14 +161,15 @@ def _clip(ff: str, png: Path, dur: float, out: Path, audio: Path | None) -> None
     subprocess.run(cmd, check=True, capture_output=True)
 
 
-def build_video(md_path: str | Path, on_progress=None) -> dict:
+def build_video(md_path: str | Path, on_progress=None,
+                script_system: str | None = None) -> dict:
     """Compile a dive markdown into a narrated (or silent-captioned) MP4."""
     say = on_progress or (lambda _m: None)
     md_path = Path(md_path)
     essay = re.sub(r"^<!--.*?-->\s*", "", md_path.read_text(encoding="utf-8"), flags=re.S)
 
     say("writing the script…")
-    scenes = script_from_essay(essay)
+    scenes = script_from_essay(essay, script_system=script_system)
     if not scenes:
         raise RuntimeError("script generation returned no scenes")
 

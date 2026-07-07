@@ -1,0 +1,97 @@
+"""Lesson engine — "teach me X" becomes a video + a cheat-sheet.
+
+Learning has two halves that want different media:
+- The MENTAL MODEL — how the thing works, why it's shaped that way, the few
+  ideas you need before you start, the traps. Video is great at this.
+- The EXECUTION — the exact commands, code, steps you actually run. Video is
+  terrible at this (you can't copy-paste from it). Text is great at this.
+
+So a lesson is BOTH:
+    build_lesson(topic) ->
+        explorations/<slug>.lesson.md   (the cheat-sheet you execute from)
+        explorations/<slug>.mp4         (the video that makes it click)
+
+The doc is researched (web search on) so steps/commands are current and
+correct, not hallucinated. The video is scripted from the doc but tuned to
+teach the model and the plan, and to hand off to the cheat-sheet for the
+actual doing.
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+from .providers import get_provider
+from .explorer import EXPLORATIONS_DIR, WRITER_MODEL, _slugify
+from . import video as _video
+
+
+_LESSON_SYSTEM = (
+    "You are a rigorous, concrete teacher building a lesson on a skill or "
+    "topic the learner asked for. USE WEB SEARCH to get steps, commands, "
+    "APIs, and facts CURRENT and CORRECT — never invent a command or a step "
+    "you're unsure of; verify it.\n\n"
+    "Produce a lesson document in markdown with EXACTLY these sections:\n"
+    "# <clear lesson title>\n"
+    "## The mental model\n"
+    "  3-5 short paragraphs: how this actually works and why it's shaped "
+    "that way — the intuition a beginner is missing. Concrete analogies.\n"
+    "## What you need first\n"
+    "  the handful of prerequisite concepts/tools, one line each.\n"
+    "## The steps\n"
+    "  a numbered, do-this-then-that path. For build/tech topics include the "
+    "ACTUAL commands or code in fenced blocks — copy-paste ready. For "
+    "practical topics, concrete actions and exact phrasings.\n"
+    "## Traps\n"
+    "  the mistakes beginners make and how to avoid them, bullet each.\n"
+    "## Cheat sheet\n"
+    "  the compressed reference — the commands/steps/numbers only, so the "
+    "learner can execute from this section alone.\n\n"
+    "Be specific and honest. If something is genuinely contested or "
+    "version-dependent, say so."
+)
+
+
+_LESSON_VIDEO_SYSTEM = (
+    "You are a director turning a lesson document into a narrated teaching "
+    "video script (vertical, punchy, like a great explainer). Return 10-14 "
+    "scenes. The video's job is to make the MENTAL MODEL click and give the "
+    "learner the shape of the plan — it does NOT read code aloud; it points "
+    "the learner to the cheat-sheet for exact commands.\n\n"
+    "Each scene: {kicker (2-4 words), headline (<=7 words, on-screen), "
+    "narration (1-3 spoken sentences, warm and clear, no markdown)}.\n"
+    "Arc: hook with why this matters or a myth to kill -> build the mental "
+    "model one idea per scene -> the plan at a high level -> the biggest "
+    "trap -> a closing 'now go do it, the steps are in your cheat-sheet'.\n"
+    "Everything must match the lesson doc. Return ONLY a JSON array."
+)
+
+
+def build_lesson(topic: str, on_progress=None) -> dict:
+    """Research a skill/topic, write a cheat-sheet doc, and render a video."""
+    say = on_progress or (lambda _m: None)
+
+    say("researching the lesson…")
+    doc = get_provider("anthropic").complete(
+        system=_LESSON_SYSTEM, user=f"Teach me: {topic}",
+        model=WRITER_MODEL, max_tokens=4000,
+    ).strip()
+
+    title = _video._first_h1 if False else None  # noqa (keep import graph simple)
+    m = re.search(r"^#\s+(.+)$", doc, re.M)
+    title = m.group(1).strip() if m else topic
+    slug = _slugify(title)
+
+    doc_path = EXPLORATIONS_DIR / f"{slug}.lesson.md"
+    EXPLORATIONS_DIR.mkdir(exist_ok=True)
+    doc_path.write_text(
+        f"<!-- lesson: {topic} -->\n\n{doc}\n", encoding="utf-8"
+    )
+
+    say("rendering the lesson video…")
+    vid = _video.build_video(
+        doc_path, on_progress=say, script_system=_LESSON_VIDEO_SYSTEM
+    )
+    return {"title": title, "doc": doc_path, "video": vid["path"],
+            "voiced": vid["voiced"], "scenes": vid["scenes"]}

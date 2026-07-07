@@ -1,36 +1,36 @@
-# Render.com blueprint — deploy the Agent Forge Telegram bot from your phone,
-# no computer or terminal required.
+# Render blueprint — deploys the Agent Forge LEARNING FEED worker:
+# a Telegram bot that makes narrated lesson/explainer videos and sends
+# them to your phone.
 #
-# How to use (all in a phone browser):
-#   1. render.com → sign up with GitHub → authorize the agent-forge repo
-#   2. New +  →  Blueprint  →  pick the agent-forge repo
-#   3. choose branch: claude/gracious-wozniak-hqvt9l
-#   4. Render reads this file and prompts for the secret values below
-#      (sync: false means "ask me, don't store in git")
-#   5. paste your keys → Apply → watch the logs for
-#      "Bot ready. Polling for messages..."
-#
-# A "worker" service has no web port — perfect for a Telegram long-poll bot.
+# Phone-only setup:
+#   1. Telegram: message @BotFather -> /newbot -> copy the token.
+#      Message @userinfobot -> copy your numeric user id.
+#   2. Get an Anthropic API key: console.anthropic.com
+#   3. render.com -> sign up with GitHub -> New + -> Blueprint ->
+#      pick this repo & branch -> Render reads this file and asks for
+#      the secret values below -> Apply.
+#   4. Watch logs for "learning-feed worker up", then message your bot:
+#      teach me how to negotiate a raise
 
 services:
   - type: worker
-    name: agent-forge-bot
+    name: forge-learning-feed
     runtime: docker
-    dockerfilePath: ./Dockerfile
-    plan: starter          # background workers require a paid plan (~$7/mo)
-    autoDeploy: true       # redeploys when you push to the branch
+    dockerfilePath: ./deploy/Dockerfile.worker
+    plan: starter            # background workers need a paid plan (~$7/mo)
+    autoDeploy: true
     envVars:
       - key: TELEGRAM_BOT_TOKEN
-        sync: false
+        sync: false          # Render prompts you; never stored in git
+      - key: TELEGRAM_ALLOWED_USERS
+        sync: false          # your numeric Telegram id — keeps strangers out
       - key: ANTHROPIC_API_KEY
         sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: TELEGRAM_ALLOWED_USERS
-        sync: false
+      - key: FORGE_TTS_VOICE
+        value: en-US-GuyNeural
+      - key: RESTOCK_EVERY
+        value: "0"           # 0 = only videos you ask for; 21600 = push one every 6h
     disk:
-      name: agentforge-data
-      mountPath: /root/.agent_forge   # persists memory + model cache
-      sizeGB: 1
+      name: forge-explorations
+      mountPath: /app/explorations   # your growing video/lesson library
+      sizeGB: 2

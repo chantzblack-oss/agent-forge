@@ -89,10 +89,19 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def _make_lesson(update, context, topic: str):
     chat = update.effective_chat.id
     await context.bot.send_message(chat, f"Building your lesson on: {topic}\n(a few minutes…)")
-    try:
-        r = await _run_blocking(_lesson.build_lesson, topic)
-    except Exception as e:  # pragma: no cover
-        await context.bot.send_message(chat, f"That one failed: {e}")
+    last_err = None
+    for attempt in range(3):
+        try:
+            r = await _run_blocking(_lesson.build_lesson, topic)
+            break
+        except Exception as e:  # pragma: no cover
+            last_err = e
+            log.exception("lesson attempt %d failed", attempt + 1)
+            await asyncio.sleep(5 * (attempt + 1))
+    else:
+        await context.bot.send_message(
+            chat, f"That one failed after 3 tries: {type(last_err).__name__}: {last_err}"
+        )
         return
     tag = "" if r["voiced"] else " (silent — no TTS on this host)"
     await _deliver_video(context, chat, r["video"],
@@ -160,8 +169,26 @@ async def cmd_play(update, context):
 
 # ── background auto-feed ─────────────────────────────────
 
+def _selfcheck() -> None:
+    """One tiny Anthropic call at boot so the logs show immediately whether
+    the API key + network path work (instead of failing on the first job)."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    log.info("selfcheck: ANTHROPIC_API_KEY %s (len=%d)",
+             "present" if key else "MISSING", len(key))
+    try:
+        from .providers import get_provider
+        out = get_provider("anthropic").complete(
+            system="Reply with exactly: ok", user="ping",
+            model="haiku", max_tokens=16,
+        )
+        log.info("selfcheck: Anthropic reachable, reply=%r", out[:40])
+    except Exception:
+        log.exception("selfcheck: Anthropic call FAILED — lessons will fail too")
+
+
 async def _post_init(app: Application) -> None:
     """Runs inside the bot's event loop — safe to schedule background tasks."""
+    asyncio.get_event_loop().run_in_executor(None, _selfcheck)
     every = int(os.environ.get("RESTOCK_EVERY", "0"))
     if every and _ALLOWED:
         asyncio.create_task(_restock_loop(app))

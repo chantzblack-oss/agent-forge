@@ -502,6 +502,16 @@ def _selfcheck() -> None:
 async def _post_init(app: Application) -> None:
     """Runs inside the bot's event loop — safe to schedule background tasks."""
     asyncio.get_event_loop().run_in_executor(None, _selfcheck)
+    # A restart (deploy, OOM, crash) silently kills any in-flight job —
+    # announce it so a killed job never looks like a hung one.
+    for uid in _ALLOWED:
+        try:
+            await app.bot.send_message(
+                uid, "⚡ Worker restarted (deploy or crash). If you had a "
+                     "video rendering, that job was killed — send the "
+                     "request again.")
+        except Exception:
+            log.warning("restart notice to %s failed", uid)
     every = int(os.environ.get("RESTOCK_EVERY", "0"))
     if every and _ALLOWED:
         asyncio.create_task(_restock_loop(app))

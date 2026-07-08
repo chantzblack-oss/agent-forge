@@ -158,8 +158,29 @@ async def _make_debate(update, context, topic: str):
     chat = update.effective_chat.id
     await context.bot.send_message(
         chat, f"Setting up the debate: {topic}\n(a few minutes…)")
+
+    async def _send_brief_early(doc_path):
+        # Same doctrine as lessons: the research is the expensive part, so
+        # the brief ships the moment it exists.
+        send_path = doc_path
+        try:
+            from .docrender import md_to_pdf
+            send_path = await _run_blocking(
+                md_to_pdf, doc_path, "Agent Forge debate brief")
+        except Exception:
+            log.exception("brief pdf render failed; sending raw md")
+        with open(send_path, "rb") as f:
+            await context.bot.send_document(
+                chat_id=chat, document=f, filename=send_path.name,
+                caption="debate brief (the hosts are warming up…)")
+
+    loop = asyncio.get_event_loop()
+
+    def _on_doc(doc_path):
+        asyncio.run_coroutine_threadsafe(_send_brief_early(doc_path), loop)
+
     try:
-        r = await _run_blocking(_debate.build_debate, topic)
+        r = await _run_blocking(_debate.build_debate, topic, None, _on_doc)
     except Exception as e:  # pragma: no cover
         log.exception("debate failed")
         await context.bot.send_message(

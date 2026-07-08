@@ -1,36 +1,87 @@
 """Debate engine — two hosts argue a topic from opposite corners.
 
-"debate <topic>" becomes a vertical video where two stick-figure hosts
-(different colors, different voices, different temperaments) steelman the
-two strongest sides of a question. No winner is declared — the closing
-scene hands the question to the viewer.
+A debate is a fundamentally different artifact from a lesson, so it gets a
+fundamentally different document. A lesson teaches you to DO something
+(mental model -> steps -> cheat sheet). A debate teaches you to DECIDE
+something, so its paper half is a BRIEF:
+
+    build_debate(topic) ->
+        explorations/<slug>.debate.md   (the brief: both cases, the cruxes,
+                                         what evidence would settle it)
+        explorations/<slug>.debate.mp4  (two hosts arguing it out)
+
+The brief is researched (web search on) and delivered the moment it exists;
+the hosts then perform FROM the brief, so the video and the paper agree.
 """
 
 from __future__ import annotations
+
+import re
+from pathlib import Path
 
 from .providers import get_provider
 from .explorer import EXPLORATIONS_DIR, WRITER_MODEL, _slugify
 from . import video as _video
 
 
-_DEBATE_SYSTEM = (
+_BRIEF_SYSTEM = (
+    "You are writing a decision brief on a contested question. USE WEB "
+    "SEARCH to ground both sides in real facts, numbers, and named "
+    "sources. STEELMAN both sides — write each case the way its smartest "
+    "honest advocate would. Do not declare a winner.\n\n"
+    "Produce a markdown document with EXACTLY these sections:\n"
+    "# <the question, phrased sharply>\n"
+    "## What's actually being asked\n"
+    "  2-3 sentences: the real disagreement under the surface question, "
+    "and why reasonable people split on it.\n"
+    "## The case for\n"
+    "  the strongest honest case for one side: 3-5 short paragraphs, "
+    "each anchored on a fact, number, or example.\n"
+    "## The case against\n"
+    "  the same treatment for the other side — equally strong.\n"
+    "## Where they actually disagree\n"
+    "  the 2-4 cruxes: the underlying questions of fact or value that, "
+    "once you answer them, decide the whole thing. Bullet each.\n"
+    "## What would settle it\n"
+    "  the evidence or events that would genuinely move each side. Be "
+    "concrete: a study, a number, an outcome.\n"
+    "## How to decide for yourself\n"
+    "  not a verdict — a short guide: which crux matters most, what to "
+    "read/watch first, what most people get wrong about the question.\n"
+    "## Sources\n"
+    "  5-8 real, high-quality sources found via your web search THIS "
+    "turn — never invented. Cover BOTH sides. Markdown links with a real "
+    "URL each plus a half-line on which side it informs and why it's "
+    "worth the click. Omit rather than fabricate.\n\n"
+    "Be specific and honest. Where the evidence is genuinely thin or "
+    "contested, say so in place."
+)
+
+
+_DEBATE_SCRIPT_SYSTEM = (
     "You are the showrunner of a two-host debate show rendered as a "
-    "vertical video. Two stick-figure hosts share the screen:\n"
-    "  HOST A (left, speaker 'a') — warm, quick, the believer. Argues the "
-    "strongest honest case for one side. Can be funny.\n"
+    "vertical video. You are handed a researched decision brief; the "
+    "viewer also has it. Your job is to make its two cases COLLIDE — "
+    "the brief argues on paper, the show argues out loud.\n"
+    "Two stick-figure hosts share the screen:\n"
+    "  HOST A (left, speaker 'a') — warm, quick, the believer. Argues "
+    "the brief's 'case for'. Can be funny.\n"
     "  HOST B (right, speaker 'b') — dry, precise, the skeptic. Argues "
-    "the strongest honest case for the other. Deadpan.\n"
-    "USE WEB SEARCH to ground both sides in real facts and numbers. "
-    "STEELMAN both sides — no strawmen, and do NOT declare a winner.\n"
-    "12-16 scenes. speaker is 'a' or 'b' for a host's line; null ONLY for "
-    "the cold-open framing scene and the final scene. Alternate naturally "
-    "— rebuttals, concessions, one host finishing the other's point — not "
-    "a mechanical a/b/a/b. Each host talks like a person: contractions, "
-    "short sentences, replies to what the OTHER host just said (this is a "
-    "conversation, not two lectures). BANNED: the \"That's not X. That's "
-    "Y.\" pattern, 'here's the thing', rhetorical-question openers.\n"
+    "the 'case against'. Deadpan.\n"
+    "Every fact and number must come from the brief; where it hedges, "
+    "hedge. Build the fight around the brief's CRUXES — that's where "
+    "the hosts should actually clash, concede, and dig in.\n"
+    "12-16 scenes. speaker is 'a' or 'b' for a host's line; null ONLY "
+    "for the cold-open framing scene and the final scene. Alternate "
+    "naturally — rebuttals, concessions, one host finishing the other's "
+    "point — not a mechanical a/b/a/b. Each host talks like a person: "
+    "contractions, short sentences, replies to what the OTHER host just "
+    "said (a conversation, not two lectures). BANNED: the \"That's not "
+    "X. That's Y.\" pattern, 'here's the thing', rhetorical-question "
+    "openers.\n"
     "End: each host gets one closing line, then a neutral final scene "
-    "that hands the viewer the question.\n\n"
+    "that names the crux the viewer should chew on — and points them to "
+    "the brief for the full cases.\n\n"
     "Each scene: {speaker ('a'|'b'|null), kicker (2-4 words), headline "
     "(<=7 words, on-screen), narration (1-3 spoken sentences), pose "
     "(explain | point | warn | celebrate | think | wave), delivery "
@@ -45,20 +96,42 @@ _DEBATE_SYSTEM = (
 )
 
 
-def build_debate(topic: str, on_progress=None) -> dict:
-    """Research and render a two-host debate video on `topic`."""
+def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
+    """Research a decision brief, deliver it, then render the two-host
+    debate video performed from it."""
     say = on_progress or (lambda _m: None)
-    say("writing the debate…")
     provider = get_provider("anthropic")
+
+    say("researching both sides…")
+    brief = provider.complete(
+        system=_BRIEF_SYSTEM, user=f"The question: {topic}",
+        model=WRITER_MODEL, max_tokens=4000,
+    ).strip()
+
+    m = re.search(r"^#\s+(.+)$", brief, re.M)
+    title = m.group(1).strip() if m else topic
+    slug = _slugify(title)
+    EXPLORATIONS_DIR.mkdir(exist_ok=True)
+    doc_path = EXPLORATIONS_DIR / f"{slug}.debate.md"
+    doc_path.write_text(f"<!-- debate: {topic} -->\n\n{brief}\n",
+                        encoding="utf-8")
+
+    if on_doc is not None:
+        try:
+            on_doc(doc_path)
+        except Exception:
+            pass
+
+    say("staging the debate…")
     raw = provider.complete(
-        system=_DEBATE_SYSTEM, user=f"Debate topic: {topic}",
+        system=_DEBATE_SCRIPT_SYSTEM, user=f"The brief:\n\n{brief}",
         model=WRITER_MODEL, max_tokens=16000,
     )
     scenes = _video._parse_scenes(raw)
     if not scenes:
         raw2 = provider.complete(
-            system=_DEBATE_SYSTEM,
-            user=(f"Debate topic: {topic}\n\nYour previous output could "
+            system=_DEBATE_SCRIPT_SYSTEM,
+            user=(f"The brief:\n\n{brief}\n\nYour previous output could "
                   f"not be parsed as JSON. Output ONLY the raw JSON array "
                   f"— no code fences, no commentary — and keep every svg "
                   f"on a single line."),
@@ -68,8 +141,8 @@ def build_debate(topic: str, on_progress=None) -> dict:
     if not scenes:
         raise RuntimeError("debate script returned no scenes")
 
-    EXPLORATIONS_DIR.mkdir(exist_ok=True)
-    out = EXPLORATIONS_DIR / f"{_slugify(topic)}.debate.mp4"
+    out = EXPLORATIONS_DIR / f"{slug}.debate.mp4"
     r = _video.render_scenes(scenes, out, on_progress=say)
-    r["title"] = topic
+    r["title"] = title
+    r["doc"] = doc_path
     return r

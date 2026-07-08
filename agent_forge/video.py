@@ -86,10 +86,16 @@ _SCRIPT_SYSTEM = (
     "when there's a diagram to gesture at, 'warn' on danger/mistake beats, "
     "'celebrate' on the payoff, 'think' on open questions, 'wave' to open "
     "and close, 'none' when the frame should be host-free.\n"
+    "- delivery: how the narrator should say this beat, one of "
+    "neutral | bright | hype | grave | hushed. Match the beat: bright for "
+    "playful lines, hype for the payoff, grave for tragedy or stakes, "
+    "hushed for mystery and tension. Vary it — a whole video in one "
+    "delivery is a monotone.\n"
     "- Every fact/number must come from the essay; where it hedges, hedge.\n"
     "- Build momentum; end on the essay's most mind-bending point, then one "
     "closing beat that names the open question.\n"
-    "Return ONLY a JSON array of {kicker, headline, narration, pose, visual?}."
+    "Return ONLY a JSON array of {kicker, headline, narration, pose, "
+    "delivery, visual?}."
 )
 
 
@@ -183,7 +189,25 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
 
 # ── 2. narration (host only; silent fallback in sandbox) ──
 
-def synth(text: str, out_mp3: Path) -> bool:
+# Per-scene delivery: same narrator, different energy. The script model
+# picks one word per scene; it maps to TTS rate/pitch so a hype beat is
+# quick and lifted while a grave one slows and drops.
+_DELIVERIES = {
+    "neutral": ("+4%", "+0Hz"),
+    "bright":  ("+9%", "+6Hz"),
+    "hype":    ("+13%", "+10Hz"),
+    "grave":   ("-6%", "-8Hz"),
+    "hushed":  ("-11%", "-12Hz"),
+}
+
+
+def _delivery(scene: dict) -> tuple[str, str]:
+    return _DELIVERIES.get(
+        str(scene.get("delivery", "")).strip().lower(), _DELIVERIES["neutral"])
+
+
+def synth(text: str, out_mp3: Path,
+          rate: str = "+4%", pitch: str = "+0Hz") -> bool:
     """Synthesize narration to mp3. Returns True on success, False if TTS
     is unreachable (sandbox) so the caller falls back to a timed silent clip."""
     try:
@@ -192,7 +216,8 @@ def synth(text: str, out_mp3: Path) -> bool:
         proxy = os.environ.get("HTTPS_PROXY")
 
         async def _go(voice):
-            c = edge_tts.Communicate(text, voice, rate="+4%", proxy=proxy)
+            c = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch,
+                                     proxy=proxy)
             await c.save(str(out_mp3))
 
         for voice in (VOICE, "en-US-GuyNeural"):
@@ -485,7 +510,8 @@ def build_video(md_path: str | Path, on_progress=None,
     for i, sc in enumerate(scenes, 1):
         say(f"narrating {i}/{total}")
         mp3 = work / f"s{i:02d}.mp3"
-        if synth(sc["narration"], mp3):
+        rate, pitch = _delivery(sc)
+        if synth(sc["narration"], mp3, rate=rate, pitch=pitch):
             narrated += 1
             mp3s.append(mp3)
             durs.append(_audio_dur(ff, mp3) + 0.4)

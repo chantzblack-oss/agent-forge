@@ -97,6 +97,8 @@ _LESSON_VIDEO_SYSTEM = (
     "pose (the on-screen host's body language: explain | point | warn | "
     "celebrate | think | wave | none — 'point' when a diagram is up, 'warn' "
     "in the trap vignettes, 'celebrate' at the payoff, 'wave' to open/close), "
+    "delivery (the narrator's read for this beat: neutral | bright | hype | "
+    "grave | hushed — vary it with the material), "
     "visual (optional inline SVG diagram on a SINGLE line — JSON strings cannot contain raw newlines — viewBox='0 0 880 700', no external "
     "refs/scripts; palette ink #eaf3f2 accent #ff7a5e accent2 #35c2d6 muted "
     "#5d7a84, text >= 26px)}. Lessons NEED diagrams — draw the actual "

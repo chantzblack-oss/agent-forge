@@ -93,7 +93,7 @@ _SIM_SCRIPT_SYSTEM = (
     "number, name, or image they didn't have a scene ago; a beat that "
     "only restates or transitions gets cut. "
     "Every fact, number, and probability must come from the dossier; "
-    "where it hedges, hedge. 10-15 scenes. Write like a person talks — "
+    "where it hedges, hedge. 12-18 scenes — as many as the material earns. Write like a person talks — "
     "contractions, short sentences, punchy verbs, second person; the "
     "operator occasionally talks TO the viewer ('watch this number'). "
     "Never sound like someone reading slides. BANNED: the \"That's not "
@@ -140,7 +140,7 @@ def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
     say("pinning assumptions and running the scenario…")
     dossier = provider.complete(
         system=_DOSSIER_SYSTEM, user=f"Scenario: {scenario}",
-        model=WRITER_MODEL, max_tokens=4500,
+        model=WRITER_MODEL, max_tokens=6000,
     ).strip()
 
     m = re.search(r"^#\s+(.+)$", dossier, re.M)
@@ -175,6 +175,11 @@ def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
         scenes = _video._parse_scenes(raw2)
     if not scenes:
         raise RuntimeError("simulation script returned no scenes")
+    say("script-doctor pass…")
+    scenes = _video.polish_scenes(
+        scenes, "This is a simulation playback: keep the advancing clock, "
+                "make the branch-point tension sharper, and keep every "
+                "number traceable to the dossier.")
 
     out = EXPLORATIONS_DIR / f"{slug}.sim.mp4"
     r = _video.render_scenes(scenes, out, on_progress=say)

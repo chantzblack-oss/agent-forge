@@ -105,7 +105,7 @@ _LESSON_VIDEO_SYSTEM = (
     "would work as a paragraph of the doc, cut it. EVERY scene must hand "
     "the viewer something NEW — a specific fact, number, name, or image "
     "they didn't have a scene ago; pure restatement or transition beats "
-    "get cut. Return 7-14 scenes — "
+    "get cut. Return 9-16 scenes — "
     "as many as the material earns, no padding. Vary the rhythm: a "
     "one-sentence punch scene is allowed between longer beats.\n"
     "PICK A VOICE that fits the skill and commit: playful and funny for "

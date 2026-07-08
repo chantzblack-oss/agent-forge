@@ -81,7 +81,7 @@ _DEBATE_SCRIPT_SYSTEM = (
     "Every fact and number must come from the brief; where it hedges, "
     "hedge. Build the fight around the brief's CRUXES — that's where "
     "the hosts should actually clash, concede, and dig in.\n"
-    "12-16 scenes. speaker is 'a' or 'b' for a host's line; null ONLY "
+    "14-20 scenes — as many as the material earns. speaker is 'a' or 'b' for a host's line; null ONLY "
     "for the cold-open framing scene and the final scene. Alternate "
     "naturally — rebuttals, concessions, one host finishing the other's "
     "point — not a mechanical a/b/a/b. Write it like the best podcast "
@@ -140,7 +140,7 @@ def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
     say("researching both sides…")
     brief = provider.complete(
         system=_BRIEF_SYSTEM, user=f"The question: {topic}",
-        model=WRITER_MODEL, max_tokens=4000,
+        model=WRITER_MODEL, max_tokens=6000,
     ).strip()
 
     m = re.search(r"^#\s+(.+)$", brief, re.M)
@@ -175,6 +175,12 @@ def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
         scenes = _video._parse_scenes(raw2)
     if not scenes:
         raise RuntimeError("debate script returned no scenes")
+    say("script-doctor pass…")
+    scenes = _video.polish_scenes(
+        scenes, "This is a two-host debate: keep the speakers' characters "
+                "distinct (A warm believer, B dry skeptic), keep the "
+                "rebuttal structure, and make the clash at the cruxes "
+                "sharper.")
 
     out = EXPLORATIONS_DIR / f"{slug}.debate.mp4"
     r = _video.render_scenes(scenes, out, on_progress=say)

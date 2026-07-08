@@ -49,7 +49,7 @@ def _ffmpeg() -> str:
 
 _SCRIPT_SYSTEM = (
     "You are a video director adapting a researched essay into a narrated "
-    "vertical-video script (think a smart, punchy explainer). Return 7-14 "
+    "vertical-video script (think a smart, punchy explainer). Return 9-16 "
     "scenes — as many as the material earns, no padding. Each scene is one "
     "beat of narration the viewer HEARS plus a short headline they SEE. "
     "Design the structure for THIS essay: a detective story wants a "
@@ -206,6 +206,48 @@ def _parse_scenes(raw: str) -> list[dict]:
             if isinstance(s, dict) and s.get("narration") and s.get("headline")]
 
 
+_POLISH_SYSTEM = (
+    "You are a ruthless script doctor for a premium explainer studio. You "
+    "receive the draft scene-list JSON for a vertical video. Elevate it to "
+    "world-class without changing the schema:\n"
+    "- Sharpen every narration line: cut filler, replace abstraction with "
+    "a concrete image, make lines quotable. Keep the punctuation-as-"
+    "performance style (em-dashes, ellipses) and the 40-word cap.\n"
+    "- Deepen: wherever the draft gestures ('costs a lot', 'takes time'), "
+    "replace with the precise number or name ALREADY IN THE DRAFT's "
+    "material — never invent facts that aren't there.\n"
+    "- Storytell: plant a setup in the first third that pays off in the "
+    "last scene; add one callback; end each scene pulling toward the "
+    "next. If the draft has a running gag, make it land harder.\n"
+    "- Upgrade weak visuals: where a beat is numeric, replace decorative "
+    "svg with a data{} chart spec; keep at least half the scenes visual.\n"
+    "- Refine the read acting notes so each is specific to its line; "
+    "keep delivery/pose/layout variety, and speaker fields if present.\n"
+    "- Same JSON schema, svgs on a single line.\n"
+    "Return ONLY the improved JSON array."
+)
+
+
+def polish_scenes(scenes: list[dict], note: str = "") -> list[dict]:
+    """Second full pass: the script doctor. First drafts don't ship."""
+    try:
+        provider = get_provider("anthropic")
+        raw = provider.complete(
+            system=_POLISH_SYSTEM,
+            user=(note + "\n\nDraft script JSON:\n"
+                  + json.dumps(scenes, ensure_ascii=False)),
+            model=WRITER_MODEL, max_tokens=16000,
+        )
+        better = _parse_scenes(raw)
+        if len(better) >= max(len(scenes) - 2, 5):
+            return better
+    except Exception:
+        import logging
+        logging.getLogger("agent_forge.video").exception(
+            "polish pass failed; shipping the draft")
+    return scenes
+
+
 def script_from_essay(essay: str, script_system: str | None = None) -> list[dict]:
     system = script_system or _SCRIPT_SYSTEM
     provider = get_provider("anthropic")
@@ -215,7 +257,7 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
     )
     scenes = _parse_scenes(raw)
     if scenes:
-        return scenes
+        return polish_scenes(scenes)
     # One corrective retry: no visuals this time (guaranteed parseable).
     import logging
     logging.getLogger("agent_forge.video").warning(
@@ -229,7 +271,8 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
               f"line and no string may contain raw newlines."),
         model=WRITER_MODEL, max_tokens=16000,
     )
-    return _parse_scenes(raw2)
+    scenes = _parse_scenes(raw2)
+    return polish_scenes(scenes) if scenes else scenes
 
 
 # ── 2. narration (host only; silent fallback in sandbox) ──
@@ -760,9 +803,8 @@ _LOWMEM_ARGS = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
                 "--renderer-process-limit=1", "--no-zygote", "--single-process"]
 
 
-CAPTURE_FPS = 15     # scrub-capture rate; fades look identical at 15,
-                     # and it's the difference between 20 and 30 minutes
-                     # of render on a 1-CPU host
+CAPTURE_FPS = 20     # scrub-capture rate — quality is the priority here;
+                     # renders take what they take
 
 
 def _record_scenes(scenes: list[dict], durs: list[float],
@@ -803,7 +845,7 @@ def _record_scenes(scenes: list[dict], durs: list[float],
                     "t=>window.__anims.forEach(a=>{a.currentTime=t})",
                     fr * 1000.0 / CAPTURE_FPS)
                 pg.screenshot(path=str(fdir / f"f{fr:05d}.jpg"),
-                              type="jpeg", quality=85, animations="allow")
+                              type="jpeg", quality=90, animations="allow")
             pg.close()
         finally:
             os.unlink(htmlpath)

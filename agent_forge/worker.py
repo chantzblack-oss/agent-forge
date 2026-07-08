@@ -401,9 +401,11 @@ async def _route_text(update, context, txt: str):
     if low.startswith(("story", "case:")):
         case = (txt[len("story"):] if low.startswith("story")
                 else txt.split(":", 1)[1]).strip(" :—-")
-        if case:
+        if case.lower() in ("", "surprise", "me", "surprise me", "time"):
+            await _discover_story(update, context)
+        else:
             await _make_story(update, context, case)
-            return
+        return
     if low.startswith("simulate"):
         await _make_sim(update, context, txt[len("simulate"):].strip(" :—-"))
         return
@@ -444,13 +446,28 @@ async def _make_story(update, context, case: str):
 
 
 async def cmd_story(update, context):
+    """/story <case> — or /story alone to have the editor find one."""
     if not _ok(update):
         return
     case = " ".join(context.args) if context.args else ""
     if not case:
-        await update.message.reply_text(
-            "Say: /story <a case, disaster, mystery, or dark tale>")
+        await _discover_story(update, context)
         return
+    await _make_story(update, context, case)
+
+
+async def _discover_story(update, context):
+    chat = update.effective_chat.id
+    await context.bot.send_message(chat, "🕯️ Hunting for tonight's case…")
+    try:
+        avoid = ([e.get("topic", "") for e in _explorer.load_journal()]
+                 + _story.covered_cases())
+        case = await _run_blocking(_story.find_case, avoid)
+    except Exception as e:
+        await context.bot.send_message(
+            chat, f"The hunt failed: {type(e).__name__}: {e}")
+        return
+    await context.bot.send_message(chat, f"Tonight's case: {case}")
     await _make_story(update, context, case)
 
 

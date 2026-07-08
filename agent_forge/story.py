@@ -119,6 +119,50 @@ _STORY_SCRIPT_SYSTEM = (
 )
 
 
+_CASE_SCOUT_SYSTEM = (
+    "You are the story editor of a dark-documentary channel with one "
+    "devoted viewer who has seen everything mainstream. USE WEB SEARCH "
+    "to find ONE case for tonight's episode: true crime, disaster, "
+    "vanishing, maritime tragedy, historical mystery, or documented "
+    "horror.\n"
+    "RULES:\n"
+    "- It must have a real paper trail (reporting, records, findings) — "
+    "no pure folklore.\n"
+    "- OBSCURITY TEST: if Wendigoon, EWU, or a dozen podcasts already "
+    "covered it to death (Dyatlov, Titanic, Zodiac, Roanoke, DB Cooper), "
+    "skip it — unless you found a genuinely fresh angle worth naming.\n"
+    "- Prefer the case a devoted fan of the genre has NOT heard of: "
+    "regional disasters, forgotten ships, cold cases from old archives, "
+    "mysteries from outside the anglosphere.\n"
+    "- Avoid anything on the AVOID list.\n"
+    "Return EXACTLY one line:\n"
+    "CASE: <the case> — <one-line hook that makes it unmissable>"
+)
+
+
+def find_case(avoid: list[str] | None = None, on_progress=None) -> str:
+    """Discover tonight's case — dynamic, generative, obscure."""
+    say = on_progress or (lambda _m: None)
+    say("hunting for tonight's case…")
+    avoid_txt = "; ".join(a for a in (avoid or []) if a)[:1500]
+    raw = get_provider("anthropic").complete(
+        system=_CASE_SCOUT_SYSTEM,
+        user=f"AVOID (already covered on this channel): {avoid_txt or 'nothing yet'}",
+        model=WRITER_MODEL, max_tokens=800,
+    )
+    m = re.search(r"CASE:\s*(.+)", raw)
+    return (m.group(1).strip() if m else raw.strip())[:200]
+
+
+def covered_cases() -> list[str]:
+    """Titles of case files already in the library (for the avoid list)."""
+    try:
+        return [p.stem.replace("-", " ")[:60]
+                for p in EXPLORATIONS_DIR.glob("*.case.md")]
+    except Exception:
+        return []
+
+
 def build_story(case: str, on_progress=None, on_doc=None) -> dict:
     """Research the case file, deliver it, then render the episode."""
     say = on_progress or (lambda _m: None)

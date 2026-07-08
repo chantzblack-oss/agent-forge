@@ -135,14 +135,30 @@ def _progress_sender(context, chat: int, every: float = 75.0):
     return say
 
 
+_SEND_KW = dict(read_timeout=300, write_timeout=300,
+                connect_timeout=60, pool_timeout=60)
+
+
 async def _deliver_video(context, chat_id, path: Path, caption: str, doc: Path | None = None):
-    with open(path, "rb") as f:
-        await context.bot.send_video(chat_id=chat_id, video=f, caption=caption[:1024],
-                                     supports_streaming=True)
+    # Uploads from the host can be slow; the library's default ~20s write
+    # timeout kills them. Long timeouts + one retry.
+    for attempt in (1, 2):
+        try:
+            with open(path, "rb") as f:
+                await context.bot.send_video(
+                    chat_id=chat_id, video=f, caption=caption[:1024],
+                    supports_streaming=True, **_SEND_KW)
+            break
+        except Exception:
+            if attempt == 2:
+                raise
+            log.warning("video upload failed; retrying once")
+            await asyncio.sleep(5)
     if doc and doc.exists():
         with open(doc, "rb") as f:
-            await context.bot.send_document(chat_id=chat_id, document=f,
-                                            filename=doc.name, caption="cheat-sheet")
+            await context.bot.send_document(
+                chat_id=chat_id, document=f, filename=doc.name,
+                caption="cheat-sheet", **_SEND_KW)
 
 
 # ── commands ─────────────────────────────────────────────
@@ -196,9 +212,9 @@ async def _make_lesson(update, context, topic: str):
         except Exception:
             log.exception("pdf render failed; sending raw md")
         with open(send_path, "rb") as f:
-            await context.bot.send_document(chat_id=chat, document=f,
-                                            filename=send_path.name,
-                                            caption="cheat-sheet (video rendering…)")
+            await context.bot.send_document(
+                chat_id=chat, document=f, filename=send_path.name,
+                caption="cheat-sheet (video rendering…)", **_SEND_KW)
 
     loop = asyncio.get_event_loop()
 
@@ -248,7 +264,7 @@ async def _make_show(update, context, topic: str, builder, *,
         with open(send_path, "rb") as f:
             await context.bot.send_document(
                 chat_id=chat, document=f, filename=send_path.name,
-                caption=doc_caption)
+                caption=doc_caption, **_SEND_KW)
 
     loop = asyncio.get_event_loop()
 

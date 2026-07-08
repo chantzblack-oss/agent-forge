@@ -65,9 +65,18 @@ _SCRIPT_SYSTEM = (
     "feel like a host who genuinely reacts to what they're telling you, "
     "and it can shift as the story turns.\n\n"
     "Rules:\n"
-    "- narration: 1-3 spoken sentences, conversational, vivid, no markdown, "
-    "no stage directions — just what the voice says. Open cold on the story; "
-    "no 'in this video'.\n"
+    "- narration: 1-3 spoken sentences, no markdown, no stage directions — "
+    "just what the voice says. Write like a person actually talks: "
+    "contractions, mostly short sentences, concrete verbs; it must pass "
+    "being read aloud. BANNED: the \"That's not X. That's Y.\" pattern, "
+    "'Here's the thing', 'here's the magic', 'But wait', rhetorical "
+    "questions as openers, and ending every scene on a punchline — one "
+    "aphorism per VIDEO, max. Open cold on the story; no 'in this "
+    "video'.\n"
+    "- read: a short acting note for how this exact line should be "
+    "delivered, like a director talking to a voice actor — e.g. 'slow "
+    "down on the number, let it sink in' or 'deadpan, almost bored, the "
+    "absurdity does the work'. Make it specific to the line.\n"
     "- headline: <= 7 words, the on-screen text for that beat (also serves "
     "as the caption for muted viewing).\n"
     "- kicker: 2-4 word eyebrow label.\n"
@@ -100,7 +109,7 @@ _SCRIPT_SYSTEM = (
     "- Build momentum; end on the essay's most mind-bending point, then one "
     "closing beat that names the open question.\n"
     "Return ONLY a JSON array of {kicker, headline, narration, pose, "
-    "delivery, visual?}."
+    "delivery, read, visual?}."
 )
 
 
@@ -205,10 +214,49 @@ _DELIVERIES = {
     "hushed":  ("-11%", "-12Hz"),
 }
 
+# Acting notes for the expressive TTS path, keyed by the same delivery word.
+# The scene's free-text `read` direction (if the script wrote one) is
+# appended, so the model can direct line reads like "leaning in, almost
+# laughing at how simple this is".
+_DELIVERY_NOTES = {
+    "neutral": "Natural, warm storyteller. Conversational and unhurried, "
+               "like explaining something you love to a friend.",
+    "bright":  "Light and playful, a smile in the voice, quick on your feet.",
+    "hype":    "Genuinely excited — energy building, leaning into the reveal.",
+    "grave":   "Slow down. Serious and weighted; let the stakes land.",
+    "hushed":  "Quiet and intimate, leaning in, like sharing a secret.",
+}
+
 
 def _delivery(scene: dict) -> tuple[str, str]:
     return _DELIVERIES.get(
         str(scene.get("delivery", "")).strip().lower(), _DELIVERIES["neutral"])
+
+
+def _acting_notes(scene: dict) -> str:
+    base = _DELIVERY_NOTES.get(
+        str(scene.get("delivery", "")).strip().lower(),
+        _DELIVERY_NOTES["neutral"])
+    read = str(scene.get("read", "") or "").strip()
+    return f"{base} {read}" if read else base
+
+
+def _openai_tts(text: str, out_mp3: Path, instructions: str) -> bool:
+    """Expressive narration via OpenAI TTS. Returns False (so the caller
+    falls back to edge-tts) when no key is set or the call fails."""
+    if not os.environ.get("OPENAI_API_KEY"):
+        return False
+    try:
+        from openai import OpenAI
+        resp = OpenAI().audio.speech.create(
+            model="gpt-4o-mini-tts",
+            voice=os.environ.get("FORGE_OPENAI_VOICE", "ash"),
+            input=text, instructions=instructions,
+        )
+        out_mp3.write_bytes(resp.content)
+        return out_mp3.exists() and out_mp3.stat().st_size > 0
+    except Exception:
+        return False
 
 
 def synth(text: str, out_mp3: Path,
@@ -488,7 +536,8 @@ def _clip(ff: str, webm: Path, dur: float, out: Path, audio: Path | None) -> Non
             "-threads", "1",
             "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p"]
     if audio:
-        cmd += ["-c:a", "aac", "-b:a", "160k"]
+        # delay the line slightly so each scene opens with a breath
+        cmd += ["-af", "adelay=350:all=1", "-c:a", "aac", "-b:a", "160k"]
     cmd += [str(out)]
     subprocess.run(cmd, check=True, capture_output=True)
 
@@ -516,10 +565,12 @@ def build_video(md_path: str | Path, on_progress=None,
         say(f"narrating {i}/{total}")
         mp3 = work / f"s{i:02d}.mp3"
         rate, pitch = _delivery(sc)
-        if synth(sc["narration"], mp3, rate=rate, pitch=pitch):
+        if (_openai_tts(sc["narration"], mp3, _acting_notes(sc))
+                or synth(sc["narration"], mp3, rate=rate, pitch=pitch)):
             narrated += 1
             mp3s.append(mp3)
-            durs.append(_audio_dur(ff, mp3) + 0.4)
+            # 0.35s breath before the line + a beat to settle after it
+            durs.append(_audio_dur(ff, mp3) + 0.95)
         else:
             mp3s.append(None)
             durs.append(_reading_seconds(sc["narration"]))

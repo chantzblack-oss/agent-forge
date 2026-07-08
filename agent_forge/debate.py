@@ -104,7 +104,10 @@ _DEBATE_SCRIPT_SYSTEM = (
     "End: each host gets one closing line, then a neutral final scene "
     "that names the crux the viewer should chew on — and points them to "
     "the brief for the full cases.\n\n"
-    "Each scene: {speaker ('a'|'b'|null), kicker (2-4 words), headline "
+    "Each scene: {speaker ('a'|'b'|null), layout (standard | punch | "
+    "fullviz — 'punch' 2-4 times for the biggest one-liners as giant "
+    "centered type: the opening question, a kill shot, the final line; "
+    "'fullviz' when the diagram is the story), kicker (2-4 words), headline "
     "(<=7 words, on-screen), narration (1-3 spoken sentences, HARD MAX "
     "40 words — split big ideas into more scenes), pose "
     "(explain | point | warn | celebrate | think | wave), delivery "
@@ -114,7 +117,8 @@ _DEBATE_SCRIPT_SYSTEM = (
     "newlines — viewBox='0 0 880 700', no external refs/scripts, under "
     "900 characters; it sits on the video's dark background — NO backdrop "
     "rect; palette ink #eaf3f2 accent #ff7a5e accent2 #35c2d6 muted "
-    "#5d7a84, text >= 26px, labels clear of shape edges)}.\n"
+    "#5d7a84, text >= 26px and ALWAYS filled with a light palette "
+    "color — dark fills vanish, labels clear of shape edges)}.\n"
     "Return ONLY a JSON array."
 )
 

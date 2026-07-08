@@ -94,9 +94,17 @@ _SCRIPT_SYSTEM = (
     "Design real diagrams: graphs with labeled nodes, "
     "timelines, before/after, flows with arrows, simple scene illustrations. "
     "Palette on dark: ink #eaf3f2, accent #ff7a5e, accent2 #35c2d6, "
-    "muted #5d7a84. Text >= 26px. A visual is REQUIRED on every scene that "
+    "muted #5d7a84. Text >= 26px, and svg text fill must ALWAYS be one "
+    "of those light palette colors — never a dark fill, it vanishes on "
+    "the dark background. A visual is REQUIRED on every scene that "
     "explains a mechanism, number, comparison, or sequence — typography-only "
     "is acceptable only for pure emotional beats (max 3 per video).\n"
+    "- layout: the shot type — standard | punch | fullviz. Use 'punch' "
+    "2-4 times per video for the biggest one-liners (giant centered "
+    "type, no diagram): the hook, a shocking number, a hard question, "
+    "the final line. Use 'fullviz' when the diagram IS the story. A "
+    "video that is all 'standard' feels like a slideshow — vary the "
+    "shots like an editor would.\n"
     "- pose: the on-screen host's body language for the beat, one of "
     "explain | point | warn | celebrate | think | wave | none. Use 'point' "
     "when there's a diagram to gesture at, 'warn' on danger/mistake beats, "
@@ -113,8 +121,13 @@ _SCRIPT_SYSTEM = (
     "- Every fact/number must come from the essay; where it hedges, hedge.\n"
     "- Build momentum; end on the essay's most mind-bending point, then one "
     "closing beat that names the open question.\n"
-    "Return ONLY a JSON array of {kicker, headline, narration, pose, "
-    "delivery, read, visual?}."
+    "VOICE: a sharp, funny friend who respects the viewer's time. Punchy "
+    "verbs, surprising-but-precise comparisons, second person. Vary the "
+    "sentence music — some scenes land one clean punch, others run quick "
+    "triplets; ask the viewer a hard question now and then, or give a "
+    "flat command. Never sound like a narrator reading slides.\n"
+    "Return ONLY a JSON array of {kicker, headline, narration, layout, "
+    "pose, delivery, read, visual?}."
 )
 
 
@@ -360,6 +373,7 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  .bar{{position:absolute;left:96px;bottom:120px;height:8px;background:#ff7a5e;border-radius:99px;
    width:0;animation:grow {dur}s linear forwards}}
  @keyframes grow{{to{{width:{barw}px}}}}
+ {layout_css}
 </style></head><body>
  <div class=orb></div><div class=orb2></div>
  <div class=bignum>{idx:02d}</div>
@@ -494,6 +508,28 @@ def _safe_visual(scene: dict) -> str:
     return f'<div class="viz">{svg}</div>'
 
 
+# Per-scene shot types — a production varies its shots; a slideshow doesn't.
+_LAYOUTS = {
+    "standard": "",
+    # one line, giant type, dead center — punchlines, questions, commands
+    "punch": """
+ body{align-items:center;text-align:center}
+ .kicker{text-align:center}
+ .headline{font-size:130px;line-height:1.0;max-width:880px}
+ .caption{margin-left:auto;margin-right:auto;text-align:center}
+ .cap{left:50%;transform:translate(-50%,18px);width:760px}
+ @keyframes capin{to{opacity:1;transform:translate(-50%,0)}}
+ @keyframes capout{to{opacity:0;transform:translate(-50%,-14px)}}
+ .bignum{display:none}""",
+    # the diagram is the star — text steps back
+    "fullviz": """
+ .headline{font-size:54px}
+ .viz svg{max-height:980px}
+ .caption{min-height:190px}
+ .cap{font-size:32px}""",
+}
+
+
 def _caption_html(narration: str, dur: float) -> str:
     """Live captions: the narration plays sentence-by-sentence in sync with
     the voice — each line fades in as it's spoken and out when done. No
@@ -527,7 +563,11 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
     viz = _safe_visual(scene)
     caption = _caption_html(scene.get("narration", ""), max(dur, 3.0))
     host = _host_html(scene, has_viz=bool(viz))
+    layout = str(scene.get("layout", "") or "").strip().lower()
+    if layout == "punch":
+        viz = ""          # punch scenes are type-only by design
     return _SLIDE_TMPL.format(
+        layout_css=_LAYOUTS.get(layout, ""),
         w=W, h=H, idx=idx, total=total, barw=int(880 * idx / total),
         kicker=scene.get("kicker", "").replace("<", "&lt;"),
         headline=hl,

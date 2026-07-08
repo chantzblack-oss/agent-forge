@@ -107,6 +107,9 @@ _SCRIPT_SYSTEM = (
     "playful lines, hype for the payoff, grave for tragedy or stakes, "
     "hushed for mystery and tension. Vary it — a whole video in one "
     "delivery is a monotone.\n"
+    "- EVERY scene must hand the viewer something NEW — a specific fact, "
+    "number, name, or image they didn't have a scene ago. If a scene only "
+    "restates or transitions, cut it.\n"
     "- Every fact/number must come from the essay; where it hedges, hedge.\n"
     "- Build momentum; end on the essay's most mind-bending point, then one "
     "closing beat that names the open question.\n"
@@ -240,7 +243,8 @@ def _acting_notes(scene: dict) -> str:
         str(scene.get("delivery", "")).strip().lower(),
         _DELIVERY_NOTES["neutral"])
     read = str(scene.get("read", "") or "").strip()
-    return f"{base} {read}" if read else base
+    note = f"{base} {read}" if read else base
+    return note + " Keep a brisk conversational pace — no long pauses."
 
 
 # Debate mode: scenes may carry speaker 'a' or 'b'; each speaker keeps a
@@ -317,6 +321,9 @@ def _reading_seconds(text: str) -> float:
 
 _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  html,body{{margin:0;width:{w}px;height:{h}px;overflow:hidden}}
+ html{{background:#06141b}}
+ body{{animation:kb {dur}s linear forwards;transform-origin:50% 42%}}
+ @keyframes kb{{from{{transform:scale(1)}}to{{transform:scale(1.035)}}}}
  body{{background:radial-gradient(120% 90% at 50% 12%,#12333f,#06141b 70%);
    color:#eaf3f2;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
    display:flex;flex-direction:column;justify-content:center;padding:110px 96px {padbot}px 96px;box-sizing:border-box;position:relative}}
@@ -543,13 +550,21 @@ _LOWMEM_ARGS = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
                 "--renderer-process-limit=1", "--no-zygote", "--single-process"]
 
 
+CAPTURE_FPS = 20     # deterministic virtual-time capture rate
+
+
 def _record_scenes(scenes: list[dict], durs: list[float],
-                   workdir: Path, say) -> list[Path]:
-    """Record each scene as ANIMATED video (CSS motion design captured from a
-    real browser) in one low-memory browser, fully closed before ffmpeg."""
+                   workdir: Path, say):
+    """Render each scene to a directory of frames by SCRUBBING its CSS
+    animations (Web Animations API: pause everything, set currentTime per
+    frame, screenshot).
+
+    Realtime recording on a small worker drops frames (laggy) and encodes
+    a soft VP8 (blurry). Scrubbing decouples smoothness from CPU: every
+    frame is exactly 1/fps of animation time, captured pixel-perfect, so
+    the result is identical on a laptop or a 1-CPU container."""
     from playwright.sync_api import sync_playwright
     total = len(scenes)
-    webms: list[Path] = []
     exe = "/opt/pw-browsers/chromium"
 
     def _launch(p):
@@ -558,61 +573,71 @@ def _record_scenes(scenes: list[dict], durs: list[float],
             args=_LOWMEM_ARGS)
 
     def _one(b, sc, i, dur) -> Path:
-        recdir = workdir / f"rec{i:02d}"
-        ctx = b.new_context(
-            viewport={"width": W, "height": H},
-            record_video_dir=str(recdir),
-            record_video_size={"width": W, "height": H})
-        pg = ctx.new_page()
+        fdir = workdir / f"frames{i:02d}"
+        fdir.mkdir(exist_ok=True)
+        pg = b.new_page(viewport={"width": W, "height": H})
         with tempfile.NamedTemporaryFile(
                 "w", suffix=".html", delete=False, encoding="utf-8") as f:
             f.write(_scene_html(sc, i, total, dur))
             htmlpath = f.name
         try:
             pg.goto("file://" + htmlpath)
-            pg.wait_for_timeout(int(dur * 1000))
-            ctx.close()  # finalizes the recording
+            pg.evaluate(
+                "()=>{window.__anims=document.getAnimations({subtree:true});"
+                "window.__anims.forEach(a=>a.pause())}")
+            nframes = max(int(dur * CAPTURE_FPS), CAPTURE_FPS)
+            for fr in range(nframes):
+                pg.evaluate(
+                    "t=>window.__anims.forEach(a=>{a.currentTime=t})",
+                    fr * 1000.0 / CAPTURE_FPS)
+                pg.screenshot(path=str(fdir / f"f{fr:05d}.jpg"),
+                              type="jpeg", quality=90, animations="allow")
+            pg.close()
         finally:
             os.unlink(htmlpath)
-        vids = sorted(recdir.glob("*.webm"),
-                      key=lambda v: v.stat().st_size, reverse=True)
-        if not vids or vids[0].stat().st_size == 0:
-            raise RuntimeError(f"scene {i} recording missing")
-        return vids[0]
+        if not any(fdir.glob("f*.jpg")):
+            raise RuntimeError(f"scene {i} captured no frames")
+        return fdir
 
     with sync_playwright() as p:
         b = _launch(p)
         for i, (sc, dur) in enumerate(zip(scenes, durs), 1):
             say(f"animating {i}/{total}: {sc['headline']}")
             if i % 5 == 0:
-                # recycle the browser periodically: recording contexts leak
-                # in single-process mode, and an unbounded leak is an OOM
-                # kill on a small worker
+                # recycle the browser periodically to bound leaks on the
+                # small worker
                 try:
                     b.close()
                 except Exception:
                     pass
                 b = _launch(p)
             try:
-                webms.append(_one(b, sc, i, dur))
+                fdir = _one(b, sc, i, dur)
             except Exception:
-                # Low-mem single-process Chromium occasionally dies while a
-                # recording finalizes; relaunch and retry the scene once.
+                # relaunch and retry the scene once if Chromium died
                 try:
                     b.close()
                 except Exception:
                     pass
                 b = _launch(p)
-                webms.append(_one(b, sc, i, dur))
+                fdir = _one(b, sc, i, dur)
+            # yield per scene so the caller can encode and free the frames
+            # before the next capture — keeps peak disk to one scene
+            yield i - 1, fdir
         b.close()
-    return webms
 
 
 # ── 4. assemble ──────────────────────────────────────────
 
-def _clip(ff: str, webm: Path, dur: float, out: Path, audio: Path | None) -> None:
-    # Transcode the recorded animation to h264 and lay the narration under it.
-    cmd = [ff, "-y", "-i", str(webm)]
+def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None:
+    """Encode one scene to h264 with the narration under it. `src` is a
+    directory of PNG frames (virtual-time capture) or a legacy webm."""
+    cmd = [ff, "-y"]
+    if src.is_dir():
+        cmd += ["-framerate", str(CAPTURE_FPS),
+                "-i", str(src / "f%05d.jpg")]
+    else:
+        cmd += ["-i", str(src)]
     if audio:
         cmd += ["-i", str(audio)]
     # dip-to-black on both ends so scene cuts read as edits, not glitches
@@ -621,12 +646,17 @@ def _clip(ff: str, webm: Path, dur: float, out: Path, audio: Path | None) -> Non
                     f"fade=t=out:st={max(dur - 0.35, 0.5):.2f}:d=0.35,"
                     f"format=yuv420p"),
             "-threads", "1",
-            "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p"]
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
+            "-pix_fmt", "yuv420p"]
     if audio:
-        # delay the line slightly so each scene opens with a breath
-        cmd += ["-af", "adelay=350:all=1", "-c:a", "aac", "-b:a", "160k"]
+        # a small breath before the line lands
+        cmd += ["-af", "adelay=300:all=1", "-c:a", "aac", "-b:a", "160k"]
     cmd += [str(out)]
     subprocess.run(cmd, check=True, capture_output=True)
+    if src.is_dir():
+        # frames are big; free the disk as soon as the clip exists
+        import shutil
+        shutil.rmtree(src, ignore_errors=True)
 
 
 def render_scenes(scenes: list[dict], out: Path, on_progress=None) -> dict:
@@ -650,19 +680,17 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None) -> dict:
                          voice=_speaker_edge_voice(spk))):
             narrated += 1
             mp3s.append(mp3)
-            # 0.35s breath before the line + a beat to settle after it
-            durs.append(_audio_dur(ff, mp3) + 0.95)
+            # a breath in, a short settle out — tight, not sleepy
+            durs.append(_audio_dur(ff, mp3) + 0.65)
         else:
             mp3s.append(None)
             durs.append(_reading_seconds(sc["narration"]))
-    # Phase 2: record animated scenes (one browser, closed before ffmpeg).
-    webms = _record_scenes(scenes, durs, work, say)
-    # Phase 3: mux narration under each animation.
+    # Phase 2: capture each scene (virtual-time, pixel-perfect) and encode
+    # it immediately — frames are freed before the next scene is captured.
     clips: list[Path] = []
-    for i in range(total):
-        say(f"encoding {i + 1}/{total}")
+    for i, fdir in _record_scenes(scenes, durs, work, say):
         clip = work / f"c{i + 1:02d}.mp4"
-        _clip(ff, webms[i], durs[i], clip, mp3s[i])
+        _clip(ff, fdir, durs[i], clip, mp3s[i])
         clips.append(clip)
 
     say("stitching…")

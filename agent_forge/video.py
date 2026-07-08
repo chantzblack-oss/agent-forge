@@ -68,7 +68,10 @@ _SCRIPT_SYSTEM = (
     "- narration: 1-3 spoken sentences, HARD MAX 40 words (a scene should "
     "run 8-15 seconds — long monologues kill the pace; split big ideas "
     "into more scenes), no markdown, no stage directions — "
-    "just what the voice says. Write like a person actually talks: "
+    "just what the voice says. Engineer the pacing with punctuation — "
+    "the narrator performs it: em-dashes for a sharp mid-thought pivot, "
+    "ellipses for a hesitation or trailing thought, a short sentence for "
+    "a punch. Write like a person actually talks: "
     "contractions, mostly short sentences, concrete verbs; it must pass "
     "being read aloud. BANNED: the \"That's not X. That's Y.\" pattern, "
     "'Here's the thing', 'here's the magic', 'But wait', rhetorical "
@@ -82,6 +85,13 @@ _SCRIPT_SYSTEM = (
     "- headline: <= 7 words, the on-screen text for that beat (also serves "
     "as the caption for muted viewing).\n"
     "- kicker: 2-4 word eyebrow label.\n"
+    "- data: PREFER this over a hand-drawn svg whenever the beat is "
+    "numeric — the engine renders it as a polished animated chart whose "
+    "visual weight matches the math. One of:\n"
+    "    {\"type\":\"bars\",\"title\":..,\"unit\":..,\"items\":[{\"label\":..,\"value\":<number>}, ...<=6]}\n"
+    "    {\"type\":\"gauge\",\"title\":..,\"value\":<0-100>,\"label\":..} for one percentage\n"
+    "    {\"type\":\"scale\",\"title\":..,\"min_label\":..,\"max_label\":..,\"value\":<0-100>,\"marker_label\":..} for a spectrum\n"
+    "    {\"type\":\"flow\",\"title\":..,\"steps\":[..2-6 short steps..]} for a chain reaction or process\n"
     "- visual: for scenes where a picture teaches more than words, an inline "
     "SVG diagram for that exact beat (viewBox='0 0 880 700', no external "
     "refs, no <script>; the ENTIRE svg must be ONE line — JSON strings "
@@ -94,9 +104,12 @@ _SCRIPT_SYSTEM = (
     "Design real diagrams: graphs with labeled nodes, "
     "timelines, before/after, flows with arrows, simple scene illustrations. "
     "Palette on dark: ink #eaf3f2, accent #ff7a5e, accent2 #35c2d6, "
-    "muted #5d7a84. Text >= 26px, and svg text fill must ALWAYS be one "
-    "of those light palette colors — never a dark fill, it vanishes on "
-    "the dark background. A visual is REQUIRED on every scene that "
+    "muted #5d7a84, amber #ffb454. Text >= 26px, and svg text fill must "
+    "ALWAYS be one of those light palette colors — never a dark fill, it "
+    "vanishes on the dark background. Inside a visual you may place "
+    "clean stroke icons: <icon name='flame' x='100' y='80' size='64' "
+    "color='#ff7a5e'/> — names: flame clock dollar alert zap shield "
+    "home heart bulb hourglass check x trend-up trend-down target globe. A visual is REQUIRED on every scene that "
     "explains a mechanism, number, comparison, or sequence — typography-only "
     "is acceptable only for pure emotional beats (max 3 per video).\n"
     "- layout: the shot type — standard | punch | fullviz. Use 'punch' "
@@ -127,7 +140,7 @@ _SCRIPT_SYSTEM = (
     "triplets; ask the viewer a hard question now and then, or give a "
     "flat command. Never sound like a narrator reading slides.\n"
     "Return ONLY a JSON array of {kicker, headline, narration, layout, "
-    "pose, delivery, read, visual?}."
+    "pose, delivery, read, data?, visual?}."
 )
 
 
@@ -260,13 +273,15 @@ def _acting_notes(scene: dict) -> str:
     return note + " Keep a brisk conversational pace — no long pauses."
 
 
-# Debate mode: scenes may carry speaker 'a' or 'b'; each speaker keeps a
-# consistent voice across the video, on both TTS paths.
+# Voice casting: strict recurring roles so the format is recognizable the
+# moment audio starts. Narrator (lessons/sims/explainers) is a grounded
+# broadcast voice; debates pair a higher-energy believer against a
+# measured, deep skeptic for natural vocal friction.
 def _speaker_openai_voice(spk: str) -> str | None:
     if spk == "a":
-        return os.environ.get("FORGE_OPENAI_VOICE", "ash")
+        return os.environ.get("FORGE_OPENAI_VOICE_A", "nova")
     if spk == "b":
-        return os.environ.get("FORGE_OPENAI_VOICE_B", "coral")
+        return os.environ.get("FORGE_OPENAI_VOICE_B", "echo")
     return None
 
 
@@ -289,7 +304,7 @@ def _openai_tts(text: str, out_mp3: Path, instructions: str,
         from openai import OpenAI
         resp = OpenAI().audio.speech.create(
             model="gpt-4o-mini-tts",
-            voice=voice or os.environ.get("FORGE_OPENAI_VOICE", "ash"),
+            voice=voice or os.environ.get("FORGE_OPENAI_VOICE", "onyx"),
             input=text, instructions=instructions,
         )
         out_mp3.write_bytes(resp.content)
@@ -350,12 +365,12 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  @keyframes drift2{{from{{transform:translate(0,0) scale(1)}}to{{transform:translate(50px,-40px) scale(1.06)}}}}
  .bignum{{position:absolute;top:44px;left:96px;font-size:150px;font-weight:800;
    color:rgba(53,194,214,.10);letter-spacing:-.04em;line-height:1;
-   opacity:0;animation:rise .8s .1s ease-out forwards}}
+   opacity:0;animation:rise .9s .1s cubic-bezier(.16,1,.3,1) forwards}}
  .kicker{{color:#ff7a5e;font-weight:800;letter-spacing:.16em;text-transform:uppercase;font-size:34px;margin-bottom:30px;
-   opacity:0;animation:rise .6s .15s ease-out forwards}}
- .headline{{font-weight:800;font-size:{hlsize}px;line-height:1.05;letter-spacing:-.02em}}
- .headline .w{{display:inline-block;opacity:0;transform:translateY(26px);
-   animation:wordin .55s ease-out forwards}}
+   opacity:0;animation:rise .7s .15s cubic-bezier(.16,1,.3,1) forwards}}
+ .headline{{font-weight:800;font-size:{hlsize}px;line-height:1.04;letter-spacing:-.03em}}
+ .headline .w{{display:inline-block;opacity:0;transform:translateY(38px) scale(.98);
+   animation:wordin .7s cubic-bezier(.16,1,.3,1) forwards}}
  @keyframes wordin{{to{{opacity:1;transform:none}}}}
  .accent{{color:#35c2d6}}
  .caption{{margin-top:44px;position:relative;min-height:300px}}
@@ -363,9 +378,11 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
    color:#b8d2d8;max-width:760px;opacity:0;transform:translateY(18px)}}
  @keyframes capin{{to{{opacity:1;transform:none}}}}
  @keyframes capout{{to{{opacity:0;transform:translateY(-14px)}}}}
- .viz{{margin-top:56px;opacity:0;animation:rise .8s {vizdelay}s ease-out forwards}}
+ .viz{{margin-top:56px;opacity:0;transform:translateY(30px) scale(.97);
+   animation:vizrise .9s {vizdelay}s cubic-bezier(.16,1,.3,1) forwards}}
+ @keyframes vizrise{{to{{opacity:1;transform:none}}}}
  .viz svg{{width:100%;height:auto;display:block;max-height:640px}}
- .viz svg > *{{opacity:0;animation:vizin .5s ease-out forwards}}
+ .viz svg > *{{opacity:0;animation:vizin .6s cubic-bezier(.34,1.56,.64,1) forwards}}
  @keyframes vizin{{to{{opacity:1}}}}
  @keyframes rise{{from{{opacity:0;transform:translateY(22px)}}to{{opacity:1;transform:none}}}}
  .n{{position:absolute;top:70px;right:96px;color:#3f5a63;font-size:30px;font-weight:700;
@@ -493,6 +510,154 @@ def _host_html(scene: dict, has_viz: bool = True) -> str:
                        "#eaf3f2", True, width=w)
 
 
+# ── iconography: clean stroke icons the script can place by name ─────────
+# 24x24 viewbox, stroke-based (Lucide-style). Used via
+#   <icon name="flame" x="100" y="80" size="64" color="#ff7a5e"/>
+_ICONS = {
+    "flame": '<path d="M12 2c2.5 4.5 6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 3.5-6.5 6-11z"/>',
+    "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+    "dollar": '<path d="M12 2v20M16.5 6.5c-1-2-9-2.5-9 1.5s9 2.5 9 6.5-8 3.5-9 1.5"/>',
+    "alert": '<path d="M12 3 2 20h20L12 3zM12 10v4M12 17h.01"/>',
+    "zap": '<path d="M13 2 3 14h7l-1 8 11-13h-8l1-7z"/>',
+    "shield": '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/>',
+    "home": '<path d="M3 11 12 3l9 8M5 10v10h14V10"/>',
+    "heart": '<path d="M12 21C4 14 4 7 8.5 5.5 11 4.7 12 7 12 7s1-2.3 3.5-1.5C20 7 20 14 12 21z"/>',
+    "bulb": '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 1 4 10.5c-.8.7-1 1.5-1 2.5h-6c0-1-.2-1.8-1-2.5A6 6 0 0 1 12 3z"/>',
+    "hourglass": '<path d="M6 3h12M6 21h12M8 3c0 4.5 8 6 8 9s-8 4.5-8 9M16 3c0 4.5-8 6-8 9s8 4.5 8 9"/>',
+    "check": '<path d="M4 12l5 5L20 7"/>',
+    "x": '<path d="M6 6l12 12M18 6 6 18"/>',
+    "trend-up": '<path d="M3 17l6-6 4 4 8-8M14 7h7v7"/>',
+    "trend-down": '<path d="M3 7l6 6 4-4 8 8M14 17h7v-7"/>',
+    "target": '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+    "globe": '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+}
+
+_ICON_TAG = re.compile(
+    r"<icon\s+name=['\"](\w[\w-]*)['\"]"
+    r"(?:\s+x=['\"]([\d.]+)['\"])?(?:\s+y=['\"]([\d.]+)['\"])?"
+    r"(?:\s+size=['\"]([\d.]+)['\"])?(?:\s+color=['\"](#[0-9a-fA-F]{3,8})['\"])?"
+    r"\s*/?>", re.I)
+
+
+def _expand_icons(svg: str) -> str:
+    def sub(m):
+        body = _ICONS.get(m.group(1).lower())
+        if not body:
+            return ""
+        x, y = m.group(2) or "0", m.group(3) or "0"
+        size = float(m.group(4) or 48)
+        color = m.group(5) or "#eaf3f2"
+        return (f'<g transform="translate({x},{y}) scale({size / 24:.3f})" '
+                f'fill="none" stroke="{color}" stroke-width="2" '
+                f'stroke-linecap="round" stroke-linejoin="round">{body}</g>')
+    return _ICON_TAG.sub(sub, svg)
+
+
+# ── programmatic data viz: the engine draws the chart, not the model ─────
+_DATA_COLORS = ["#35c2d6", "#ff7a5e", "#ffb454", "#8bd450", "#b48ce8"]
+
+
+def _data_html(data: dict, vizdelay: float) -> str:
+    """Render a structured data spec as a polished animated chart. The
+    visual weight of the graphic matches the math by construction."""
+    try:
+        kind = str(data.get("type", "")).lower()
+        title = str(data.get("title", "") or "")[:80].replace("<", "&lt;")
+        head = f'<div class="dvt">{title}</div>' if title else ""
+        ease = "cubic-bezier(.16,1,.3,1)"
+        spring = "cubic-bezier(.34,1.56,.64,1)"
+
+        if kind == "bars":
+            items = [i for i in data.get("items", [])
+                     if isinstance(i, dict) and i.get("label") is not None][:6]
+            vals = [max(float(i.get("value", 0)), 0.0) for i in items]
+            top = max(vals) or 1.0
+            unit = str(data.get("unit", "") or "")[:12]
+            rows = []
+            for n, (it, val) in enumerate(zip(items, vals)):
+                c = it.get("color") or _DATA_COLORS[n % len(_DATA_COLORS)]
+                pct = max(val / top * 100, 3)
+                num = f"{val:g}" if len(f"{val:g}") < 8 else f"{val:,.0f}"
+                shown = f"{unit}{num}" if unit in ("$", "€", "£") else f"{num}{unit}"
+                rows.append(
+                    f'<div class="dr"><span class="dl">{str(it["label"])[:22].replace("<","&lt;")}</span>'
+                    f'<div class="dt"><div class="df" style="width:{pct:.1f}%;'
+                    f'background:{c};animation-delay:{vizdelay + .2 + n * .16:.2f}s"></div></div>'
+                    f'<span class="dv2">{shown}</span></div>')
+            return (f'<div class="viz dchart">{head}{"".join(rows)}</div>'
+                    f'<style>.dchart{{margin-top:56px}}'
+                    f'.dvt{{font-size:32px;color:#9fb8bf;margin-bottom:26px;letter-spacing:.04em}}'
+                    f'.dr{{display:flex;align-items:center;gap:22px;margin:20px 0}}'
+                    f'.dl{{width:240px;font-size:29px;color:#eaf3f2;text-align:right;flex-shrink:0}}'
+                    f'.dt{{flex:1;height:44px;background:rgba(255,255,255,.06);border-radius:11px}}'
+                    f'.df{{height:100%;border-radius:11px;transform:scaleX(0);transform-origin:left;'
+                    f'animation:dgrow 1.1s {ease} forwards}}'
+                    f'.dv2{{width:140px;font-size:29px;font-weight:700;color:#eaf3f2;flex-shrink:0}}'
+                    f'@keyframes dgrow{{to{{transform:scaleX(1)}}}}</style>')
+
+        if kind == "gauge":
+            val = min(max(float(data.get("value", 0)), 0.0), 100.0)
+            label = str(data.get("label", "") or "")[:24].replace("<", "&lt;")
+            circ = 2 * 3.14159 * 130
+            off = circ * (1 - val / 100)
+            return (f'<div class="viz dchart">{head}'
+                    f'<svg viewBox="0 0 880 420" style="max-height:460px">'
+                    f'<circle cx="440" cy="210" r="130" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="26"/>'
+                    f'<circle cx="440" cy="210" r="130" fill="none" stroke="#35c2d6" stroke-width="26" '
+                    f'stroke-linecap="round" stroke-dasharray="{circ:.0f}" stroke-dashoffset="{circ:.0f}" '
+                    f'transform="rotate(-90 440 210)" style="animation:doff 1.4s {vizdelay + .2:.2f}s {ease} forwards"/>'
+                    f'<text x="440" y="200" fill="#eaf3f2" font-size="72" font-weight="800" text-anchor="middle">{val:g}%</text>'
+                    f'<text x="440" y="258" fill="#9fb8bf" font-size="30" text-anchor="middle">{label}</text>'
+                    f'</svg><style>@keyframes doff{{to{{stroke-dashoffset:{off:.0f}}}}}'
+                    f'.dchart{{margin-top:56px}}.dvt{{font-size:32px;color:#9fb8bf;margin-bottom:20px}}</style></div>')
+
+        if kind == "scale":
+            val = min(max(float(data.get("value", 50)), 0.0), 100.0)
+            lo = str(data.get("min_label", "") or "")[:18].replace("<", "&lt;")
+            hi = str(data.get("max_label", "") or "")[:18].replace("<", "&lt;")
+            mk = str(data.get("marker_label", "") or "")[:22].replace("<", "&lt;")
+            return (f'<div class="viz dchart">{head}'
+                    f'<div class="ds"><div class="dsm" style="left:{val:.0f}%;'
+                    f'animation-delay:{vizdelay + .3:.2f}s"><div class="dsl">{mk}</div></div></div>'
+                    f'<div class="dse"><span>{lo}</span><span>{hi}</span></div>'
+                    f'<style>.dchart{{margin-top:66px}}'
+                    f'.dvt{{font-size:32px;color:#9fb8bf;margin-bottom:34px}}'
+                    f'.ds{{position:relative;height:14px;border-radius:99px;'
+                    f'background:linear-gradient(90deg,#35c2d6,#ffb454,#ff7a5e);margin:70px 10px 16px}}'
+                    f'.dsm{{position:absolute;top:50%;width:34px;height:34px;border-radius:50%;'
+                    f'background:#eaf3f2;border:5px solid #06141b;transform:translate(-50%,-50%) scale(0);'
+                    f'animation:dpop .7s {spring} forwards}}'
+                    f'.dsl{{position:absolute;bottom:44px;left:50%;transform:translateX(-50%);'
+                    f'white-space:nowrap;font-size:28px;font-weight:700;color:#eaf3f2}}'
+                    f'.dse{{display:flex;justify-content:space-between;font-size:26px;color:#5d7a84;margin:0 10px}}'
+                    f'@keyframes dpop{{to{{transform:translate(-50%,-50%) scale(1)}}}}</style></div>')
+
+        if kind == "flow":
+            steps = [str(s)[:34].replace("<", "&lt;")
+                     for s in data.get("steps", []) if s][:6]
+            if not steps:
+                return ""
+            parts = []
+            for n, s in enumerate(steps):
+                d = vizdelay + .2 + n * .5
+                if n:
+                    parts.append(f'<div class="dfc" style="animation-delay:{d - .25:.2f}s"></div>')
+                parts.append(f'<div class="dfn" style="animation-delay:{d:.2f}s">{s}</div>')
+            return (f'<div class="viz dchart">{head}{"".join(parts)}'
+                    f'<style>.dchart{{margin-top:48px;display:flex;flex-direction:column;align-items:center}}'
+                    f'.dvt{{font-size:32px;color:#9fb8bf;margin-bottom:24px}}'
+                    f'.dfn{{min-width:420px;text-align:center;padding:20px 34px;border:3px solid #35c2d6;'
+                    f'border-radius:14px;font-size:30px;font-weight:700;color:#eaf3f2;'
+                    f'transform:scale(.85);opacity:0;animation:dnode .6s {spring} forwards}}'
+                    f'.dfc{{width:4px;height:40px;background:#5d7a84;transform:scaleY(0);'
+                    f'transform-origin:top;animation:dline .4s {ease} forwards}}'
+                    f'@keyframes dnode{{to{{transform:scale(1);opacity:1}}}}'
+                    f'@keyframes dline{{to{{transform:scaleY(1)}}}}</style></div>')
+    except Exception:
+        return ""
+    return ""
+
+
 _SVG_FORBIDDEN = re.compile(
     r"<\s*(script|foreignObject|iframe)|href\s*=|url\s*\(|javascript:", re.I
 )
@@ -503,6 +668,7 @@ def _safe_visual(scene: dict) -> str:
     svg = (scene.get("visual") or "").strip()
     if not svg or "<svg" not in svg.lower():
         return ""
+    svg = _expand_icons(svg)
     if _SVG_FORBIDDEN.search(svg):
         return ""
     return f'<div class="viz">{svg}</div>'
@@ -560,7 +726,11 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
     hl = " ".join(
         f'<span class="w" style="animation-delay:{0.25 + i * 0.09:.2f}s">{w}</span>'
         for i, w in enumerate(words))
-    viz = _safe_visual(scene)
+    viz = ""
+    if isinstance(scene.get("data"), dict):
+        viz = _data_html(scene["data"], 0.9)
+    if not viz:
+        viz = _safe_visual(scene)
     caption = _caption_html(scene.get("narration", ""), max(dur, 3.0))
     host = _host_html(scene, has_viz=bool(viz))
     layout = str(scene.get("layout", "") or "").strip().lower()

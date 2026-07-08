@@ -78,6 +78,24 @@ async def _run_blocking(fn, *a, **k):
     return await asyncio.get_event_loop().run_in_executor(None, lambda: fn(*a, **k))
 
 
+def _progress_sender(context, chat: int, every: float = 75.0):
+    """A thread-safe on_progress callback that relays pipeline stages to
+    the chat, throttled so a render sends a handful of updates, not one
+    per frame. Answers 'is it working or hung?' without log-digging."""
+    import time as _t
+    loop = asyncio.get_event_loop()
+    last = {"t": _t.time()}
+
+    def say(msg: str):
+        now = _t.time()
+        if now - last["t"] < every:
+            return
+        last["t"] = now
+        asyncio.run_coroutine_threadsafe(
+            context.bot.send_message(chat, f"🎬 {msg}"), loop)
+    return say
+
+
 async def _deliver_video(context, chat_id, path: Path, caption: str, doc: Path | None = None):
     with open(path, "rb") as f:
         await context.bot.send_video(chat_id=chat_id, video=f, caption=caption[:1024],
@@ -140,7 +158,8 @@ async def _make_lesson(update, context, topic: str):
         asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
 
     try:
-        r = await _run_blocking(_lesson.build_lesson, topic, None, _on_doc)
+        r = await _run_blocking(_lesson.build_lesson, topic,
+                                _progress_sender(context, chat), _on_doc)
     except Exception as e:  # pragma: no cover
         log.exception("lesson failed")
         await context.bot.send_message(
@@ -185,7 +204,8 @@ async def _make_show(update, context, topic: str, builder, *,
         asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
 
     try:
-        r = await _run_blocking(builder, topic, None, _on_doc)
+        r = await _run_blocking(builder, topic,
+                                _progress_sender(context, chat), _on_doc)
     except Exception as e:  # pragma: no cover
         log.exception("%s failed", opening)
         await context.bot.send_message(

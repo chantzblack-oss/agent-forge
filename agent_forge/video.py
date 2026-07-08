@@ -760,7 +760,9 @@ _LOWMEM_ARGS = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
                 "--renderer-process-limit=1", "--no-zygote", "--single-process"]
 
 
-CAPTURE_FPS = 20     # deterministic virtual-time capture rate
+CAPTURE_FPS = 15     # scrub-capture rate; fades look identical at 15,
+                     # and it's the difference between 20 and 30 minutes
+                     # of render on a 1-CPU host
 
 
 def _record_scenes(scenes: list[dict], durs: list[float],
@@ -801,7 +803,7 @@ def _record_scenes(scenes: list[dict], durs: list[float],
                     "t=>window.__anims.forEach(a=>{a.currentTime=t})",
                     fr * 1000.0 / CAPTURE_FPS)
                 pg.screenshot(path=str(fdir / f"f{fr:05d}.jpg"),
-                              type="jpeg", quality=90, animations="allow")
+                              type="jpeg", quality=85, animations="allow")
             pg.close()
         finally:
             os.unlink(htmlpath)

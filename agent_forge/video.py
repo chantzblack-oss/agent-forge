@@ -69,10 +69,15 @@ _SCRIPT_SYSTEM = (
     "muted #5d7a84. Text >= 26px. A visual is REQUIRED on every scene that "
     "explains a mechanism, number, comparison, or sequence — typography-only "
     "is acceptable only for pure emotional beats (max 3 per video).\n"
+    "- pose: the on-screen host's body language for the beat, one of "
+    "explain | point | warn | celebrate | think | wave | none. Use 'point' "
+    "when there's a diagram to gesture at, 'warn' on danger/mistake beats, "
+    "'celebrate' on the payoff, 'think' on open questions, 'wave' to open "
+    "and close, 'none' when the frame should be host-free.\n"
     "- Every fact/number must come from the essay; where it hedges, hedge.\n"
     "- Build momentum; end on the essay's most mind-bending point, then one "
     "closing beat that names the open question.\n"
-    "Return ONLY a JSON array of {kicker, headline, narration, visual?}."
+    "Return ONLY a JSON array of {kicker, headline, narration, pose, visual?}."
 )
 
 
@@ -220,7 +225,7 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
    animation:wordin .55s ease-out forwards}}
  @keyframes wordin{{to{{opacity:1;transform:none}}}}
  .accent{{color:#35c2d6}}
- .caption{{margin-top:44px;font-size:36px;line-height:1.5;color:#a7c2c9;max-width:860px;
+ .caption{{margin-top:44px;font-size:36px;line-height:1.5;color:#a7c2c9;max-width:760px;
    opacity:0;animation:rise .8s {capdelay}s ease-out forwards}}
  .viz{{margin-top:56px;opacity:0;animation:rise .8s {vizdelay}s ease-out forwards}}
  .viz svg{{width:100%;height:auto;display:block;max-height:640px}}
@@ -241,6 +246,7 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  {viz}
  <div class=caption>{caption}</div>
  <div class=bar></div>
+ {host}
  <script>
   // stagger svg children so diagrams draw themselves in
   document.querySelectorAll('.viz svg > *').forEach(function(el, i) {{
@@ -248,6 +254,84 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
   }});
  </script>
 </body></html>"""
+
+
+# ── the host: an animated stick-figure presenter ─────────
+# A rigged SVG character rendered in the corner of every scene. Limbs are
+# grouped so CSS keyframes can pose and animate them; the script model picks
+# one pose word per scene, which selects the CSS below.
+
+_HOST_POSES = {
+    # arms gesture while talking — the default
+    "explain": """
+ .host .armR{animation:hgR 1.7s ease-in-out infinite alternate}
+ @keyframes hgR{from{transform:rotate(-6deg)}to{transform:rotate(-34deg)}}
+ .host .armL{animation:hgL 2.1s .3s ease-in-out infinite alternate}
+ @keyframes hgL{from{transform:rotate(4deg)}to{transform:rotate(18deg)}}""",
+    # left arm extended toward the diagram (which sits to the host's left)
+    "point": """
+ .host .armL{animation:hpt 1.1s ease-in-out infinite alternate}
+ @keyframes hpt{from{transform:rotate(40deg)}to{transform:rotate(47deg)}}
+ .host .armR{transform:rotate(-8deg)}""",
+    # both arms up, head shaking, flat mouth — something went wrong
+    "warn": """
+ .host .armL{transform:rotate(65deg)}
+ .host .armR{transform:rotate(-65deg)}
+ .host .head{animation:hshake .5s ease-in-out infinite alternate}
+ @keyframes hshake{from{transform:rotate(-7deg)}to{transform:rotate(7deg)}}
+ .host .mouth{d:path("M100 58 L120 58")}""",
+    # arms wide overhead, big bounce — the payoff beat
+    "celebrate": """
+ .host .armL{transform:rotate(95deg)}
+ .host .armR{transform:rotate(-95deg)}
+ .host .fig{animation:hbig 1s ease-in-out infinite alternate}
+ @keyframes hbig{from{transform:translateY(0)}to{transform:translateY(-14px)}}""",
+    # hand toward chin, head tilted, flat mouth — pondering
+    "think": """
+ .host .armR{transform:rotate(-118deg)}
+ .host .head{transform:rotate(9deg)}
+ .host .mouth{d:path("M101 58 L119 58")}""",
+    # right arm up, waving — openers and closers
+    "wave": """
+ .host .armR{animation:hwave .8s ease-in-out infinite alternate}
+ @keyframes hwave{from{transform:rotate(-100deg)}to{transform:rotate(-138deg)}}""",
+}
+
+_HOST_TMPL = """
+<style>
+ .host{{position:absolute;right:60px;bottom:168px;width:225px;
+   opacity:0;animation:rise .7s .5s ease-out forwards}}
+ .host .fig{{animation:hbob 2.3s ease-in-out infinite alternate;
+   transform-origin:110px 165px}}
+ @keyframes hbob{{from{{transform:translateY(0)}}to{{transform:translateY(7px)}}}}
+ .host line,.host path{{stroke:#eaf3f2;stroke-width:9;stroke-linecap:round;fill:none}}
+ .host .armL,.host .armR{{transform-origin:110px 92px}}
+ .host .head{{transform-origin:110px 44px}}
+ {pose_css}
+</style>
+<div class=host><svg viewBox="0 0 220 270">
+ <g class=fig>
+  <g class=head>
+   <circle cx=110 cy=44 r=27 fill=none stroke=#eaf3f2 stroke-width=9 />
+   <circle cx=100 cy=39 r=3.6 fill=#eaf3f2 stroke=none />
+   <circle cx=120 cy=39 r=3.6 fill=#eaf3f2 stroke=none />
+   <path class=mouth d="M99 54 Q110 63 121 54" stroke-width=5 />
+  </g>
+  <line x1=110 y1=71 x2=110 y2=165 />
+  <g class=armL><line x1=110 y1=92 x2=58 y2=140 /></g>
+  <g class=armR><line x1=110 y1=92 x2=162 y2=140 /></g>
+  <line x1=110 y1=165 x2=76 y2=240 />
+  <line x1=110 y1=165 x2=144 y2=240 />
+ </g>
+</svg></div>"""
+
+
+def _host_html(scene: dict) -> str:
+    pose = str(scene.get("pose", "")).strip().lower()
+    if pose == "none":
+        return ""
+    css = _HOST_POSES.get(pose, _HOST_POSES["explain"])
+    return _HOST_TMPL.format(pose_css=css)
 
 
 _SVG_FORBIDDEN = re.compile(
@@ -281,6 +365,7 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
         hlsize=72 if viz else 92,   # smaller headline when a diagram shares the frame
         viz=viz,
         caption=caption,
+        host=_host_html(scene),
         dur=max(dur, 3.0),
         vizdelay=0.9,
         capdelay=1.3,
@@ -301,29 +386,50 @@ def _record_scenes(scenes: list[dict], durs: list[float],
     total = len(scenes)
     webms: list[Path] = []
     exe = "/opt/pw-browsers/chromium"
-    with sync_playwright() as p:
-        b = p.chromium.launch(
+
+    def _launch(p):
+        return p.chromium.launch(
             executable_path=exe if os.path.exists(exe) else None,
             args=_LOWMEM_ARGS)
-        for i, (sc, dur) in enumerate(zip(scenes, durs), 1):
-            say(f"animating {i}/{total}: {sc['headline']}")
-            ctx = b.new_context(
-                viewport={"width": W, "height": H},
-                record_video_dir=str(workdir / f"rec{i:02d}"),
-                record_video_size={"width": W, "height": H})
-            pg = ctx.new_page()
-            with tempfile.NamedTemporaryFile(
-                    "w", suffix=".html", delete=False, encoding="utf-8") as f:
-                f.write(_scene_html(sc, i, total, dur))
-                htmlpath = f.name
+
+    def _one(b, sc, i, dur) -> Path:
+        recdir = workdir / f"rec{i:02d}"
+        ctx = b.new_context(
+            viewport={"width": W, "height": H},
+            record_video_dir=str(recdir),
+            record_video_size={"width": W, "height": H})
+        pg = ctx.new_page()
+        with tempfile.NamedTemporaryFile(
+                "w", suffix=".html", delete=False, encoding="utf-8") as f:
+            f.write(_scene_html(sc, i, total, dur))
+            htmlpath = f.name
+        try:
             pg.goto("file://" + htmlpath)
             pg.wait_for_timeout(int(dur * 1000))
             ctx.close()  # finalizes the recording
+        finally:
             os.unlink(htmlpath)
-            vids = list((workdir / f"rec{i:02d}").glob("*.webm"))
-            if not vids:
-                raise RuntimeError(f"scene {i} recording missing")
-            webms.append(vids[0])
+        vids = sorted(recdir.glob("*.webm"),
+                      key=lambda v: v.stat().st_size, reverse=True)
+        if not vids or vids[0].stat().st_size == 0:
+            raise RuntimeError(f"scene {i} recording missing")
+        return vids[0]
+
+    with sync_playwright() as p:
+        b = _launch(p)
+        for i, (sc, dur) in enumerate(zip(scenes, durs), 1):
+            say(f"animating {i}/{total}: {sc['headline']}")
+            try:
+                webms.append(_one(b, sc, i, dur))
+            except Exception:
+                # Low-mem single-process Chromium occasionally dies while a
+                # recording finalizes; relaunch and retry the scene once.
+                try:
+                    b.close()
+                except Exception:
+                    pass
+                b = _launch(p)
+                webms.append(_one(b, sc, i, dur))
         b.close()
     return webms
 

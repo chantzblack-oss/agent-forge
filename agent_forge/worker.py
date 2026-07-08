@@ -432,11 +432,28 @@ async def cmd_diag(update, context):
                 system="Reply with exactly: ok", user="ping",
                 model="claude-sonnet-5", max_tokens=2048,
             )
-            return f"✅ WORKS — reply: {out[:60]}"
+            return f"✅ Anthropic (the brain) WORKS — reply: {out[:60]}"
         except Exception as e:
-            return f"❌ {type(e).__name__}: {str(e)[:600]}"
+            return f"❌ Anthropic (the brain): {type(e).__name__}: {str(e)[:400]}"
+
+    def _test_voice() -> str:
+        okey = os.environ.get("OPENAI_API_KEY", "")
+        if not okey:
+            return ("🔇 OPENAI_API_KEY missing — narration falls back to "
+                    "the robotic edge-tts voice")
+        import tempfile
+        from pathlib import Path as _P
+        mp3 = _P(tempfile.mkdtemp(prefix="forge_diag_")) / "t.mp3"
+        if _video._openai_tts("Voice check.", mp3, "neutral"):
+            return ("✅ OpenAI voice WORKS — videos narrate with the "
+                    "expressive voice")
+        return ("❌ OpenAI key present but TTS call FAILED — check the "
+                "key/credits at platform.openai.com; narration falls "
+                "back to the robotic voice")
 
     result = await _run_blocking(_test)
+    await context.bot.send_message(chat, result)
+    result = await _run_blocking(_test_voice)
     await context.bot.send_message(chat, result)
 
 

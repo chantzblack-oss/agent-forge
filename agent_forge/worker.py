@@ -498,6 +498,45 @@ async def cmd_tonight(update, context):
             chat, f"Programming failed: {type(e).__name__}: {e}")
 
 
+async def cmd_test(update, context):
+    """Zero-LLM pipeline check: canned scenes through the FULL production
+    pipeline (packaging, charts, host, music, ducking). Costs ~a cent of
+    TTS — run it after every deploy before spending on real content."""
+    if not _ok(update):
+        return
+    chat = update.effective_chat.id
+    await context.bot.send_message(
+        chat, "🔧 Rendering the pipeline check (~2 min, no API spend)…")
+    scenes = [
+        {"kicker": "check one", "headline": "Voice and captions",
+         "narration": "If you can hear this line, narration and the music "
+                      "duck are working.",
+         "pose": "wave", "delivery": "bright", "layout": "standard"},
+        {"kicker": "check two", "headline": "Charts land with ticks",
+         "narration": "Bars should grow with the voice — and land with a "
+                      "tick.",
+         "pose": "point", "delivery": "neutral", "layout": "fullviz",
+         "data": {"type": "bars", "title": "SYSTEM CHECK",
+                  "items": [{"label": "Audio", "value": 100},
+                            {"label": "Motion", "value": 100},
+                            {"label": "Charts", "value": 100}]}},
+        {"kicker": "check three", "headline": "All systems live",
+         "narration": "Punch card, riser, dip to black… you're clear to "
+                      "spend real money.",
+         "pose": "celebrate", "delivery": "hype", "layout": "punch"},
+    ]
+    out = _explorer.EXPLORATIONS_DIR / "pipeline-check.mp4"
+    try:
+        r = await _run_blocking(
+            _video.render_scenes, scenes, out,
+            _progress_sender(context, chat), "Pipeline Check", "SYSTEM")
+        tag = "" if r["voiced"] else " (SILENT — TTS unreachable!)"
+        await _deliver_video(context, chat, r["path"], f"🔧 Pipeline check{tag}")
+    except Exception as e:
+        await context.bot.send_message(
+            chat, f"Pipeline check FAILED: {type(e).__name__}: {e}")
+
+
 async def cmd_taste(update, context):
     """Feedback that persists: '/taste the hooks are too slow' becomes a
     standing directive in every future script."""
@@ -866,6 +905,7 @@ def main() -> None:
     app.add_handler(CommandHandler("taste", cmd_taste))
     app.add_handler(CommandHandler("story", cmd_story))
     app.add_handler(CommandHandler("tonight", cmd_tonight))
+    app.add_handler(CommandHandler("test", cmd_test))
     app.add_handler(CommandHandler("surprise", cmd_surprise))
     app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(CommandHandler("feed", cmd_feed))

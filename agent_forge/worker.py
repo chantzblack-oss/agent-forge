@@ -767,6 +767,20 @@ async def _resume_job(app: Application):
             chat, f"⚡ A restart killed “{topic}” before research "
                   "finished — send it again.")
         return
+    # never resume a malformed doc (e.g. the model asked a question back
+    # instead of researching) — that renders garbage on a loop
+    import re as _re
+    try:
+        _txt = Path(doc).read_text(encoding="utf-8")
+    except Exception:
+        _txt = ""
+    if (not _re.search(r"^#\s+.+$", _txt, _re.M)
+            or _txt.count("##") < 3 or len(_txt) < 1200):
+        await app.bot.send_message(
+            chat, f"⚡ A restart killed “{topic or 'a job'}”, and its "
+                  "research looks malformed — not resuming it. Send the "
+                  "request again.")
+        return
     await app.bot.send_message(
         chat, f"♻️ Restart killed the render of “{topic}” — resuming it "
               "now (the research is already done).")

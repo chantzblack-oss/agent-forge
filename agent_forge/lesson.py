@@ -101,13 +101,13 @@ _LESSON_VIDEO_SYSTEM = (
     "grave | hushed — vary it with the material), "
     "visual (optional inline SVG diagram on a SINGLE line — JSON strings cannot contain raw newlines — viewBox='0 0 880 700', no external "
     "refs/scripts; palette ink #eaf3f2 accent #ff7a5e accent2 #35c2d6 muted "
-    "#5d7a84, text >= 26px)}. Lessons NEED diagrams — draw the actual "
-    "structure being taught (graphs with labeled nodes and arrows, "
+    "#5d7a84, text >= 26px; the svg sits on the video's dark background — "
+    "NO background rect or light fill behind the diagram; keep every "
+    "label outside the shape it names or sized to fit with room to spare, "
+    "never touching a shape edge)}. Lessons NEED diagrams — draw the "
+    "actual structure being taught (graphs with labeled nodes and arrows, "
     "before/after states, flows); aim for a visual on most scenes.\n"
-    "Arc: hook with why this matters or a myth to kill -> build the mental "
-    "model one idea per scene -> the plan at a high level -> the biggest "
-    "trap -> a closing 'now go do it, the steps are in your cheat-sheet'.\n"
-    "Everything must match the lesson doc. Return ONLY a JSON array."
+    "Return ONLY a JSON array."
 )
 
 

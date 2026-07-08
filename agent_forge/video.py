@@ -584,6 +584,15 @@ def _record_scenes(scenes: list[dict], durs: list[float],
         b = _launch(p)
         for i, (sc, dur) in enumerate(zip(scenes, durs), 1):
             say(f"animating {i}/{total}: {sc['headline']}")
+            if i % 5 == 0:
+                # recycle the browser periodically: recording contexts leak
+                # in single-process mode, and an unbounded leak is an OOM
+                # kill on a small worker
+                try:
+                    b.close()
+                except Exception:
+                    pass
+                b = _launch(p)
             try:
                 webms.append(_one(b, sc, i, dur))
             except Exception:

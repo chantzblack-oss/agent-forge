@@ -38,10 +38,17 @@ def pick_mood(scenes: list[dict]) -> str:
 
 
 def ambient_bed(seconds: float, out_wav: Path, mood: str = "warm") -> Path:
-    """Render `seconds` of ambient pad to a mono 16-bit wav."""
+    """Render `seconds` of ambient pad to a mono 16-bit wav.
+
+    Memory-frugal on purpose (this runs on a small worker next to ffmpeg):
+    samples live in a typed array (4 bytes each, not boxed floats) and the
+    wav is written in chunks.
+    """
+    from array import array
+
     roots = _MOODS.get(mood, _MOODS["warm"])
     n = int(seconds * _SR)
-    buf = [0.0] * n
+    buf = array("f", bytes(4 * n))
     step = _CHORD / 2          # chords overlap halfway for a seamless pad
     ci = 0
     t = 0.0
@@ -64,11 +71,14 @@ def ambient_bed(seconds: float, out_wav: Path, mood: str = "warm") -> Path:
         t += step
     peak = max(1e-6, max(abs(x) for x in buf))
     scale = 0.6 / peak
+    chunk = 65536
     with wave.open(str(out_wav), "wb") as f:
         f.setnchannels(1)
         f.setsampwidth(2)
         f.setframerate(_SR)
-        f.writeframes(b"".join(
-            struct.pack("<h", int(max(-1.0, min(1.0, x * scale)) * 32767))
-            for x in buf))
+        for lo in range(0, n, chunk):
+            seg = buf[lo:lo + chunk]
+            f.writeframes(struct.pack(
+                f"<{len(seg)}h",
+                *(int(max(-1.0, min(1.0, x * scale)) * 32767) for x in seg)))
     return out_wav

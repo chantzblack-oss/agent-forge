@@ -149,7 +149,10 @@ def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
     ).strip()
 
     m = re.search(r"^#\s+(.+)$", brief, re.M)
-    title = m.group(1).strip() if m else topic
+    if not m or brief.count("##") < 4 or len(brief) < 1200:
+        raise RuntimeError("brief came back malformed — try rephrasing "
+                           "the question")
+    title = m.group(1).strip()
     slug = _slugify(title)
     EXPLORATIONS_DIR.mkdir(exist_ok=True)
     doc_path = EXPLORATIONS_DIR / f"{slug}.debate.md"

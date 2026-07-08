@@ -145,13 +145,24 @@ def find_case(avoid: list[str] | None = None, on_progress=None) -> str:
     say = on_progress or (lambda _m: None)
     say("hunting for tonight's case…")
     avoid_txt = "; ".join(a for a in (avoid or []) if a)[:1500]
-    raw = get_provider("anthropic").complete(
-        system=_CASE_SCOUT_SYSTEM,
-        user=f"AVOID (already covered on this channel): {avoid_txt or 'nothing yet'}",
-        model=WRITER_MODEL, max_tokens=800,
-    )
-    m = re.search(r"CASE:\s*(.+)", raw)
-    return (m.group(1).strip() if m else raw.strip())[:200]
+    provider = get_provider("anthropic")
+    user = (f"AVOID (already covered on this channel): "
+            f"{avoid_txt or 'nothing yet'}\n"
+            f"Pick ONE case NOW and commit. Do not ask questions, do not "
+            f"offer a menu — your only output is the CASE: line.")
+    for attempt in range(2):
+        raw = provider.complete(
+            system=_CASE_SCOUT_SYSTEM, user=user,
+            model=WRITER_MODEL, max_tokens=800,
+        )
+        m = re.search(r"CASE:\s*(.+)", raw)
+        if m:
+            case = m.group(1).strip()[:200]
+            if case and "?" not in case[:80]:
+                return case
+        user += "\nYour last reply had no CASE: line. CASE: line ONLY."
+    raise RuntimeError("case discovery returned no usable case — "
+                       "try naming one: story <case>")
 
 
 def covered_cases() -> list[str]:
@@ -175,8 +186,14 @@ def build_story(case: str, on_progress=None, on_doc=None) -> dict:
         model=WRITER_MODEL, max_tokens=6500,
     ).strip()
 
+    # a real case file has a title and sections; anything else (the model
+    # asking a question back, a refusal) must never reach the render
     m = re.search(r"^#\s+(.+)$", casefile, re.M)
-    title = m.group(1).strip() if m else case
+    if not m or casefile.count("##") < 4 or len(casefile) < 1500:
+        raise RuntimeError(
+            "case research came back malformed — name the case directly: "
+            "story <case>")
+    title = m.group(1).strip()
     slug = _slugify(title)
     EXPLORATIONS_DIR.mkdir(exist_ok=True)
     doc_path = EXPLORATIONS_DIR / f"{slug}.case.md"

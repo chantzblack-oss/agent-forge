@@ -151,7 +151,10 @@ def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
     ).strip()
 
     m = re.search(r"^#\s+(.+)$", dossier, re.M)
-    title = m.group(1).strip() if m else scenario
+    if not m or dossier.count("##") < 4 or len(dossier) < 1200:
+        raise RuntimeError("dossier came back malformed — try rephrasing "
+                           "the scenario")
+    title = m.group(1).strip()
     slug = _slugify(title)
     EXPLORATIONS_DIR.mkdir(exist_ok=True)
     doc_path = EXPLORATIONS_DIR / f"{slug}.sim.md"

@@ -173,9 +173,11 @@ def build_lesson(topic: str, on_progress=None, on_doc=None) -> dict:
         model=WRITER_MODEL, max_tokens=6000,
     ).strip()
 
-    title = _video._first_h1 if False else None  # noqa (keep import graph simple)
     m = re.search(r"^#\s+(.+)$", doc, re.M)
-    title = m.group(1).strip() if m else topic
+    if not m or doc.count("##") < 3 or len(doc) < 1200:
+        raise RuntimeError("lesson research came back malformed — try "
+                           "rephrasing the topic")
+    title = m.group(1).strip()
     slug = _slugify(title)
 
     doc_path = EXPLORATIONS_DIR / f"{slug}.lesson.md"

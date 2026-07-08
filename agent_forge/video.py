@@ -65,7 +65,9 @@ _SCRIPT_SYSTEM = (
     "feel like a host who genuinely reacts to what they're telling you, "
     "and it can shift as the story turns.\n\n"
     "Rules:\n"
-    "- narration: 1-3 spoken sentences, no markdown, no stage directions — "
+    "- narration: 1-3 spoken sentences, HARD MAX 40 words (a scene should "
+    "run 8-15 seconds — long monologues kill the pace; split big ideas "
+    "into more scenes), no markdown, no stage directions — "
     "just what the voice says. Write like a person actually talks: "
     "contractions, mostly short sentences, concrete verbs; it must pass "
     "being read aloud. BANNED: the \"That's not X. That's Y.\" pattern, "
@@ -336,8 +338,11 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
    animation:wordin .55s ease-out forwards}}
  @keyframes wordin{{to{{opacity:1;transform:none}}}}
  .accent{{color:#35c2d6}}
- .caption{{margin-top:44px;font-size:36px;line-height:1.5;color:#a7c2c9;max-width:760px;
-   opacity:0;animation:rise .8s {capdelay}s ease-out forwards}}
+ .caption{{margin-top:44px;position:relative;min-height:300px}}
+ .cap{{position:absolute;top:0;left:0;font-size:{capsize}px;line-height:1.45;
+   color:#b8d2d8;max-width:760px;opacity:0;transform:translateY(18px)}}
+ @keyframes capin{{to{{opacity:1;transform:none}}}}
+ @keyframes capout{{to{{opacity:0;transform:translateY(-14px)}}}}
  .viz{{margin-top:56px;opacity:0;animation:rise .8s {vizdelay}s ease-out forwards}}
  .viz svg{{width:100%;height:auto;display:block;max-height:640px}}
  .viz svg > *{{opacity:0;animation:vizin .5s ease-out forwards}}
@@ -480,15 +485,38 @@ def _safe_visual(scene: dict) -> str:
     return f'<div class="viz">{svg}</div>'
 
 
+def _caption_html(narration: str, dur: float) -> str:
+    """Live captions: the narration plays sentence-by-sentence in sync with
+    the voice — each line fades in as it's spoken and out when done. No
+    truncation, and the frame keeps moving for the whole scene."""
+    sents = [s.strip() for s in re.split(r"(?<=[.!?…])\s+", narration)
+             if s.strip()]
+    if not sents:
+        return ""
+    total_chars = sum(len(s) for s in sents) or 1
+    lead, tail = 0.45, 0.8          # breath in, settle out
+    span = max(dur - lead - tail, 1.0)
+    out, acc = [], 0
+    for i, s in enumerate(sents):
+        st = lead + span * (acc / total_chars)
+        acc += len(s)
+        en = lead + span * (acc / total_chars)
+        anims = f"capin .4s {st:.2f}s ease-out forwards"
+        if i < len(sents) - 1:
+            # finish fading out before the next line fades in
+            anims += f", capout .3s {max(en - 0.3, st + 0.5):.2f}s ease-in forwards"
+        out.append(f'<div class="cap" style="animation:{anims}">'
+                   f'{s.replace("<", "&lt;")}</div>')
+    return "".join(out)
+
+
 def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
     words = scene["headline"].replace("<", "&lt;").split()
     hl = " ".join(
         f'<span class="w" style="animation-delay:{0.25 + i * 0.09:.2f}s">{w}</span>'
         for i, w in enumerate(words))
     viz = _safe_visual(scene)
-    caption = scene.get("narration", "").replace("<", "&lt;")
-    if len(caption) > 240:
-        caption = caption[:237] + "…"
+    caption = _caption_html(scene.get("narration", ""), max(dur, 3.0))
     return _SLIDE_TMPL.format(
         w=W, h=H, idx=idx, total=total, barw=int(880 * idx / total),
         kicker=scene.get("kicker", "").replace("<", "&lt;"),
@@ -502,7 +530,7 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
         in ("a", "b") else 110,
         dur=max(dur, 3.0),
         vizdelay=0.9,
-        capdelay=1.3,
+        capsize=44 if not viz else 36,
     )
 
 

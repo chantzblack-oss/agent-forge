@@ -45,6 +45,7 @@ from . import video as _video
 from . import sources as _sources
 from . import explorer as _explorer
 from . import feed as _feed
+from . import debate as _debate
 
 log = logging.getLogger("agent_forge.worker")
 
@@ -93,11 +94,14 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(
         "This is your learning channel.\n\n"
-        "• Send “teach me <anything>” — I’ll make a narrated lesson "
-        "video + a cheat-sheet.\n"
+        "• Send “teach me <anything>” — a narrated lesson video + "
+        "cheat-sheet PDF.\n"
+        "• “debate <question>” — two hosts argue both sides.\n"
         "• /surprise — a fresh, wild explainer.\n"
+        "• Reply to any video with a question — the host answers you.\n"
+        "• Send a voice memo instead of typing — I’ll transcribe it.\n"
         "• /feed and /play <n> — your library.\n\n"
-        "Give me a minute per video — it’s researched, written, "
+        "Give me a few minutes per video — it’s researched, written, "
         "narrated and rendered."
     )
 
@@ -144,6 +148,123 @@ async def _make_lesson(update, context, topic: str):
     await _deliver_video(context, chat, r["video"], f"\U0001f393 {r['title']}{tag}")
 
 
+async def _make_debate(update, context, topic: str):
+    if not _job_allowed():
+        await context.bot.send_message(
+            update.effective_chat.id,
+            f"Daily budget guard: {_MAX_JOBS_PER_DAY} jobs/day reached. "
+            "Raise MAX_JOBS_PER_DAY in Render env if intentional.")
+        return
+    chat = update.effective_chat.id
+    await context.bot.send_message(
+        chat, f"Setting up the debate: {topic}\n(a few minutes…)")
+    try:
+        r = await _run_blocking(_debate.build_debate, topic)
+    except Exception as e:  # pragma: no cover
+        log.exception("debate failed")
+        await context.bot.send_message(
+            chat, f"That one failed: {type(e).__name__}: {e}")
+        return
+    tag = "" if r["voiced"] else " (silent — no TTS on this host)"
+    await _deliver_video(context, chat, r["path"], f"\U0001f94a {r['title']}{tag}")
+
+
+def _find_doc_for(caption: str) -> Path | None:
+    """Map a delivered video/document caption back to its lesson/dive md."""
+    import re as _re
+    t = _re.sub(r"^\W+\s*", "", caption or "").strip()   # strip emoji prefix
+    t = _re.sub(r"\s*\((silent[^)]*)\)\s*$", "", t)
+    if not t:
+        return None
+    slug = _explorer._slugify(t)
+    for cand in (f"{slug}.lesson.md", f"{slug}.md"):
+        p = _explorer.EXPLORATIONS_DIR / cand
+        if p.exists():
+            return p
+    hits = sorted(_explorer.EXPLORATIONS_DIR.glob(f"{slug[:40]}*.md"))
+    return hits[0] if hits else None
+
+
+async def _answer_reply(update, context, question: str):
+    """The viewer replied to a delivered video/cheat-sheet with a question:
+    answer as the host — text plus a voice note. Cheap (one text call + TTS),
+    so it doesn't count against the daily job cap."""
+    chat = update.effective_chat.id
+    target = update.message.reply_to_message
+    caption = target.caption or target.text or ""
+    doc = _find_doc_for(caption)
+    grounding = ""
+    if doc is not None:
+        try:
+            grounding = doc.read_text(encoding="utf-8")[:12000]
+        except Exception:
+            pass
+
+    def _ask() -> str:
+        from .providers import get_provider
+        sys = ("You are the host of the video the viewer is replying to"
+               + (f" (titled: {caption[:120]})" if caption else "")
+               + ". Answer their question directly and concretely in 2-5 "
+               "spoken sentences — conversational, no markdown, no lists. "
+               "If you genuinely don't know, say so."
+               + ("\n\nThe episode's source document, for grounding:\n\n"
+                  + grounding if grounding else ""))
+        return get_provider("anthropic").complete(
+            system=sys, user=question, model="sonnet", max_tokens=1000,
+        ).strip()
+
+    try:
+        ans = await _run_blocking(_ask)
+    except Exception as e:
+        await update.message.reply_text(f"Couldn't answer: {type(e).__name__}: {e}")
+        return
+
+    # voice-note the answer in the host's voice; text as the fallback/record
+    import subprocess
+    import tempfile
+    workdir = Path(tempfile.mkdtemp(prefix="forge_reply_"))
+    mp3 = workdir / "answer.mp3"
+
+    def _tts() -> bool:
+        return (_video._openai_tts(
+                    ans, mp3,
+                    "Warm, conversational — answering a viewer's question "
+                    "directly, like the host of the show they just watched.")
+                or _video.synth(ans, mp3))
+
+    sent_voice = False
+    try:
+        if await _run_blocking(_tts):
+            ogg = workdir / "answer.ogg"
+            subprocess.run(
+                [_video._ffmpeg(), "-y", "-i", str(mp3),
+                 "-c:a", "libopus", "-b:a", "48k", str(ogg)],
+                check=True, capture_output=True)
+            with open(ogg, "rb") as f:
+                await context.bot.send_voice(chat, voice=f)
+            sent_voice = True
+    except Exception:
+        log.exception("voice reply failed; sending text only")
+    if not sent_voice:
+        await update.message.reply_text(ans)
+
+
+async def _route_text(update, context, txt: str):
+    txt = (txt or "").strip()
+    if not txt:
+        return
+    target = update.message.reply_to_message if update.message else None
+    if target and target.from_user and target.from_user.is_bot:
+        await _answer_reply(update, context, txt)
+        return
+    low = txt.lower()
+    if low.startswith("debate"):
+        await _make_debate(update, context, txt[len("debate"):].strip(" :—-"))
+        return
+    topic = txt[len("teach me"):].strip(" :—-") if low.startswith("teach me") else txt
+    await _make_lesson(update, context, topic)
+
+
 async def cmd_teach(update, context):
     if not _ok(update):
         return
@@ -154,12 +275,59 @@ async def cmd_teach(update, context):
     await _make_lesson(update, context, topic)
 
 
+async def cmd_debate(update, context):
+    if not _ok(update):
+        return
+    topic = " ".join(context.args) if context.args else ""
+    if not topic:
+        await update.message.reply_text("Say: /debate <question>")
+        return
+    await _make_debate(update, context, topic)
+
+
 async def on_text(update, context):
     if not _ok(update):
         return
-    txt = (update.message.text or "").strip()
-    topic = txt[len("teach me"):].strip(" :—-") if txt.lower().startswith("teach me") else txt
-    await _make_lesson(update, context, topic)
+    await _route_text(update, context, update.message.text or "")
+
+
+async def on_voice(update, context):
+    """A voice memo: transcribe it (OpenAI), then route it like typed text."""
+    if not _ok(update):
+        return
+    v = update.message.voice or update.message.audio
+    if not v:
+        return
+    import tempfile
+    p = Path(tempfile.mkdtemp(prefix="forge_voice_")) / "in.ogg"
+    tg_file = await context.bot.get_file(v.file_id)
+    await tg_file.download_to_drive(str(p))
+
+    def _transcribe() -> str:
+        from openai import OpenAI
+        client = OpenAI()
+        with open(p, "rb") as fh:
+            try:
+                r = client.audio.transcriptions.create(
+                    model="gpt-4o-mini-transcribe", file=fh)
+            except Exception:
+                fh.seek(0)
+                r = client.audio.transcriptions.create(
+                    model="whisper-1", file=fh)
+        return (r.text or "").strip()
+
+    try:
+        txt = await _run_blocking(_transcribe)
+    except Exception as e:
+        await update.message.reply_text(
+            f"Couldn't transcribe that: {type(e).__name__} "
+            "(is OPENAI_API_KEY set on the host?)")
+        return
+    if not txt:
+        await update.message.reply_text("I couldn't hear anything in that.")
+        return
+    await update.message.reply_text(f"Heard: “{txt}”")
+    await _route_text(update, context, txt)
 
 
 async def cmd_surprise(update, context):
@@ -260,6 +428,36 @@ async def _post_init(app: Application) -> None:
     every = int(os.environ.get("RESTOCK_EVERY", "0"))
     if every and _ALLOWED:
         asyncio.create_task(_restock_loop(app))
+    if os.environ.get("FORGE_DAILY_HOUR", "").strip() and _ALLOWED:
+        asyncio.create_task(_daily_loop(app))
+
+
+async def _daily_loop(app: Application):
+    """One auto-discovered episode pushed at a fixed UTC hour every day.
+    Enable by setting FORGE_DAILY_HOUR (0-23) in the host env."""
+    hour = int(os.environ.get("FORGE_DAILY_HOUR", "0")) % 24
+    from datetime import datetime, timedelta, timezone
+    while True:
+        now = datetime.now(timezone.utc)
+        nxt = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+        if nxt <= now:
+            nxt += timedelta(days=1)
+        await asyncio.sleep((nxt - now).total_seconds())
+        try:
+            if not _job_allowed():
+                log.info("daily episode skipped: job cap reached")
+                continue
+            avoid = [e.get("topic", "") for e in _explorer.load_journal()]
+            cands = await _run_blocking(_sources.discover, 3, avoid)
+            topic = (cands[0]["topic"] if cands
+                     else "a genuinely surprising true story")
+            dive = await _run_blocking(_explorer.dive, topic)
+            vid = await _run_blocking(_video.build_video, dive["path"])
+            for uid in _ALLOWED:
+                await _deliver_video(app, uid, vid["path"],
+                                     f"☀️ Today's episode: {dive['title']}")
+        except Exception as e:  # pragma: no cover
+            log.warning("daily episode failed: %s", e)
 
 
 async def _restock_loop(app: Application):
@@ -291,7 +489,7 @@ async def _restock_loop(app: Application):
                 dive = await _run_blocking(_explorer.dive, gaps[0]["topic"])
                 vid = await _run_blocking(_video.build_video, dive["path"])
                 for uid in _ALLOWED:
-                    await _deliver_video(app.bot, uid, vid["path"],
+                    await _deliver_video(app, uid, vid["path"],
                                          f"\U0001f195 {dive['title']} — "
                                          "made because nothing good covers this")
         except Exception as e:  # pragma: no cover
@@ -305,7 +503,9 @@ def _sanitize_env() -> None:
     request die with 'Illegal header value')."""
     for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS",
               "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY",
-              "FORGE_TTS_VOICE"):
+              "FORGE_TTS_VOICE", "FORGE_TTS_VOICE_B",
+              "FORGE_OPENAI_VOICE", "FORGE_OPENAI_VOICE_B",
+              "FORGE_DAILY_HOUR"):
         v = os.environ.get(k)
         if v is None:
             continue
@@ -325,11 +525,13 @@ def main() -> None:
     app = Application.builder().token(token).post_init(_post_init).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("teach", cmd_teach))
+    app.add_handler(CommandHandler("debate", cmd_debate))
     app.add_handler(CommandHandler("surprise", cmd_surprise))
     app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(CommandHandler("feed", cmd_feed))
     app.add_handler(CommandHandler("play", cmd_play))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, on_voice))
     log.info("learning-feed worker up; auto-feed every %ss",
              os.environ.get("RESTOCK_EVERY", "0"))
     app.run_polling(allowed_updates=Update.ALL_TYPES)

@@ -241,7 +241,27 @@ def _acting_notes(scene: dict) -> str:
     return f"{base} {read}" if read else base
 
 
-def _openai_tts(text: str, out_mp3: Path, instructions: str) -> bool:
+# Debate mode: scenes may carry speaker 'a' or 'b'; each speaker keeps a
+# consistent voice across the video, on both TTS paths.
+def _speaker_openai_voice(spk: str) -> str | None:
+    if spk == "a":
+        return os.environ.get("FORGE_OPENAI_VOICE", "ash")
+    if spk == "b":
+        return os.environ.get("FORGE_OPENAI_VOICE_B", "coral")
+    return None
+
+
+def _speaker_edge_voice(spk: str) -> str | None:
+    if spk == "a":
+        return VOICE
+    if spk == "b":
+        return os.environ.get("FORGE_TTS_VOICE_B",
+                              "en-US-AvaMultilingualNeural")
+    return None
+
+
+def _openai_tts(text: str, out_mp3: Path, instructions: str,
+                voice: str | None = None) -> bool:
     """Expressive narration via OpenAI TTS. Returns False (so the caller
     falls back to edge-tts) when no key is set or the call fails."""
     if not os.environ.get("OPENAI_API_KEY"):
@@ -250,7 +270,7 @@ def _openai_tts(text: str, out_mp3: Path, instructions: str) -> bool:
         from openai import OpenAI
         resp = OpenAI().audio.speech.create(
             model="gpt-4o-mini-tts",
-            voice=os.environ.get("FORGE_OPENAI_VOICE", "ash"),
+            voice=voice or os.environ.get("FORGE_OPENAI_VOICE", "ash"),
             input=text, instructions=instructions,
         )
         out_mp3.write_bytes(resp.content)
@@ -260,7 +280,8 @@ def _openai_tts(text: str, out_mp3: Path, instructions: str) -> bool:
 
 
 def synth(text: str, out_mp3: Path,
-          rate: str = "+4%", pitch: str = "+0Hz") -> bool:
+          rate: str = "+4%", pitch: str = "+0Hz",
+          voice: str | None = None) -> bool:
     """Synthesize narration to mp3. Returns True on success, False if TTS
     is unreachable (sandbox) so the caller falls back to a timed silent clip."""
     try:
@@ -273,9 +294,9 @@ def synth(text: str, out_mp3: Path,
                                      proxy=proxy)
             await c.save(str(out_mp3))
 
-        for voice in (VOICE, "en-US-GuyNeural"):
+        for v in (voice or VOICE, "en-US-GuyNeural"):
             try:
-                asyncio.run(_go(voice))
+                asyncio.run(_go(v))
                 if out_mp3.exists() and out_mp3.stat().st_size > 0:
                     return True
             except Exception:
@@ -296,7 +317,7 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  html,body{{margin:0;width:{w}px;height:{h}px;overflow:hidden}}
  body{{background:radial-gradient(120% 90% at 50% 12%,#12333f,#06141b 70%);
    color:#eaf3f2;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-   display:flex;flex-direction:column;justify-content:center;padding:110px 96px;box-sizing:border-box;position:relative}}
+   display:flex;flex-direction:column;justify-content:center;padding:110px 96px {padbot}px 96px;box-sizing:border-box;position:relative}}
  .orb{{position:absolute;top:-260px;right:-260px;width:680px;height:680px;border-radius:50%;
    background:radial-gradient(circle at 35% 35%,rgba(53,194,214,.20),rgba(53,194,214,0) 65%);
    animation:drift {dur}s ease-in-out infinite alternate}}
@@ -389,22 +410,22 @@ _HOST_POSES = {
 
 _HOST_TMPL = """
 <style>
- .host{{position:absolute;right:60px;bottom:168px;width:225px;
-   opacity:0;animation:rise .7s .5s ease-out forwards}}
- .host .fig{{animation:hbob 2.3s ease-in-out infinite alternate;
+ .{cls}{{position:absolute;{pos};bottom:168px;width:225px;
+   opacity:0;animation:rise .7s .5s ease-out forwards{dim}}}
+ .{cls} .fig{{animation:hbob 2.3s ease-in-out infinite alternate;
    transform-origin:110px 165px}}
  @keyframes hbob{{from{{transform:translateY(0)}}to{{transform:translateY(7px)}}}}
- .host line,.host path{{stroke:#eaf3f2;stroke-width:9;stroke-linecap:round;fill:none}}
- .host .armL,.host .armR{{transform-origin:110px 92px}}
- .host .head{{transform-origin:110px 44px}}
+ .{cls} line,.{cls} path{{stroke:{stroke};stroke-width:9;stroke-linecap:round;fill:none}}
+ .{cls} .armL,.{cls} .armR{{transform-origin:110px 92px}}
+ .{cls} .head{{transform-origin:110px 44px}}
  {pose_css}
 </style>
-<div class=host><svg viewBox="0 0 220 270">
+<div class={cls}><svg viewBox="0 0 220 270">
  <g class=fig>
   <g class=head>
-   <circle cx=110 cy=44 r=27 fill=none stroke=#eaf3f2 stroke-width=9 />
-   <circle cx=100 cy=39 r=3.6 fill=#eaf3f2 stroke=none />
-   <circle cx=120 cy=39 r=3.6 fill=#eaf3f2 stroke=none />
+   <circle cx=110 cy=44 r=27 fill=none stroke={stroke} stroke-width=9 />
+   <circle cx=100 cy=39 r=3.6 fill={stroke} stroke=none />
+   <circle cx=120 cy=39 r=3.6 fill={stroke} stroke=none />
    <path class=mouth d="M99 54 Q110 63 121 54" stroke-width=5 />
   </g>
   <line x1=110 y1=71 x2=110 y2=165 />
@@ -416,12 +437,32 @@ _HOST_TMPL = """
 </svg></div>"""
 
 
+def _host_block(cls: str, pose: str | None, pos: str, stroke: str,
+                active: bool) -> str:
+    pose_css = ""
+    if active and pose:
+        pose_css = _HOST_POSES.get(pose, _HOST_POSES["explain"]) \
+            .replace(".host", "." + cls)
+    return _HOST_TMPL.format(
+        cls=cls, pos=pos, stroke=stroke, pose_css=pose_css,
+        dim="" if active else ";filter:opacity(.35)")
+
+
 def _host_html(scene: dict) -> str:
     pose = str(scene.get("pose", "")).strip().lower()
+    spk = str(scene.get("speaker", "") or "").strip().lower()
+    if spk in ("a", "b"):
+        # debate: two hosts in opposite corners; the speaker is lit and
+        # posed, the listener dims and idles.
+        return (
+            _host_block("hostA", pose if spk == "a" else None,
+                        "left:60px", "#eaf3f2", spk == "a")
+            + _host_block("hostB", pose if spk == "b" else None,
+                          "right:60px", "#35c2d6", spk == "b"))
     if pose == "none":
         return ""
-    css = _HOST_POSES.get(pose, _HOST_POSES["explain"])
-    return _HOST_TMPL.format(pose_css=css)
+    return _host_block("host", pose or "explain", "right:60px",
+                       "#eaf3f2", True)
 
 
 _SVG_FORBIDDEN = re.compile(
@@ -456,6 +497,9 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
         viz=viz,
         caption=caption,
         host=_host_html(scene),
+        # in debate scenes hosts hold both corners; lift the text clear
+        padbot=470 if str(scene.get("speaker", "") or "").strip().lower()
+        in ("a", "b") else 110,
         dur=max(dur, 3.0),
         vizdelay=0.9,
         capdelay=1.3,
@@ -542,18 +586,9 @@ def _clip(ff: str, webm: Path, dur: float, out: Path, audio: Path | None) -> Non
     subprocess.run(cmd, check=True, capture_output=True)
 
 
-def build_video(md_path: str | Path, on_progress=None,
-                script_system: str | None = None) -> dict:
-    """Compile a dive markdown into a narrated (or silent-captioned) MP4."""
+def render_scenes(scenes: list[dict], out: Path, on_progress=None) -> dict:
+    """Narrate, record and stitch a scene list into an MP4 at `out`."""
     say = on_progress or (lambda _m: None)
-    md_path = Path(md_path)
-    essay = re.sub(r"^<!--.*?-->\s*", "", md_path.read_text(encoding="utf-8"), flags=re.S)
-
-    say("writing the script…")
-    scenes = script_from_essay(essay, script_system=script_system)
-    if not scenes:
-        raise RuntimeError("script generation returned no scenes")
-
     work = Path(tempfile.mkdtemp(prefix="forge_video_"))
     ff = _ffmpeg()
     total = len(scenes)
@@ -565,8 +600,11 @@ def build_video(md_path: str | Path, on_progress=None,
         say(f"narrating {i}/{total}")
         mp3 = work / f"s{i:02d}.mp3"
         rate, pitch = _delivery(sc)
-        if (_openai_tts(sc["narration"], mp3, _acting_notes(sc))
-                or synth(sc["narration"], mp3, rate=rate, pitch=pitch)):
+        spk = str(sc.get("speaker", "") or "").strip().lower()
+        if (_openai_tts(sc["narration"], mp3, _acting_notes(sc),
+                        voice=_speaker_openai_voice(spk))
+                or synth(sc["narration"], mp3, rate=rate, pitch=pitch,
+                         voice=_speaker_edge_voice(spk))):
             narrated += 1
             mp3s.append(mp3)
             # 0.35s breath before the line + a beat to settle after it
@@ -585,10 +623,24 @@ def build_video(md_path: str | Path, on_progress=None,
         clips.append(clip)
 
     say("stitching…")
-    out = EXPLORATIONS_DIR / (md_path.stem + ".mp4")
     _concat(ff, clips, out, silent=(narrated == 0))
     return {"path": out, "scenes": total, "narrated": narrated,
             "voiced": narrated > 0}
+
+
+def build_video(md_path: str | Path, on_progress=None,
+                script_system: str | None = None) -> dict:
+    """Compile a dive markdown into a narrated (or silent-captioned) MP4."""
+    say = on_progress or (lambda _m: None)
+    md_path = Path(md_path)
+    essay = re.sub(r"^<!--.*?-->\s*", "", md_path.read_text(encoding="utf-8"), flags=re.S)
+
+    say("writing the script…")
+    scenes = script_from_essay(essay, script_system=script_system)
+    if not scenes:
+        raise RuntimeError("script generation returned no scenes")
+    out = EXPLORATIONS_DIR / (md_path.stem + ".mp4")
+    return render_scenes(scenes, out, on_progress=say)
 
 
 def _audio_dur(ff: str, mp3: Path) -> float:

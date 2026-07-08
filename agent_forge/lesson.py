@@ -56,7 +56,16 @@ _LESSON_SYSTEM = (
     "half-line on why it's worth the click. If search returns nothing for "
     "an item, omit it rather than fabricate a link.\n\n"
     "Be specific and honest. If something is genuinely contested or "
-    "version-dependent, say so."
+    "version-dependent, say so.\n\n"
+    "MAKE IT VISUAL — this renders to a designed PDF:\n"
+    "- Use a markdown TABLE wherever it beats prose (the cheat sheet "
+    "itself, tool comparisons, dosage/settings/numbers).\n"
+    "- Include 1-2 inline SVG diagrams for the core mental model (a "
+    "labeled flow, an anatomy, a before/after). Raw <svg> in the "
+    "markdown, viewBox='0 0 800 400', LIGHT theme palette: ink #1d3038, "
+    "accent #ff7a5e, accent2 #0e8ea3, muted #6b8893; text >= 20px; no "
+    "background rect.\n"
+    "- Bold the load-bearing numbers and commands."
 )
 
 

@@ -658,8 +658,33 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None) -> dict:
 
     say("stitching…")
     _concat(ff, clips, out, silent=(narrated == 0))
+    if os.environ.get("FORGE_MUSIC", "1") != "0":
+        try:
+            say("laying the music bed…")
+            from . import music as _music
+            bed = work / "bed.wav"
+            _music.ambient_bed(sum(durs), bed, _music.pick_mood(scenes))
+            _mix_music(ff, out, bed)
+        except Exception:
+            import logging
+            logging.getLogger("agent_forge.video").exception(
+                "music bed failed; delivering without it")
     return {"path": out, "scenes": total, "narrated": narrated,
             "voiced": narrated > 0}
+
+
+def _mix_music(ff: str, video: Path, bed: Path) -> None:
+    """Mix the ambient bed quietly under the finished video, in place."""
+    tmp = video.with_name(video.stem + ".music.mp4")
+    subprocess.run(
+        [ff, "-y", "-i", str(video), "-i", str(bed),
+         "-filter_complex",
+         "[1:a]volume=0.15,afade=t=in:d=2.5[m];"
+         "[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]",
+         "-map", "0:v", "-map", "[a]",
+         "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", str(tmp)],
+        check=True, capture_output=True)
+    tmp.replace(video)
 
 
 def build_video(md_path: str | Path, on_progress=None,

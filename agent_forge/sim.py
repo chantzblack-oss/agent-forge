@@ -61,7 +61,16 @@ _DOSSIER_SYSTEM = (
     "fabricate.\n\n"
     "For personal scenarios (career, money, life choices) do exactly the "
     "same thing at human scale: real salary/cost/market numbers where "
-    "search can find them, honest base rates for how such moves go."
+    "search can find them, honest base rates for how such moves go.\n\n"
+    "MAKE IT VISUAL — this renders to a designed PDF:\n"
+    "- End states as a markdown TABLE: outcome | odds | what gets you "
+    "there.\n"
+    "- Include 1-2 inline SVG diagrams — the branch map is the obvious "
+    "one (timeline with labeled forks). Raw <svg> in the markdown, "
+    "viewBox='0 0 800 400', LIGHT theme palette: ink #1d3038, accent "
+    "#ff7a5e, accent2 #0e8ea3, muted #6b8893; text >= 20px; no "
+    "background rect.\n"
+    "- Bold the load-bearing numbers."
 )
 
 
@@ -97,7 +106,9 @@ _SIM_SCRIPT_SYSTEM = (
     "the video's dark background — NO backdrop rect; palette ink #eaf3f2 "
     "accent #ff7a5e accent2 #35c2d6 muted #5d7a84, text >= 26px, labels "
     "clear of shape edges). Timelines and branch diagrams teach best "
-    "here — draw the fork when you're standing at one.}\n"
+    "here — draw the fork when you're standing at one. At least HALF "
+    "the scenes carry a visual; any number, comparison, or sequence "
+    "gets drawn.}\n"
     "Return ONLY a JSON array."
 )
 

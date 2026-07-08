@@ -23,8 +23,10 @@ _CSS = """
       margin: 18px 0 6px; color: #0e2731; }
  .sub { color: #6b8893; font-size: 13px; margin-bottom: 26px;
         text-transform: uppercase; letter-spacing: .12em; font-weight: 700; }
- h2 { font-size: 21px; margin: 34px 0 10px; color: #0e2731;
-      padding-bottom: 6px; border-bottom: 2px solid #ffd9cf; }
+ h2 { font-size: 21px; margin: 38px 0 12px; color: #0e2731;
+      padding-bottom: 7px; border-bottom: 2px solid #ffd9cf; }
+ h2::before { content: '◆ '; color: #ff7a5e; font-size: 14px;
+      vertical-align: 2px; }
  h3 { font-size: 16px; margin: 22px 0 6px; color: #0e2731; }
  p { margin: 8px 0; }
  li { margin: 5px 0; }
@@ -38,14 +40,18 @@ _CSS = """
        padding: 14px 18px; overflow-x: hidden; white-space: pre-wrap;
        word-break: break-word; page-break-inside: avoid; }
  pre code { background: none; border: none; color: inherit; padding: 0; }
- blockquote { border-left: 4px solid #35c2d6; margin: 12px 0;
-              padding: 4px 16px; color: #45636e; background: #f2f9fa;
-              border-radius: 0 8px 8px 0; }
- table { border-collapse: collapse; width: 100%; margin: 12px 0;
-         font-size: 14px; }
- th, td { border: 1px solid #dde8ea; padding: 7px 11px; text-align: left; }
- th { background: #f0f5f6; }
- svg { max-width: 100%; height: auto; }
+ blockquote { border-left: 4px solid #35c2d6; margin: 16px 0;
+              padding: 10px 18px; color: #23444f; background: #f2f9fa;
+              border-radius: 0 10px 10px 0; font-size: 16px;
+              page-break-inside: avoid; }
+ blockquote p { margin: 4px 0; }
+ table { border-collapse: collapse; width: 100%; margin: 16px 0;
+         font-size: 14px; page-break-inside: avoid; }
+ th, td { border: 1px solid #dde8ea; padding: 8px 12px; text-align: left; }
+ th { background: #0e2731; color: #eaf3f2; letter-spacing: .02em; }
+ tr:nth-child(even) td { background: #f6fafb; }
+ svg { max-width: 100%; height: auto; display: block; margin: 18px auto;
+       page-break-inside: avoid; }
  h2, h3 { page-break-after: avoid; }
 """
 
@@ -77,6 +83,9 @@ def _mini_md(md: str) -> str:
             out.append(_html.escape(line))
             continue
         stripped = line.strip()
+        if stripped.startswith("<svg"):
+            out.append(line)          # inline diagrams pass through raw
+            continue
         if stripped.startswith(("- ", "* ")):
             if not in_list:
                 out.append("<ul>")

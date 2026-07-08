@@ -23,6 +23,7 @@ from pathlib import Path
 from .providers import get_provider
 from .explorer import EXPLORATIONS_DIR, WRITER_MODEL, _slugify
 from . import video as _video
+from . import research as _research
 
 
 _DOSSIER_SYSTEM = (
@@ -142,7 +143,10 @@ def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
 
     say("pinning assumptions and running the scenario…")
     dossier = provider.complete(
-        system=_DOSSIER_SYSTEM, user=f"Scenario: {scenario}",
+        system=_DOSSIER_SYSTEM,
+        user=f"Scenario: {scenario}"
+             + ("" if scenario.startswith("CONTINUATION")
+                else _research.notes_block(scenario, say)),
         model=WRITER_MODEL, max_tokens=6000,
     ).strip()
 
@@ -159,6 +163,20 @@ def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
             on_doc(doc_path)
         except Exception:
             pass
+    return video_from_dossier(doc_path, on_progress=say)
+
+
+def video_from_dossier(doc_path: str | Path, on_progress=None) -> dict:
+    """Script and render the playback from an existing dossier — also the
+    resume path when a restart killed the render half."""
+    say = on_progress or (lambda _m: None)
+    provider = get_provider("anthropic")
+    doc_path = Path(doc_path)
+    dossier = re.sub(r"^<!--.*?-->\s*", "",
+                     doc_path.read_text(encoding="utf-8"), flags=re.S).strip()
+    m = re.search(r"^#\s+(.+)$", dossier, re.M)
+    title = m.group(1).strip() if m else doc_path.stem
+    slug = _slugify(title)
 
     say("staging the playback…")
     from . import taste as _taste

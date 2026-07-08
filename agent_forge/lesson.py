@@ -25,6 +25,7 @@ from pathlib import Path
 from .providers import get_provider
 from .explorer import EXPLORATIONS_DIR, WRITER_MODEL, _slugify
 from . import video as _video
+from . import research as _research
 
 
 _LESSON_SYSTEM = (
@@ -167,7 +168,8 @@ def build_lesson(topic: str, on_progress=None, on_doc=None) -> dict:
 
     say("researching the lesson…")
     doc = get_provider("anthropic").complete(
-        system=_LESSON_SYSTEM, user=f"Teach me: {topic}",
+        system=_LESSON_SYSTEM,
+        user=f"Teach me: {topic}" + _research.notes_block(topic, say),
         model=WRITER_MODEL, max_tokens=6000,
     ).strip()
 

@@ -22,6 +22,7 @@ from pathlib import Path
 from .providers import get_provider
 from .explorer import EXPLORATIONS_DIR, WRITER_MODEL, _slugify
 from . import video as _video
+from . import research as _research
 
 
 _BRIEF_SYSTEM = (
@@ -142,7 +143,8 @@ def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
 
     say("researching both sides…")
     brief = provider.complete(
-        system=_BRIEF_SYSTEM, user=f"The question: {topic}",
+        system=_BRIEF_SYSTEM,
+        user=f"The question: {topic}" + _research.notes_block(topic, say),
         model=WRITER_MODEL, max_tokens=6000,
     ).strip()
 
@@ -159,6 +161,20 @@ def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
             on_doc(doc_path)
         except Exception:
             pass
+    return video_from_brief(doc_path, on_progress=say)
+
+
+def video_from_brief(doc_path: str | Path, on_progress=None) -> dict:
+    """Script and render the debate video from an existing brief — also
+    the resume path when a restart killed the render half."""
+    say = on_progress or (lambda _m: None)
+    provider = get_provider("anthropic")
+    doc_path = Path(doc_path)
+    brief = re.sub(r"^<!--.*?-->\s*", "",
+                   doc_path.read_text(encoding="utf-8"), flags=re.S).strip()
+    m = re.search(r"^#\s+(.+)$", brief, re.M)
+    title = m.group(1).strip() if m else doc_path.stem
+    slug = _slugify(title)
 
     say("staging the debate…")
     from . import taste as _taste

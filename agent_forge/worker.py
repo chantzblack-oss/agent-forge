@@ -52,6 +52,31 @@ from . import taste as _taste
 # last delivered sim dossier per chat — enables "branch A/B" continuations
 _LAST_SIM: dict[int, str] = {}
 
+# The in-flight job, persisted to disk so a restart (deploy/OOM) can
+# resume the render instead of silently orphaning it.
+_PENDING = None
+
+
+def _pending_path():
+    return _explorer.EXPLORATIONS_DIR / "pending_job.json"
+
+
+def _pending_write(kind: str, topic: str, chat: int, doc: str | None = None):
+    import json
+    try:
+        _explorer.EXPLORATIONS_DIR.mkdir(exist_ok=True)
+        _pending_path().write_text(json.dumps(
+            {"kind": kind, "topic": topic, "chat": chat, "doc": doc}))
+    except Exception:
+        log.warning("pending-job write failed")
+
+
+def _pending_clear():
+    try:
+        _pending_path().unlink(missing_ok=True)
+    except Exception:
+        pass
+
 log = logging.getLogger("agent_forge.worker")
 
 # Hard daily cap on expensive jobs (lessons/surprises/auto-feed items).
@@ -144,6 +169,7 @@ async def _make_lesson(update, context, topic: str):
         return
     chat = update.effective_chat.id
     await context.bot.send_message(chat, f"Building your lesson on: {topic}\n(a few minutes…)")
+    _pending_write("lesson", topic, chat)
 
     async def _send_doc_early(doc_path):
         # The research is the expensive part — deliver it the moment it exists,
@@ -163,6 +189,7 @@ async def _make_lesson(update, context, topic: str):
     loop = asyncio.get_event_loop()
 
     def _on_doc(doc_path):
+        _pending_write("lesson", topic, chat, doc=str(doc_path))
         asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
 
     try:
@@ -173,14 +200,16 @@ async def _make_lesson(update, context, topic: str):
         await context.bot.send_message(
             chat, f"That one failed: {type(e).__name__}: {e}"
         )
+        _pending_clear()
         return
+    _pending_clear()
     tag = "" if r["voiced"] else " (silent — no TTS on this host)"
     await _deliver_video(context, chat, r["video"], f"\U0001f393 {r['title']}{tag}")
 
 
 async def _make_show(update, context, topic: str, builder, *,
                      opening: str, doc_subtitle: str, doc_caption: str,
-                     emoji: str):
+                     emoji: str, kind: str = "show"):
     """Shared runner for the doc+video formats (debate, simulation): job
     guard, early PDF delivery of the paper half, then the video."""
     if not _job_allowed():
@@ -191,6 +220,7 @@ async def _make_show(update, context, topic: str, builder, *,
         return
     chat = update.effective_chat.id
     await context.bot.send_message(chat, f"{opening}: {topic}\n(a few minutes…)")
+    _pending_write(kind, topic, chat)
 
     async def _send_doc_early(doc_path):
         # Same doctrine as lessons: the research is the expensive part, so
@@ -209,6 +239,7 @@ async def _make_show(update, context, topic: str, builder, *,
     loop = asyncio.get_event_loop()
 
     def _on_doc(doc_path):
+        _pending_write(kind, topic, chat, doc=str(doc_path))
         asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
 
     try:
@@ -218,7 +249,9 @@ async def _make_show(update, context, topic: str, builder, *,
         log.exception("%s failed", opening)
         await context.bot.send_message(
             chat, f"That one failed: {type(e).__name__}: {e}")
+        _pending_clear()
         return
+    _pending_clear()
     tag = "" if r["voiced"] else " (silent — no TTS on this host)"
     await _deliver_video(context, chat, r["path"], f"{emoji} {r['title']}{tag}")
     return r
@@ -230,7 +263,7 @@ async def _make_debate(update, context, topic: str):
         opening="Setting up the debate",
         doc_subtitle="Agent Forge debate brief",
         doc_caption="debate brief (the hosts are warming up…)",
-        emoji="\U0001f94a")
+        emoji="\U0001f94a", kind="debate")
 
 
 async def _make_sim(update, context, scenario: str):
@@ -239,7 +272,7 @@ async def _make_sim(update, context, scenario: str):
         opening="Running the simulation",
         doc_subtitle="Agent Forge scenario dossier",
         doc_caption="scenario dossier (playback rendering…)",
-        emoji="\U0001f52e")
+        emoji="\U0001f52e", kind="sim")
     if r and r.get("doc"):
         _LAST_SIM[update.effective_chat.id] = str(r["doc"])
         await context.bot.send_message(
@@ -574,16 +607,65 @@ def _selfcheck() -> None:
 async def _post_init(app: Application) -> None:
     """Runs inside the bot's event loop — safe to schedule background tasks."""
     asyncio.get_event_loop().run_in_executor(None, _selfcheck)
-    # A restart (deploy, OOM, crash) silently kills any in-flight job —
-    # announce it so a killed job never looks like a hung one.
-    for uid in _ALLOWED:
-        try:
-            await app.bot.send_message(
-                uid, "⚡ Worker restarted (deploy or crash). If you had a "
-                     "video rendering, that job was killed — send the "
-                     "request again.")
-        except Exception:
-            log.warning("restart notice to %s failed", uid)
+    # A restart (deploy, OOM, crash) kills any in-flight job — announce
+    # it, then RESUME the job from its persisted state.
+    if not _pending_path().exists():
+        for uid in _ALLOWED:
+            try:
+                await app.bot.send_message(
+                    uid, "⚡ Worker restarted (deploy). Ready.")
+            except Exception:
+                log.warning("restart notice to %s failed", uid)
+    else:
+        asyncio.create_task(_resume_job(app))
+
+
+async def _resume_job(app: Application):
+    """Pick up the job a restart killed. If the doc (the expensive
+    research half) exists, only the video half re-runs."""
+    import json
+    try:
+        job = json.loads(_pending_path().read_text())
+    except Exception:
+        _pending_clear()
+        return
+    _pending_clear()      # cleared up front so a crash here can't loop
+    chat, kind = job.get("chat"), job.get("kind", "")
+    topic, doc = job.get("topic", ""), job.get("doc")
+    if not chat:
+        return
+    if not doc or not Path(doc).exists():
+        await app.bot.send_message(
+            chat, f"⚡ A restart killed “{topic}” before research "
+                  "finished — send it again.")
+        return
+    await app.bot.send_message(
+        chat, f"♻️ Restart killed the render of “{topic}” — resuming it "
+              "now (the research is already done).")
+    say = _progress_sender(app, chat)
+    try:
+        if kind == "lesson":
+            r = await _run_blocking(
+                _video.build_video, doc, say,
+                _lesson._LESSON_VIDEO_SYSTEM, "THE LESSON")
+            title = topic
+        elif kind == "debate":
+            r = await _run_blocking(_debate.video_from_brief, doc, say)
+            title = r["title"]
+        elif kind == "sim":
+            r = await _run_blocking(_sim.video_from_dossier, doc, say)
+            title = r["title"]
+            _LAST_SIM[chat] = str(doc)
+        else:
+            return
+        emoji = {"lesson": "\U0001f393", "debate": "\U0001f94a",
+                 "sim": "\U0001f52e"}.get(kind, "\U0001f3ac")
+        await _deliver_video(app, chat, r["path"], f"{emoji} {title}")
+    except Exception as e:
+        log.exception("resume failed")
+        await app.bot.send_message(
+            chat, f"Resume failed: {type(e).__name__}: {e} — send the "
+                  "request again.")
     every = int(os.environ.get("RESTOCK_EVERY", "0"))
     if every and _ALLOWED:
         asyncio.create_task(_restock_loop(app))

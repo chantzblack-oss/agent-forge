@@ -487,8 +487,11 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  <div class=bar></div>
  {host}
  <script>
-  // stagger svg children so diagrams draw themselves in
+  // stagger svg children so diagrams draw themselves in — but never touch
+  // elements that carry their own inline animation (it would desync them,
+  // and the class fade they replaced can't run anyway)
   document.querySelectorAll('.viz svg > *').forEach(function(el, i) {{
+    if (el.style.animation) {{ el.style.opacity = 1; return; }}
     el.style.animationDelay = ({vizdelay} + 0.15 + i * 0.22) + 's';
   }});
  </script>
@@ -696,7 +699,7 @@ def _data_html(data: dict, vizdelay: float, dur: float = 8.0) -> str:
                     f'<circle cx="440" cy="210" r="130" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="26"/>'
                     f'<circle cx="440" cy="210" r="130" fill="none" stroke="#35c2d6" stroke-width="26" '
                     f'stroke-linecap="round" stroke-dasharray="{circ:.0f}" stroke-dashoffset="{circ:.0f}" '
-                    f'transform="rotate(-90 440 210)" style="animation:doff 1.4s {vizdelay + .2:.2f}s {ease} forwards"/>'
+                    f'transform="rotate(-90 440 210)" style="opacity:1;animation:doff 1.4s {vizdelay + .2:.2f}s {ease} forwards"/>'
                     f'<text x="440" y="200" fill="#eaf3f2" font-size="72" font-weight="800" text-anchor="middle">{val:g}%</text>'
                     f'<text x="440" y="258" fill="#9fb8bf" font-size="30" text-anchor="middle">{label}</text>'
                     f'</svg><style>@keyframes doff{{to{{stroke-dashoffset:{off:.0f}}}}}'

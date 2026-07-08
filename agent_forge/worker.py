@@ -47,6 +47,7 @@ from . import explorer as _explorer
 from . import feed as _feed
 from . import debate as _debate
 from . import sim as _sim
+from . import story as _story
 from . import taste as _taste
 
 # last delivered sim dossier per chat — enables "branch A/B" continuations
@@ -147,6 +148,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• “debate <question>” — two hosts argue both sides.\n"
         "• “simulate <scenario>” or “what if …” — a what-if run forward: "
         "dossier + timeline playback.\n"
+        "• “story <case>” — a dark-documentary episode: true crime, "
+        "disasters, mysteries. Case file + the full tale.\n"
         "• /surprise — a fresh, wild explainer.\n"
         "• Reply to any video with a question — the host answers you.\n"
         "• Send a voice memo instead of typing — I’ll transcribe it.\n"
@@ -395,6 +398,12 @@ async def _route_text(update, context, txt: str):
     if low.startswith("debate"):
         await _make_debate(update, context, txt[len("debate"):].strip(" :—-"))
         return
+    if low.startswith(("story", "case:")):
+        case = (txt[len("story"):] if low.startswith("story")
+                else txt.split(":", 1)[1]).strip(" :—-")
+        if case:
+            await _make_story(update, context, case)
+            return
     if low.startswith("simulate"):
         await _make_sim(update, context, txt[len("simulate"):].strip(" :—-"))
         return
@@ -423,6 +432,26 @@ async def cmd_debate(update, context):
         await update.message.reply_text("Say: /debate <question>")
         return
     await _make_debate(update, context, topic)
+
+
+async def _make_story(update, context, case: str):
+    await _make_show(
+        update, context, case, _story.build_story,
+        opening="Opening the case file",
+        doc_subtitle="Agent Forge case file",
+        doc_caption="case file (the episode is rendering…)",
+        emoji="\U0001f56f️", kind="story")
+
+
+async def cmd_story(update, context):
+    if not _ok(update):
+        return
+    case = " ".join(context.args) if context.args else ""
+    if not case:
+        await update.message.reply_text(
+            "Say: /story <a case, disaster, mystery, or dark tale>")
+        return
+    await _make_story(update, context, case)
 
 
 async def cmd_taste(update, context):
@@ -656,10 +685,14 @@ async def _resume_job(app: Application):
             r = await _run_blocking(_sim.video_from_dossier, doc, say)
             title = r["title"]
             _LAST_SIM[chat] = str(doc)
+        elif kind == "story":
+            r = await _run_blocking(_story.video_from_casefile, doc, say)
+            title = r["title"]
         else:
             return
         emoji = {"lesson": "\U0001f393", "debate": "\U0001f94a",
-                 "sim": "\U0001f52e"}.get(kind, "\U0001f3ac")
+                 "sim": "\U0001f52e", "story": "\U0001f56f️"}.get(
+                     kind, "\U0001f3ac")
         await _deliver_video(app, chat, r["path"], f"{emoji} {title}")
     except Exception as e:
         log.exception("resume failed")
@@ -769,6 +802,7 @@ def main() -> None:
     app.add_handler(CommandHandler("debate", cmd_debate))
     app.add_handler(CommandHandler("simulate", cmd_simulate))
     app.add_handler(CommandHandler("taste", cmd_taste))
+    app.add_handler(CommandHandler("story", cmd_story))
     app.add_handler(CommandHandler("surprise", cmd_surprise))
     app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(CommandHandler("feed", cmd_feed))

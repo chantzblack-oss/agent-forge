@@ -415,7 +415,7 @@ _HOST_POSES = {
 
 _HOST_TMPL = """
 <style>
- .{cls}{{position:absolute;{pos};bottom:168px;width:225px;
+ .{cls}{{position:absolute;{pos};bottom:168px;width:{width}px;
    opacity:0;animation:rise .7s .5s ease-out forwards{dim}}}
  .{cls} .fig{{animation:hbob 2.3s ease-in-out infinite alternate;
    transform-origin:110px 165px}}
@@ -443,31 +443,33 @@ _HOST_TMPL = """
 
 
 def _host_block(cls: str, pose: str | None, pos: str, stroke: str,
-                active: bool) -> str:
+                active: bool, width: int = 225) -> str:
     pose_css = ""
     if active and pose:
         pose_css = _HOST_POSES.get(pose, _HOST_POSES["explain"]) \
             .replace(".host", "." + cls)
     return _HOST_TMPL.format(
-        cls=cls, pos=pos, stroke=stroke, pose_css=pose_css,
+        cls=cls, pos=pos, stroke=stroke, pose_css=pose_css, width=width,
         dim="" if active else ";filter:opacity(.35)")
 
 
-def _host_html(scene: dict) -> str:
+def _host_html(scene: dict, has_viz: bool = True) -> str:
     pose = str(scene.get("pose", "")).strip().lower()
     spk = str(scene.get("speaker", "") or "").strip().lower()
+    # with no diagram the host IS the scene's visual — let it fill the frame
+    w = 225 if has_viz else 330
     if spk in ("a", "b"):
         # debate: two hosts in opposite corners; the speaker is lit and
         # posed, the listener dims and idles.
         return (
             _host_block("hostA", pose if spk == "a" else None,
-                        "left:60px", "#eaf3f2", spk == "a")
+                        "left:60px", "#eaf3f2", spk == "a", width=w)
             + _host_block("hostB", pose if spk == "b" else None,
-                          "right:60px", "#35c2d6", spk == "b"))
+                          "right:60px", "#35c2d6", spk == "b", width=w))
     if pose == "none":
         return ""
     return _host_block("host", pose or "explain", "right:60px",
-                       "#eaf3f2", True)
+                       "#eaf3f2", True, width=w)
 
 
 _SVG_FORBIDDEN = re.compile(
@@ -517,6 +519,7 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
         for i, w in enumerate(words))
     viz = _safe_visual(scene)
     caption = _caption_html(scene.get("narration", ""), max(dur, 3.0))
+    host = _host_html(scene, has_viz=bool(viz))
     return _SLIDE_TMPL.format(
         w=W, h=H, idx=idx, total=total, barw=int(880 * idx / total),
         kicker=scene.get("kicker", "").replace("<", "&lt;"),
@@ -524,7 +527,7 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
         hlsize=72 if viz else 92,   # smaller headline when a diagram shares the frame
         viz=viz,
         caption=caption,
-        host=_host_html(scene),
+        host=host,
         # in debate scenes hosts hold both corners; lift the text clear
         padbot=470 if str(scene.get("speaker", "") or "").strip().lower()
         in ("a", "b") else 110,
@@ -603,8 +606,11 @@ def _clip(ff: str, webm: Path, dur: float, out: Path, audio: Path | None) -> Non
     cmd = [ff, "-y", "-i", str(webm)]
     if audio:
         cmd += ["-i", str(audio)]
+    # dip-to-black on both ends so scene cuts read as edits, not glitches
     cmd += ["-t", f"{dur:.2f}", "-r", str(FPS),
-            "-vf", f"scale={W}:{H},fade=t=in:st=0:d=0.25,format=yuv420p",
+            "-vf", (f"scale={W}:{H},fade=t=in:st=0:d=0.22,"
+                    f"fade=t=out:st={max(dur - 0.35, 0.5):.2f}:d=0.35,"
+                    f"format=yuv420p"),
             "-threads", "1",
             "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p"]
     if audio:

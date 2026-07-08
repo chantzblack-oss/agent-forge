@@ -46,6 +46,7 @@ from . import sources as _sources
 from . import explorer as _explorer
 from . import feed as _feed
 from . import debate as _debate
+from . import sim as _sim
 
 log = logging.getLogger("agent_forge.worker")
 
@@ -97,6 +98,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• Send “teach me <anything>” — a narrated lesson video + "
         "cheat-sheet PDF.\n"
         "• “debate <question>” — two hosts argue both sides.\n"
+        "• “simulate <scenario>” or “what if …” — a what-if run forward: "
+        "dossier + timeline playback.\n"
         "• /surprise — a fresh, wild explainer.\n"
         "• Reply to any video with a question — the host answers you.\n"
         "• Send a voice memo instead of typing — I’ll transcribe it.\n"
@@ -148,7 +151,11 @@ async def _make_lesson(update, context, topic: str):
     await _deliver_video(context, chat, r["video"], f"\U0001f393 {r['title']}{tag}")
 
 
-async def _make_debate(update, context, topic: str):
+async def _make_show(update, context, topic: str, builder, *,
+                     opening: str, doc_subtitle: str, doc_caption: str,
+                     emoji: str):
+    """Shared runner for the doc+video formats (debate, simulation): job
+    guard, early PDF delivery of the paper half, then the video."""
     if not _job_allowed():
         await context.bot.send_message(
             update.effective_chat.id,
@@ -156,38 +163,54 @@ async def _make_debate(update, context, topic: str):
             "Raise MAX_JOBS_PER_DAY in Render env if intentional.")
         return
     chat = update.effective_chat.id
-    await context.bot.send_message(
-        chat, f"Setting up the debate: {topic}\n(a few minutes…)")
+    await context.bot.send_message(chat, f"{opening}: {topic}\n(a few minutes…)")
 
-    async def _send_brief_early(doc_path):
+    async def _send_doc_early(doc_path):
         # Same doctrine as lessons: the research is the expensive part, so
-        # the brief ships the moment it exists.
+        # the paper half ships the moment it exists.
         send_path = doc_path
         try:
             from .docrender import md_to_pdf
-            send_path = await _run_blocking(
-                md_to_pdf, doc_path, "Agent Forge debate brief")
+            send_path = await _run_blocking(md_to_pdf, doc_path, doc_subtitle)
         except Exception:
-            log.exception("brief pdf render failed; sending raw md")
+            log.exception("pdf render failed; sending raw md")
         with open(send_path, "rb") as f:
             await context.bot.send_document(
                 chat_id=chat, document=f, filename=send_path.name,
-                caption="debate brief (the hosts are warming up…)")
+                caption=doc_caption)
 
     loop = asyncio.get_event_loop()
 
     def _on_doc(doc_path):
-        asyncio.run_coroutine_threadsafe(_send_brief_early(doc_path), loop)
+        asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
 
     try:
-        r = await _run_blocking(_debate.build_debate, topic, None, _on_doc)
+        r = await _run_blocking(builder, topic, None, _on_doc)
     except Exception as e:  # pragma: no cover
-        log.exception("debate failed")
+        log.exception("%s failed", opening)
         await context.bot.send_message(
             chat, f"That one failed: {type(e).__name__}: {e}")
         return
     tag = "" if r["voiced"] else " (silent — no TTS on this host)"
-    await _deliver_video(context, chat, r["path"], f"\U0001f94a {r['title']}{tag}")
+    await _deliver_video(context, chat, r["path"], f"{emoji} {r['title']}{tag}")
+
+
+async def _make_debate(update, context, topic: str):
+    await _make_show(
+        update, context, topic, _debate.build_debate,
+        opening="Setting up the debate",
+        doc_subtitle="Agent Forge debate brief",
+        doc_caption="debate brief (the hosts are warming up…)",
+        emoji="\U0001f94a")
+
+
+async def _make_sim(update, context, scenario: str):
+    await _make_show(
+        update, context, scenario, _sim.build_sim,
+        opening="Running the simulation",
+        doc_subtitle="Agent Forge scenario dossier",
+        doc_caption="scenario dossier (playback rendering…)",
+        emoji="\U0001f52e")
 
 
 def _find_doc_for(caption: str) -> Path | None:
@@ -282,6 +305,12 @@ async def _route_text(update, context, txt: str):
     if low.startswith("debate"):
         await _make_debate(update, context, txt[len("debate"):].strip(" :—-"))
         return
+    if low.startswith("simulate"):
+        await _make_sim(update, context, txt[len("simulate"):].strip(" :—-"))
+        return
+    if low.startswith("what if"):
+        await _make_sim(update, context, txt)
+        return
     topic = txt[len("teach me"):].strip(" :—-") if low.startswith("teach me") else txt
     await _make_lesson(update, context, topic)
 
@@ -304,6 +333,16 @@ async def cmd_debate(update, context):
         await update.message.reply_text("Say: /debate <question>")
         return
     await _make_debate(update, context, topic)
+
+
+async def cmd_simulate(update, context):
+    if not _ok(update):
+        return
+    scenario = " ".join(context.args) if context.args else ""
+    if not scenario:
+        await update.message.reply_text("Say: /simulate <scenario>")
+        return
+    await _make_sim(update, context, scenario)
 
 
 async def on_text(update, context):
@@ -547,6 +586,7 @@ def main() -> None:
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("teach", cmd_teach))
     app.add_handler(CommandHandler("debate", cmd_debate))
+    app.add_handler(CommandHandler("simulate", cmd_simulate))
     app.add_handler(CommandHandler("surprise", cmd_surprise))
     app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(CommandHandler("feed", cmd_feed))

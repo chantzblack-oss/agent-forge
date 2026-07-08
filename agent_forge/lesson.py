@@ -190,7 +190,8 @@ def build_lesson(topic: str, on_progress=None, on_doc=None) -> dict:
 
     say("rendering the lesson video…")
     vid = _video.build_video(
-        doc_path, on_progress=say, script_system=_LESSON_VIDEO_SYSTEM
+        doc_path, on_progress=say, script_system=_LESSON_VIDEO_SYSTEM,
+        badge="THE LESSON"
     )
     return {"title": title, "doc": doc_path, "video": vid["path"],
             "voiced": vid["voiced"], "scenes": vid["scenes"]}

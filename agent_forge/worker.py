@@ -47,6 +47,10 @@ from . import explorer as _explorer
 from . import feed as _feed
 from . import debate as _debate
 from . import sim as _sim
+from . import taste as _taste
+
+# last delivered sim dossier per chat — enables "branch A/B" continuations
+_LAST_SIM: dict[int, str] = {}
 
 log = logging.getLogger("agent_forge.worker")
 
@@ -121,6 +125,10 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• /surprise — a fresh, wild explainer.\n"
         "• Reply to any video with a question — the host answers you.\n"
         "• Send a voice memo instead of typing — I’ll transcribe it.\n"
+        "• After a simulation: reply “branch <name>” to run a fork as "
+        "its own episode.\n"
+        "• /taste <note> — feedback that becomes a standing rule for "
+        "every future script.\n"
         "• /feed and /play <n> — your library.\n\n"
         "Give me a few minutes per video — it’s researched, written, "
         "narrated and rendered."
@@ -213,6 +221,7 @@ async def _make_show(update, context, topic: str, builder, *,
         return
     tag = "" if r["voiced"] else " (silent — no TTS on this host)"
     await _deliver_video(context, chat, r["path"], f"{emoji} {r['title']}{tag}")
+    return r
 
 
 async def _make_debate(update, context, topic: str):
@@ -225,12 +234,19 @@ async def _make_debate(update, context, topic: str):
 
 
 async def _make_sim(update, context, scenario: str):
-    await _make_show(
+    r = await _make_show(
         update, context, scenario, _sim.build_sim,
         opening="Running the simulation",
         doc_subtitle="Agent Forge scenario dossier",
         doc_caption="scenario dossier (playback rendering…)",
         emoji="\U0001f52e")
+    if r and r.get("doc"):
+        _LAST_SIM[update.effective_chat.id] = str(r["doc"])
+        await context.bot.send_message(
+            update.effective_chat.id,
+            "🔀 This run followed the mainline. Reply “branch <name or "
+            "letter>” (from the dossier's branch points) and I'll run "
+            "that fork as its own episode.")
 
 
 def _find_doc_for(caption: str) -> Path | None:
@@ -322,6 +338,27 @@ async def _route_text(update, context, txt: str):
         await _answer_reply(update, context, txt)
         return
     low = txt.lower()
+    if low.startswith(("taste:", "feedback:")):
+        note = txt.split(":", 1)[1].strip()
+        if note:
+            _taste.add(note)
+            await update.message.reply_text(
+                "Noted. Every future script gets this as a standing "
+                "directive. (/taste to add more anytime)")
+        return
+    chat = update.effective_chat.id
+    if low.startswith("branch") and _LAST_SIM.get(chat):
+        try:
+            prior = Path(_LAST_SIM[chat]).read_text(encoding="utf-8")[:8000]
+        except Exception:
+            prior = ""
+        scenario = (f"CONTINUATION EPISODE. The viewer chose: '{txt}'. "
+                    f"The prior run's dossier follows — commit to that "
+                    f"branch at its branch point and simulate FROM there "
+                    f"forward (new timeline, new consequences, new end "
+                    f"states).\n\nPRIOR DOSSIER:\n{prior}")
+        await _make_sim(update, context, scenario)
+        return
     if low.startswith("debate"):
         await _make_debate(update, context, txt[len("debate"):].strip(" :—-"))
         return
@@ -353,6 +390,21 @@ async def cmd_debate(update, context):
         await update.message.reply_text("Say: /debate <question>")
         return
     await _make_debate(update, context, topic)
+
+
+async def cmd_taste(update, context):
+    """Feedback that persists: '/taste the hooks are too slow' becomes a
+    standing directive in every future script."""
+    if not _ok(update):
+        return
+    note = " ".join(context.args) if context.args else ""
+    if not note:
+        await update.message.reply_text(
+            "Say: /taste <what you want more/less of> — it becomes a "
+            "standing note every future script must obey.")
+        return
+    _taste.add(note)
+    await update.message.reply_text("Noted. Future scripts obey.")
 
 
 async def cmd_simulate(update, context):
@@ -634,6 +686,7 @@ def main() -> None:
     app.add_handler(CommandHandler("teach", cmd_teach))
     app.add_handler(CommandHandler("debate", cmd_debate))
     app.add_handler(CommandHandler("simulate", cmd_simulate))
+    app.add_handler(CommandHandler("taste", cmd_taste))
     app.add_handler(CommandHandler("surprise", cmd_surprise))
     app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(CommandHandler("feed", cmd_feed))

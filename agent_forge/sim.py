@@ -161,8 +161,10 @@ def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
             pass
 
     say("staging the playback…")
+    from . import taste as _taste
+    script_system = _SIM_SCRIPT_SYSTEM + _taste.context()
     raw = provider.complete(
-        system=_SIM_SCRIPT_SYSTEM, user=f"The dossier:\n\n{dossier}",
+        system=script_system, user=f"The dossier:\n\n{dossier}",
         model=WRITER_MODEL, max_tokens=16000,
     )
     scenes = _video._parse_scenes(raw)
@@ -185,7 +187,8 @@ def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
                 "number traceable to the dossier.")
 
     out = EXPLORATIONS_DIR / f"{slug}.sim.mp4"
-    r = _video.render_scenes(scenes, out, on_progress=say)
+    r = _video.render_scenes(scenes, out, on_progress=say,
+                             title=title, badge="SIMULATION")
     r["title"] = title
     r["doc"] = doc_path
     return r

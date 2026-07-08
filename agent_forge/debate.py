@@ -161,8 +161,10 @@ def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
             pass
 
     say("staging the debate…")
+    from . import taste as _taste
+    script_system = _DEBATE_SCRIPT_SYSTEM + _taste.context()
     raw = provider.complete(
-        system=_DEBATE_SCRIPT_SYSTEM, user=f"The brief:\n\n{brief}",
+        system=script_system, user=f"The brief:\n\n{brief}",
         model=WRITER_MODEL, max_tokens=16000,
     )
     scenes = _video._parse_scenes(raw)
@@ -186,7 +188,8 @@ def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
                 "sharper.")
 
     out = EXPLORATIONS_DIR / f"{slug}.debate.mp4"
-    r = _video.render_scenes(scenes, out, on_progress=say)
+    r = _video.render_scenes(scenes, out, on_progress=say,
+                             title=title, badge="THE DEBATE")
     r["title"] = title
     r["doc"] = doc_path
     return r

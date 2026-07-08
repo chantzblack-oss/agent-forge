@@ -214,8 +214,12 @@ def _parse_scenes(raw: str) -> list[dict]:
 
 _POLISH_SYSTEM = (
     "You are a ruthless script doctor for a premium explainer studio. You "
-    "receive the draft scene-list JSON for a vertical video. Elevate it to "
-    "world-class without changing the schema:\n"
+    "receive the draft scene-list JSON for a vertical video. FIRST, judge "
+    "it like a jaded viewer: score every scene 1-10 for grip (would a "
+    "smart viewer skip it?), specificity, and visual power. Any scene "
+    "under 8 gets rewritten until it earns its place — or cut outright. "
+    "Then elevate the whole script to world-class without changing the "
+    "schema:\n"
     "- Sharpen every narration line: cut filler, replace abstraction with "
     "a concrete image, make lines quotable. Keep the punctuation-as-"
     "performance style (em-dashes, ellipses) and the 40-word cap.\n"
@@ -234,13 +238,39 @@ _POLISH_SYSTEM = (
 )
 
 
+def _outside_critique(scenes: list[dict]) -> str:
+    """Writers' room: a DIFFERENT model (Gemini, when a key is present)
+    critiques the draft. A second brain catches what self-review can't."""
+    if not os.environ.get("GEMINI_API_KEY"):
+        return ""
+    try:
+        g = get_provider("gemini")
+        crit = g.complete(
+            system=("You are an outside script consultant for a premium "
+                    "explainer studio. Read this draft scene-list JSON and "
+                    "give the 3-6 sharpest, most concrete improvements — "
+                    "cite scene numbers, quote the weak line, propose the "
+                    "stronger one. Focus on grip, specificity, and arc. "
+                    "No praise, no generalities."),
+            user=json.dumps(scenes, ensure_ascii=False)[:24000],
+            model=os.environ.get("FORGE_GEMINI_MODEL", "gemini-2.5-flash"),
+            max_tokens=1500,
+        ).strip()
+        return crit[:4000]
+    except Exception:
+        return ""
+
+
 def polish_scenes(scenes: list[dict], note: str = "") -> list[dict]:
     """Second full pass: the script doctor. First drafts don't ship."""
     try:
+        crit = _outside_critique(scenes)
+        crit_block = (f"\n\nAn outside consultant's notes (weigh them, "
+                      f"adopt what's right):\n{crit}" if crit else "")
         provider = get_provider("anthropic")
         raw = provider.complete(
             system=_POLISH_SYSTEM,
-            user=(note + "\n\nDraft script JSON:\n"
+            user=(note + crit_block + "\n\nDraft script JSON:\n"
                   + json.dumps(scenes, ensure_ascii=False)),
             model=WRITER_MODEL, max_tokens=16000,
         )
@@ -256,6 +286,11 @@ def polish_scenes(scenes: list[dict], note: str = "") -> list[dict]:
 
 def script_from_essay(essay: str, script_system: str | None = None) -> list[dict]:
     system = script_system or _SCRIPT_SYSTEM
+    try:
+        from . import taste as _taste
+        system = system + _taste.context()
+    except Exception:
+        pass
     provider = get_provider("anthropic")
     raw = provider.complete(
         system=system, user=f"Essay:\n\n{essay}",
@@ -607,7 +642,7 @@ def _expand_icons(svg: str) -> str:
 _DATA_COLORS = ["#35c2d6", "#ff7a5e", "#ffb454", "#8bd450", "#b48ce8"]
 
 
-def _data_html(data: dict, vizdelay: float) -> str:
+def _data_html(data: dict, vizdelay: float, dur: float = 8.0) -> str:
     """Render a structured data spec as a polished animated chart. The
     visual weight of the graphic matches the math by construction."""
     try:
@@ -616,6 +651,12 @@ def _data_html(data: dict, vizdelay: float) -> str:
         head = f'<div class="dvt">{title}</div>' if title else ""
         ease = "cubic-bezier(.16,1,.3,1)"
         spring = "cubic-bezier(.34,1.56,.64,1)"
+
+        def _sync(n_items: int, i: int) -> float:
+            # spread reveals across the spoken part of the scene so the
+            # chart appears to narrate along with the voice
+            span = max(dur - 2.2, 1.0) * 0.75
+            return vizdelay + 0.2 + span * (i / max(n_items - 1, 1))
 
         if kind == "bars":
             items = [i for i in data.get("items", [])
@@ -632,7 +673,7 @@ def _data_html(data: dict, vizdelay: float) -> str:
                 rows.append(
                     f'<div class="dr"><span class="dl">{str(it["label"])[:22].replace("<","&lt;")}</span>'
                     f'<div class="dt"><div class="df" style="width:{pct:.1f}%;'
-                    f'background:{c};animation-delay:{vizdelay + .2 + n * .16:.2f}s"></div></div>'
+                    f'background:{c};animation-delay:{_sync(len(items), n):.2f}s"></div></div>'
                     f'<span class="dv2">{shown}</span></div>')
             return (f'<div class="viz dchart">{head}{"".join(rows)}</div>'
                     f'<style>.dchart{{margin-top:56px}}'
@@ -689,7 +730,7 @@ def _data_html(data: dict, vizdelay: float) -> str:
                 return ""
             parts = []
             for n, s in enumerate(steps):
-                d = vizdelay + .2 + n * .5
+                d = _sync(len(steps), n)
                 if n:
                     parts.append(f'<div class="dfc" style="animation-delay:{d - .25:.2f}s"></div>')
                 parts.append(f'<div class="dfn" style="animation-delay:{d:.2f}s">{s}</div>')
@@ -778,7 +819,7 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
         for i, w in enumerate(words))
     viz = ""
     if isinstance(scene.get("data"), dict):
-        viz = _data_html(scene["data"], 0.9)
+        viz = _data_html(scene["data"], 0.9, dur=max(dur, 3.0))
     if not viz:
         viz = _safe_visual(scene)
     caption = _caption_html(scene.get("narration", ""), max(dur, 3.0))
@@ -938,9 +979,20 @@ def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None
         shutil.rmtree(src, ignore_errors=True)
 
 
-def render_scenes(scenes: list[dict], out: Path, on_progress=None) -> dict:
-    """Narrate, record and stitch a scene list into an MP4 at `out`."""
+def render_scenes(scenes: list[dict], out: Path, on_progress=None,
+                  title: str | None = None, badge: str | None = None) -> dict:
+    """Narrate, record and stitch a scene list into an MP4 at `out`.
+    With `title`, the video gets show packaging: a branded title card in
+    and a library card out (music-only beats, no narration)."""
     say = on_progress or (lambda _m: None)
+    if title:
+        scenes = ([{"kicker": badge or "AGENT FORGE", "headline": title[:70],
+                    "narration": "", "layout": "punch", "pose": "wave",
+                    "delivery": "neutral"}]
+                  + list(scenes)
+                  + [{"kicker": "AGENT FORGE", "headline": "Saved to your library",
+                      "narration": "", "layout": "punch", "pose": "celebrate",
+                      "delivery": "neutral"}])
     work = Path(tempfile.mkdtemp(prefix="forge_video_"))
     ff = _ffmpeg()
     total = len(scenes)
@@ -1041,7 +1093,8 @@ def _mix_music(ff: str, video: Path, bed: Path, sfx: Path | None = None) -> None
 
 
 def build_video(md_path: str | Path, on_progress=None,
-                script_system: str | None = None) -> dict:
+                script_system: str | None = None,
+                badge: str | None = None) -> dict:
     """Compile a dive markdown into a narrated (or silent-captioned) MP4."""
     say = on_progress or (lambda _m: None)
     md_path = Path(md_path)
@@ -1051,8 +1104,11 @@ def build_video(md_path: str | Path, on_progress=None,
     scenes = script_from_essay(essay, script_system=script_system)
     if not scenes:
         raise RuntimeError("script generation returned no scenes")
+    m = re.search(r"^#\s+(.+)$", essay, re.M)
+    title = m.group(1).strip() if m else None
     out = EXPLORATIONS_DIR / (md_path.stem + ".mp4")
-    return render_scenes(scenes, out, on_progress=say)
+    return render_scenes(scenes, out, on_progress=say,
+                         title=title, badge=badge or "THE EXPLAINER")
 
 
 def _audio_dur(ff: str, mp3: Path) -> float:

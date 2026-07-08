@@ -101,3 +101,53 @@ def _parse(raw: str) -> list[dict]:
                 "best_existing": best,
             })
     return out
+
+
+# ── the programming director: what airs tonight ─────────────────────────
+
+_DIRECTOR_SYSTEM = (
+    "You are the programming director of a premium channel with exactly "
+    "ONE viewer. You schedule tonight's slot: pick the FORMAT and the "
+    "TOPIC together, like a channel head who knows their audience cold.\n"
+    "The formats:\n"
+    "  • story — dark documentary: true crime, disasters, vanishings, "
+    "maritime tragedies, historical mysteries, horror with a paper "
+    "trail. The viewer's favorite genre.\n"
+    "  • sim — a what-if run forward with branch points and odds.\n"
+    "  • debate — two hosts steelman a genuinely contested question.\n"
+    "  • dive — a wonder explainer on something astonishing.\n"
+    "USE WEB SEARCH — find something real and fresh, not a stale guess. "
+    "Rules: never repeat anything on the AVOID list; obey the viewer's "
+    "taste notes; vary the format from what aired most recently (the "
+    "AVOID list is newest-last); apply the obscurity test — skip "
+    "anything a mainstream explainer already covered to death. Weight "
+    "story roughly every other slot; the viewer loves it.\n"
+    "Return ONLY JSON: {\"format\": \"story|sim|debate|dive\", "
+    "\"topic\": \"...\", \"teaser\": \"one irresistible line — why "
+    "tonight, why this\"}"
+)
+
+
+def pick_slot(avoid: list[str] | None = None) -> dict | None:
+    """Choose tonight's format + topic for the auto-feed."""
+    from . import taste as _taste
+    raw = get_provider("anthropic").complete(
+        system=_DIRECTOR_SYSTEM + _taste.context(),
+        user=("Already aired (avoid, newest last): "
+              + ("; ".join(a for a in (avoid or []) if a)[-1500:]
+                 or "nothing yet")),
+        model="opus", max_tokens=1200,
+    )
+    m = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not m:
+        return None
+    try:
+        slot = json.loads(m.group(0))
+    except Exception:
+        return None
+    fmt = str(slot.get("format", "")).strip().lower()
+    topic = str(slot.get("topic", "")).strip()
+    if fmt not in ("story", "sim", "debate", "dive") or not topic:
+        return None
+    return {"format": fmt, "topic": topic,
+            "teaser": str(slot.get("teaser", "")).strip()[:300]}

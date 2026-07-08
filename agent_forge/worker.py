@@ -96,6 +96,15 @@ def _job_allowed() -> bool:
     _jobs_today.append(_t.time())
     return True
 
+
+def _jobs_left() -> bool:
+    """Peek at the cap without consuming a slot (the real consumption
+    happens inside the job pipeline)."""
+    import time as _t
+    cutoff = _t.time() - 86400
+    _jobs_today[:] = [t for t in _jobs_today if t > cutoff]
+    return len(_jobs_today) < _MAX_JOBS_PER_DAY
+
 _ALLOWED = {int(x) for x in os.environ.get("TELEGRAM_ALLOWED_USERS", "").replace(" ", "").split(",") if x}
 
 
@@ -150,6 +159,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "dossier + timeline playback.\n"
         "• “story <case>” — a dark-documentary episode: true crime, "
         "disasters, mysteries. Case file + the full tale.\n"
+        "• /tonight — the programming director picks tonight's format "
+        "and topic for you.\n"
         "• /surprise — a fresh, wild explainer.\n"
         "• Reply to any video with a question — the host answers you.\n"
         "• Send a voice memo instead of typing — I’ll transcribe it.\n"
@@ -471,6 +482,22 @@ async def _discover_story(update, context):
     await _make_story(update, context, case)
 
 
+async def cmd_tonight(update, context):
+    """One programmed feed slot, on demand: the director picks."""
+    if not _ok(update):
+        return
+    chat = update.effective_chat.id
+    await context.bot.send_message(chat, "📺 Asking the programming director…")
+    try:
+        ok = await _air_slot(context.application, chat)
+        if not ok:
+            await context.bot.send_message(
+                chat, "The director came back empty — try again.")
+    except Exception as e:
+        await context.bot.send_message(
+            chat, f"Programming failed: {type(e).__name__}: {e}")
+
+
 async def cmd_taste(update, context):
     """Feedback that persists: '/taste the hooks are too slow' becomes a
     standing directive in every future script."""
@@ -735,20 +762,58 @@ async def _daily_loop(app: Application):
             nxt += timedelta(days=1)
         await asyncio.sleep((nxt - now).total_seconds())
         try:
-            if not _job_allowed():
+            if not _jobs_left():
                 log.info("daily episode skipped: job cap reached")
                 continue
-            avoid = [e.get("topic", "") for e in _explorer.load_journal()]
-            cands = await _run_blocking(_sources.discover, 3, avoid)
-            topic = (cands[0]["topic"] if cands
-                     else "a genuinely surprising true story")
-            dive = await _run_blocking(_explorer.dive, topic)
-            vid = await _run_blocking(_video.build_video, dive["path"])
             for uid in _ALLOWED:
-                await _deliver_video(app, uid, vid["path"],
-                                     f"☀️ Today's episode: {dive['title']}")
+                await _air_slot(app, uid)
         except Exception as e:  # pragma: no cover
             log.warning("daily episode failed: %s", e)
+
+
+class _LoopUpdate:
+    """Minimal Update-shaped shim so the auto-feed drives the same job
+    pipeline (_make_story/_make_sim/...) as a typed command."""
+    def __init__(self, chat: int):
+        from types import SimpleNamespace
+        self.effective_chat = SimpleNamespace(id=chat)
+        self.message = None
+
+
+class _LoopContext:
+    def __init__(self, bot):
+        self.bot = bot
+
+
+def _feed_avoid() -> list[str]:
+    avoid = [e.get("topic", "") for e in _explorer.load_journal()]
+    return avoid + _story.covered_cases()
+
+
+async def _air_slot(app: Application, chat: int) -> bool:
+    """One programmed feed slot: the director picks format+topic, then the
+    full pipeline runs exactly as if the viewer had asked."""
+    slot = await _run_blocking(_sources.pick_slot, _feed_avoid())
+    if not slot:
+        return False
+    teaser = f" — {slot['teaser']}" if slot.get("teaser") else ""
+    await app.bot.send_message(
+        chat, f"📺 Tonight on the channel ({slot['format']}): "
+              f"{slot['topic']}{teaser}")
+    upd, ctx = _LoopUpdate(chat), _LoopContext(app.bot)
+    fmt = slot["format"]
+    if fmt == "story":
+        await _make_story(upd, ctx, slot["topic"])
+    elif fmt == "sim":
+        await _make_sim(upd, ctx, slot["topic"])
+    elif fmt == "debate":
+        await _make_debate(upd, ctx, slot["topic"])
+    else:
+        dive = await _run_blocking(_explorer.dive, slot["topic"])
+        vid = await _run_blocking(_video.build_video, dive["path"],
+                                  _progress_sender(ctx, chat))
+        await _deliver_video(ctx, chat, vid["path"], f"✨ {dive['title']}")
+    return True
 
 
 async def _restock_loop(app: Application):
@@ -758,33 +823,13 @@ async def _restock_loop(app: Application):
     await asyncio.sleep(30)
     while True:
         try:
-            if not _job_allowed():
+            if not _jobs_left():
                 log.info("auto-feed skipped: daily job cap reached")
-                await asyncio.sleep(every)
-                continue
-            avoid = [e.get("topic", "") for e in _explorer.load_journal()]
-            cands = await _run_blocking(_sources.discover, 4, avoid)
-            # Curator-first: recommend existing great coverage (pennies);
-            # GENERATE only for a topic nothing good covers (the gap).
-            links = [c for c in cands if c.get("best_existing")]
-            gaps = [c for c in cands if not c.get("best_existing")]
-            for c in links[:2]:
-                b = c["best_existing"]
-                msg = (f"\U0001f4a1 {c['title']}\n{c['hook']}\n\n"
-                       f"Best thing on this already exists — watch/read:\n"
-                       f"{b.get('title','')} — {b.get('creator','')}\n"
-                       f"{b['url']}\n{b.get('why','')}")
+            else:
                 for uid in _ALLOWED:
-                    await app.bot.send_message(uid, msg)
-            if gaps:
-                dive = await _run_blocking(_explorer.dive, gaps[0]["topic"])
-                vid = await _run_blocking(_video.build_video, dive["path"])
-                for uid in _ALLOWED:
-                    await _deliver_video(app, uid, vid["path"],
-                                         f"\U0001f195 {dive['title']} — "
-                                         "made because nothing good covers this")
+                    await _air_slot(app, uid)
         except Exception as e:  # pragma: no cover
-            log.warning("restock failed: %s", e)
+            log.warning("feed slot failed: %s", e)
         await asyncio.sleep(every)
 
 
@@ -820,6 +865,7 @@ def main() -> None:
     app.add_handler(CommandHandler("simulate", cmd_simulate))
     app.add_handler(CommandHandler("taste", cmd_taste))
     app.add_handler(CommandHandler("story", cmd_story))
+    app.add_handler(CommandHandler("tonight", cmd_tonight))
     app.add_handler(CommandHandler("surprise", cmd_surprise))
     app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(CommandHandler("feed", cmd_feed))

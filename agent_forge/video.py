@@ -112,6 +112,12 @@ _SCRIPT_SYSTEM = (
     "home heart bulb hourglass check x trend-up trend-down target globe. A visual is REQUIRED on every scene that "
     "explains a mechanism, number, comparison, or sequence — typography-only "
     "is acceptable only for pure emotional beats (max 3 per video).\n"
+    "- photo: OPTIONAL search query for a REAL photograph (fetched from "
+    "Wikimedia Commons) when an actual person, place, machine, or event "
+    "beats any diagram — e.g. 'Concorde takeoff', 'Chernobyl control "
+    "room', 'Muhammad Ali Liston'. Specific proper nouns work best. Use "
+    "on 2-5 scenes per video where reality punches hardest; the photo "
+    "becomes the full-bleed background of that scene.\n"
     "- layout: the shot type — standard | punch | fullviz. Use 'punch' "
     "2-4 times per video for the biggest one-liners (giant centered "
     "type, no diagram): the hook, a shocking number, a hard question, "
@@ -140,7 +146,7 @@ _SCRIPT_SYSTEM = (
     "triplets; ask the viewer a hard question now and then, or give a "
     "flat command. Never sound like a narrator reading slides.\n"
     "Return ONLY a JSON array of {kicker, headline, narration, layout, "
-    "pose, delivery, read, data?, visual?}."
+    "pose, delivery, read, photo?, data?, visual?}."
 )
 
 
@@ -435,6 +441,7 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
  @keyframes grow{{to{{width:{barw}px}}}}
  {layout_css}
 </style></head><body>
+ {photo}
  <div class=orb></div><div class=orb2></div>
  <div class=bignum>{idx:02d}</div>
  <div class=n>{idx} / {total}</div>
@@ -779,8 +786,26 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
     layout = str(scene.get("layout", "") or "").strip().lower()
     if layout == "punch":
         viz = ""          # punch scenes are type-only by design
+    photo_html, photo_css = "", ""
+    ph = scene.get("_photo")
+    if ph:
+        credit = (scene.get("_photocredit") or "").replace("<", "&lt;")
+        photo_html = (
+            f"<div class=ph style=\"background-image:url('file://{ph}')\"></div>"
+            f"<div class=phg></div>"
+            + (f'<div class=phc>&#128247; {credit}</div>' if credit else ""))
+        photo_css = (
+            " body>*{position:relative;z-index:1}"
+            " .ph{position:absolute;inset:0;z-index:0;background-size:cover;"
+            f"background-position:center;animation:phz {max(dur, 3.0):.1f}s ease-in-out forwards}}"
+            " @keyframes phz{from{transform:scale(1.05)}to{transform:scale(1.16)}}"
+            " .phg{position:absolute;inset:0;z-index:0;"
+            "background:linear-gradient(180deg,rgba(6,20,27,.30),rgba(6,20,27,.90) 72%)}"
+            " .phc{position:absolute;top:64px;left:96px;font-size:20px;"
+            "color:rgba(234,243,242,.55)}")
     return _SLIDE_TMPL.format(
-        layout_css=_LAYOUTS.get(layout, ""),
+        photo=photo_html,
+        layout_css=_LAYOUTS.get(layout, "") + photo_css,
         w=W, h=H, idx=idx, total=total, barw=int(880 * idx / total),
         kicker=scene.get("kicker", "").replace("<", "&lt;"),
         headline=hl,
@@ -919,6 +944,17 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None) -> dict:
     work = Path(tempfile.mkdtemp(prefix="forge_video_"))
     ff = _ffmpeg()
     total = len(scenes)
+    # Phase 0: fetch real photographs for scenes that name one.
+    for i, sc in enumerate(scenes):
+        q = str(sc.get("photo", "") or "").strip()
+        if not q:
+            continue
+        say(f"finding photo: {q}")
+        from . import photos as _photos
+        r = _photos.find_photo(q, work / f"ph{i:02d}.jpg")
+        if r:
+            sc["_photo"] = str(r["path"])
+            sc["_photocredit"] = r["credit"]
     # Phase 1: narration first — scene durations come from the audio.
     mp3s: list[Path | None] = []
     durs: list[float] = []
@@ -951,11 +987,24 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None) -> dict:
     _concat(ff, clips, out, silent=(narrated == 0))
     if os.environ.get("FORGE_MUSIC", "1") != "0":
         try:
-            say("laying the music bed…")
+            say("sound design…")
             from . import music as _music
             bed = work / "bed.wav"
             _music.ambient_bed(sum(durs), bed, _music.pick_mood(scenes))
-            _mix_music(ff, out, bed)
+            # sound-design events: a whoosh on every cut, a tick as a chart
+            # lands, a riser into each punch card
+            events, t = [], 0.0
+            for i, (sc, d) in enumerate(zip(scenes, durs)):
+                if i:
+                    events.append(("whoosh", t - 0.18))
+                if isinstance(sc.get("data"), dict):
+                    events.append(("tick", t + 1.25))
+                if str(sc.get("layout", "") or "").lower() == "punch" and i:
+                    events.append(("riser", t - 0.9))
+                t += d
+            sfx = work / "sfx.wav"
+            _music.sfx_track(sum(durs), events, sfx)
+            _mix_music(ff, out, bed, sfx)
         except Exception:
             import logging
             logging.getLogger("agent_forge.video").exception(
@@ -964,16 +1013,29 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None) -> dict:
             "voiced": narrated > 0}
 
 
-def _mix_music(ff: str, video: Path, bed: Path) -> None:
-    """Mix the ambient bed quietly under the finished video, in place."""
+def _mix_music(ff: str, video: Path, bed: Path, sfx: Path | None = None) -> None:
+    """Final mix, in place: the music bed DUCKS under the narration
+    (sidechain compression keyed by the voice) and swells in the gaps;
+    the sound-design layer sits on top at a low level."""
     tmp = video.with_name(video.stem + ".music.mp4")
+    inputs = [ff, "-y", "-i", str(video), "-i", str(bed)]
+    if sfx and sfx.exists():
+        inputs += ["-i", str(sfx)]
+        fc = ("[1:a]volume=0.42,afade=t=in:d=2.5[m];"
+              "[m][0:a]sidechaincompress=threshold=0.02:ratio=10:"
+              "attack=40:release=450[md];"
+              "[2:a]volume=0.45[s];"
+              "[0:a][md][s]amix=inputs=3:duration=first:"
+              "dropout_transition=0:normalize=0[a]")
+    else:
+        fc = ("[1:a]volume=0.42,afade=t=in:d=2.5[m];"
+              "[m][0:a]sidechaincompress=threshold=0.02:ratio=10:"
+              "attack=40:release=450[md];"
+              "[0:a][md]amix=inputs=2:duration=first:"
+              "dropout_transition=0:normalize=0[a]")
     subprocess.run(
-        [ff, "-y", "-i", str(video), "-i", str(bed),
-         "-filter_complex",
-         "[1:a]volume=0.15,afade=t=in:d=2.5[m];"
-         "[0:a][m]amix=inputs=2:duration=first:dropout_transition=0[a]",
-         "-map", "0:v", "-map", "[a]",
-         "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", str(tmp)],
+        inputs + ["-filter_complex", fc, "-map", "0:v", "-map", "[a]",
+                  "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", str(tmp)],
         check=True, capture_output=True)
     tmp.replace(video)
 

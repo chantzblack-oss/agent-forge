@@ -49,9 +49,13 @@ def _ffmpeg() -> str:
 
 _SCRIPT_SYSTEM = (
     "You are a video director adapting a researched essay into a narrated "
-    "vertical-video script (think a smart, punchy explainer). Return 9-12 "
-    "scenes. Each scene is one beat of narration the viewer HEARS plus a "
-    "short headline they SEE.\n\n"
+    "vertical-video script (think a smart, punchy explainer). Return 7-14 "
+    "scenes — as many as the material earns, no padding. Each scene is one "
+    "beat of narration the viewer HEARS plus a short headline they SEE. "
+    "Design the structure for THIS essay: a detective story wants a "
+    "slow-burn reveal, a mechanism wants stepwise build-up, a controversy "
+    "wants both sides then a verdict. Vary the rhythm — a one-sentence "
+    "punch scene between longer beats is allowed.\n\n"
     "Rules:\n"
     "- narration: 1-3 spoken sentences, conversational, vivid, no markdown, "
     "no stage directions — just what the voice says. Open cold on the story; "

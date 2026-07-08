@@ -960,6 +960,12 @@ def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None
         cmd += ["-i", str(src)]
     if audio:
         cmd += ["-i", str(audio)]
+    else:
+        # EVERY clip must carry an audio stream: concat takes its stream
+        # layout from the first clip, so one silent-card clip without
+        # audio mutes the whole video
+        cmd += ["-f", "lavfi", "-t", f"{dur:.2f}",
+                "-i", "anullsrc=channel_layout=mono:sample_rate=24000"]
     # dip-to-black on both ends so scene cuts read as edits, not glitches
     cmd += ["-t", f"{dur:.2f}", "-r", str(FPS),
             "-vf", (f"scale={W}:{H},fade=t=in:st=0:d=0.22,"
@@ -967,11 +973,12 @@ def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None
                     f"format=yuv420p"),
             "-threads", "1",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "19",
-            "-pix_fmt", "yuv420p"]
+            "-pix_fmt", "yuv420p",
+            "-map", "0:v", "-map", "1:a"]
     if audio:
         # a small breath before the line lands
-        cmd += ["-af", "adelay=300:all=1", "-c:a", "aac", "-b:a", "160k"]
-    cmd += [str(out)]
+        cmd += ["-af", "adelay=300:all=1"]
+    cmd += ["-c:a", "aac", "-b:a", "160k", "-ar", "24000", str(out)]
     subprocess.run(cmd, check=True, capture_output=True)
     if src.is_dir():
         # frames are big; free the disk as soon as the clip exists
@@ -1122,15 +1129,11 @@ def _audio_dur(ff: str, mp3: Path) -> float:
 
 
 def _concat(ff: str, clips: list[Path], out: Path, silent: bool) -> None:
+    # every clip carries an audio stream now (real narration or anullsrc),
+    # so a straight stream-copy concat is always correct
     lst = out.with_suffix(".txt")
     lst.write_text("".join(f"file '{c.resolve()}'\n" for c in clips))
-    cmd = [ff, "-y", "-f", "concat", "-safe", "0", "-i", str(lst)]
-    if silent:
-        # add a silent audio track so players that require audio still play
-        cmd += ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-                "-c:v", "copy", "-c:a", "aac", "-shortest"]
-    else:
-        cmd += ["-c", "copy"]
-    cmd += [str(out)]
-    subprocess.run(cmd, check=True, capture_output=True)
+    subprocess.run([ff, "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
+                    "-c", "copy", str(out)],
+                   check=True, capture_output=True)
     lst.unlink(missing_ok=True)

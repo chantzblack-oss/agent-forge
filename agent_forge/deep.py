@@ -41,12 +41,15 @@ _WRITER_SYSTEM = (
     "positions with stated confidence ('~80% — here is what the 20% "
     "looks like'). If a sentence could appear in a generic blog post on "
     "this topic, cut it.\n\n"
+    "THIS DOSSIER IS EXPANSIVE: 4,000-7,000 words of dense material — "
+    "the definitive treatment, not a summary. Every section earns its "
+    "length with specifics; expansive never means padded.\n\n"
     "STRUCTURE — adaptive to the question's type, but always:\n"
     "# <sharp title>\n"
     "## The verdict\n"
     "  the answer in 4-8 sentences, with confidence levels — readable "
     "alone.\n"
-    "Then 4-7 sections YOU choose to fit the question (the mechanism, "
+    "Then 6-10 sections YOU choose to fit the question (the mechanism, "
     "the evidence weighed side by side, the strongest case against this "
     "verdict, the history of how thinking evolved, the numbers that "
     "matter, who disagrees and why, practical implications). Always "
@@ -88,7 +91,7 @@ def build_deep(question: str, on_progress=None) -> dict:
     say = on_progress or (lambda _m: None)
     provider = get_provider("anthropic")
 
-    notes = _research.deep_research(question, say)
+    notes = _research.deep_research(question, say, expansive=True)
 
     say("adversarial pass — attacking the evidence…")
     counter = ""
@@ -107,14 +110,14 @@ def build_deep(question: str, on_progress=None) -> dict:
         system=_WRITER_SYSTEM + _taste.context(),
         user=(f"The question: {question}\n\nRESEARCH NOTES:\n{notes}"
               + (f"\n\nADVERSARIAL REVIEW:\n{counter}" if counter else "")),
-        model=WRITER_MODEL, max_tokens=12000,
+        model=WRITER_MODEL, max_tokens=16000,
     ).strip()
 
     say("editor pass…")
     try:
         edited = provider.complete(
             system=_EDITOR_SYSTEM, user=draft,
-            model=WRITER_MODEL, max_tokens=12000,
+            model=WRITER_MODEL, max_tokens=16000,
         ).strip()
         if edited.startswith("#") and len(edited) > len(draft) * 0.5:
             draft = edited
@@ -124,7 +127,7 @@ def build_deep(question: str, on_progress=None) -> dict:
     from .docrender import clean_markdown
     draft = clean_markdown(draft)
     m = re.search(r"^#\s+(.+)$", draft, re.M)
-    if not m or draft.count("##") < 4 or len(draft) < 2500:
+    if not m or draft.count("##") < 4 or len(draft) < 4000:
         raise RuntimeError("the dossier came back malformed — try "
                            "rephrasing the question")
     title = m.group(1).strip()

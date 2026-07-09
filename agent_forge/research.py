@@ -37,14 +37,41 @@ _CRUX_SYSTEM = (
 )
 
 
+_GAP_SYSTEM = (
+    "You are the research director. Read the team's notes on the "
+    "question. Name the 2-4 most important follow-up questions that are "
+    "STILL UNANSWERED — especially where the notes conflict, where a "
+    "load-bearing claim has no source, or where an obvious angle was "
+    "never searched. Each on its own line starting exactly 'FOLLOWUP: '. "
+    "Nothing else."
+)
+
+
 def enabled() -> bool:
     return os.environ.get("FORGE_DEEP_RESEARCH", "1") != "0"
 
 
-def deep_research(question: str, on_progress=None) -> str:
-    """Scout + per-crux deep dives. Returns assembled research notes."""
+def deep_research(question: str, on_progress=None,
+                  expansive: bool = False) -> str:
+    """Scout + per-crux deep dives. `expansive` adds a SECOND wave: a
+    research director reads wave one, names what's still unanswered, and
+    the team dives again. Returns assembled research notes."""
     say = on_progress or (lambda _m: None)
     provider = get_provider("anthropic")
+    dive_tokens = 3000 if expansive else 2400
+
+    def _dive(crux: str) -> str | None:
+        try:
+            d = provider.complete(
+                system=_CRUX_SYSTEM,
+                user=f"The larger question: {question}\n\nYour crux: {crux}",
+                model=WRITER_MODEL, max_tokens=dive_tokens,
+            )
+            return f"## Crux: {crux}\n{d.strip()}"
+        except Exception:
+            return None
+
+    from concurrent.futures import ThreadPoolExecutor
 
     say("research: scouting the territory…")
     scout = provider.complete(
@@ -52,25 +79,32 @@ def deep_research(question: str, on_progress=None) -> str:
         model=WRITER_MODEL, max_tokens=2400,
     )
     cruxes = [c.strip() for c in
-              re.findall(r"^\s*CRUX:\s*(.+)$", scout, re.M)][:4]
+              re.findall(r"^\s*CRUX:\s*(.+)$", scout, re.M)]
+    cruxes = cruxes[:6 if expansive else 4]
     notes = [f"## Scout notes\n{scout.strip()}"]
     if cruxes:
         say(f"research: {len(cruxes)} deep dives in parallel…")
-
-        def _dive(crux: str) -> str | None:
-            try:
-                d = provider.complete(
-                    system=_CRUX_SYSTEM,
-                    user=f"The larger question: {question}\n\nYour crux: {crux}",
-                    model=WRITER_MODEL, max_tokens=2400,
-                )
-                return f"## Crux: {crux}\n{d.strip()}"
-            except Exception:
-                return None
-        from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=4) as ex:
             notes += [n for n in ex.map(_dive, cruxes) if n]
-    return "\n\n".join(notes)[:26000]
+
+    if expansive and len(notes) > 1:
+        # wave two: the director reads wave one and sends the team back
+        say("research: the director maps what's still unanswered…")
+        try:
+            gaps = provider.complete(
+                system=_GAP_SYSTEM,
+                user="\n\n".join(notes)[:22000],
+                model=WRITER_MODEL, max_tokens=1200,
+            )
+            follows = [f.strip() for f in
+                       re.findall(r"^\s*FOLLOWUP:\s*(.+)$", gaps, re.M)][:4]
+            if follows:
+                say(f"research wave two: {len(follows)} follow-up dives…")
+                with ThreadPoolExecutor(max_workers=4) as ex:
+                    notes += [n for n in ex.map(_dive, follows) if n]
+        except Exception:
+            pass
+    return "\n\n".join(notes)[:42000 if expansive else 26000]
 
 
 def notes_block(question: str, on_progress=None) -> str:

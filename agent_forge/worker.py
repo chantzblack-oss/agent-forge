@@ -143,12 +143,19 @@ _SEND_KW = dict(read_timeout=300, write_timeout=300,
 async def _deliver_video(context, chat_id, path: Path, caption: str, doc: Path | None = None):
     # Uploads from the host can be slow; the library's default ~20s write
     # timeout kills them. Long timeouts + one retry.
+    is_audio = str(path).endswith((".m4a", ".mp3"))
     for attempt in (1, 2):
         try:
             with open(path, "rb") as f:
-                await context.bot.send_video(
-                    chat_id=chat_id, video=f, caption=caption[:1024],
-                    supports_streaming=True, **_SEND_KW)
+                if is_audio:
+                    await context.bot.send_audio(
+                        chat_id=chat_id, audio=f, caption=caption[:1024],
+                        title=caption.lstrip("🎙🎓🥊🔮🕯✨️ ")[:64],
+                        performer="Agent Forge", **_SEND_KW)
+                else:
+                    await context.bot.send_video(
+                        chat_id=chat_id, video=f, caption=caption[:1024],
+                        supports_streaming=True, **_SEND_KW)
             break
         except Exception:
             if attempt == 2:
@@ -194,7 +201,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-async def _make_lesson(update, context, topic: str):
+async def _make_lesson(update, context, topic: str, audio: bool = False):
     if not _job_allowed():
         await context.bot.send_message(
             update.effective_chat.id,
@@ -227,8 +234,9 @@ async def _make_lesson(update, context, topic: str):
         asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
 
     try:
-        r = await _run_blocking(_lesson.build_lesson, topic,
-                                _progress_sender(context, chat), _on_doc)
+        r = await _run_blocking(
+            lambda *a: _lesson.build_lesson(*a, audio=audio), topic,
+            _progress_sender(context, chat), _on_doc)
     except Exception as e:  # pragma: no cover
         log.exception("lesson failed")
         await context.bot.send_message(
@@ -243,7 +251,11 @@ async def _make_lesson(update, context, topic: str):
 
 async def _make_show(update, context, topic: str, builder, *,
                      opening: str, doc_subtitle: str, doc_caption: str,
-                     emoji: str, kind: str = "show"):
+                     emoji: str, kind: str = "show", audio: bool = False):
+    if audio:
+        import functools
+        builder = functools.partial(builder, audio=True)
+        emoji = "\U0001f399"
     """Shared runner for the doc+video formats (debate, simulation): job
     guard, early PDF delivery of the paper half, then the video."""
     if not _job_allowed():
@@ -291,22 +303,22 @@ async def _make_show(update, context, topic: str, builder, *,
     return r
 
 
-async def _make_debate(update, context, topic: str):
+async def _make_debate(update, context, topic: str, audio: bool = False):
     await _make_show(
         update, context, topic, _debate.build_debate,
         opening="Setting up the debate",
         doc_subtitle="Agent Forge debate brief",
         doc_caption="debate brief (the hosts are warming up…)",
-        emoji="\U0001f94a", kind="debate")
+        emoji="\U0001f94a", kind="debate", audio=audio)
 
 
-async def _make_sim(update, context, scenario: str):
+async def _make_sim(update, context, scenario: str, audio: bool = False):
     r = await _make_show(
         update, context, scenario, _sim.build_sim,
         opening="Running the simulation",
         doc_subtitle="Agent Forge scenario dossier",
         doc_caption="scenario dossier (playback rendering…)",
-        emoji="\U0001f52e", kind="sim")
+        emoji="\U0001f52e", kind="sim", audio=audio)
     if r and r.get("doc"):
         _LAST_SIM[update.effective_chat.id] = str(r["doc"])
         await context.bot.send_message(
@@ -405,6 +417,17 @@ async def _route_text(update, context, txt: str):
         await _answer_reply(update, context, txt)
         return
     low = txt.lower()
+    audio = False
+    if low.startswith("podcast"):
+        audio = True
+        txt = txt[len("podcast"):].strip(" :—-")
+        low = txt.lower()
+        if not txt:
+            await update.message.reply_text(
+                "Say: podcast story <case> / podcast debate <q> / "
+                "podcast teach me <topic> — same shows, audio-only, "
+                "minutes instead of half-hours.")
+            return
     if low.startswith(("taste:", "feedback:")):
         note = txt.split(":", 1)[1].strip()
         if note:
@@ -427,7 +450,7 @@ async def _route_text(update, context, txt: str):
         await _make_sim(update, context, scenario)
         return
     if low.startswith("debate"):
-        await _make_debate(update, context, txt[len("debate"):].strip(" :—-"))
+        await _make_debate(update, context, txt[len("debate"):].strip(" :—-"), audio=audio)
         return
     if low.startswith(("deep:", "deep ", "go deep on")):
         q = txt.split(":", 1)[1] if low.startswith("deep:") else \
@@ -443,16 +466,16 @@ async def _route_text(update, context, txt: str):
         if case.lower() in ("", "surprise", "me", "surprise me", "time"):
             await _discover_story(update, context)
         else:
-            await _make_story(update, context, case)
+            await _make_story(update, context, case, audio=audio)
         return
     if low.startswith("simulate"):
-        await _make_sim(update, context, txt[len("simulate"):].strip(" :—-"))
+        await _make_sim(update, context, txt[len("simulate"):].strip(" :—-"), audio=audio)
         return
     if low.startswith("what if"):
-        await _make_sim(update, context, txt)
+        await _make_sim(update, context, txt, audio=audio)
         return
     topic = txt[len("teach me"):].strip(" :—-") if low.startswith("teach me") else txt
-    await _make_lesson(update, context, topic)
+    await _make_lesson(update, context, topic, audio=audio)
 
 
 async def cmd_teach(update, context):
@@ -475,13 +498,13 @@ async def cmd_debate(update, context):
     await _make_debate(update, context, topic)
 
 
-async def _make_story(update, context, case: str):
+async def _make_story(update, context, case: str, audio: bool = False):
     await _make_show(
         update, context, case, _story.build_story,
         opening="Opening the case file",
         doc_subtitle="Agent Forge case file",
         doc_caption="case file (the episode is rendering…)",
-        emoji="\U0001f56f️", kind="story")
+        emoji="\U0001f56f️", kind="story", audio=audio)
 
 
 async def cmd_story(update, context):

@@ -138,7 +138,8 @@ _DEBATE_SCRIPT_SYSTEM = (
 )
 
 
-def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
+def build_debate(topic: str, on_progress=None, on_doc=None,
+                 audio: bool = False) -> dict:
     """Research a decision brief, deliver it, then render the two-host
     debate video performed from it."""
     say = on_progress or (lambda _m: None)
@@ -167,10 +168,11 @@ def build_debate(topic: str, on_progress=None, on_doc=None) -> dict:
             on_doc(doc_path)
         except Exception:
             pass
-    return video_from_brief(doc_path, on_progress=say)
+    return video_from_brief(doc_path, on_progress=say, audio=audio)
 
 
-def video_from_brief(doc_path: str | Path, on_progress=None) -> dict:
+def video_from_brief(doc_path: str | Path, on_progress=None,
+                     audio: bool = False) -> dict:
     """Script and render the debate video from an existing brief — also
     the resume path when a restart killed the render half."""
     say = on_progress or (lambda _m: None)
@@ -209,15 +211,19 @@ def video_from_brief(doc_path: str | Path, on_progress=None) -> dict:
                 "rebuttal structure, and make the clash at the cruxes "
                 "sharper.")
 
-    out = EXPLORATIONS_DIR / f"{slug}.debate.mp4"
-    r = _video.render_scenes(
-        scenes, out, on_progress=say, title=title, badge="THE DEBATE",
-        voice_direction=(
-            "You are one of two rival podcast hosts mid-argument — "
-            "genuinely reacting to what the other just said. Talk TO "
-            "someone, not AT a script: interruptions of energy, real "
-            "amusement, real exasperation."),
-        mood="warm")
+    vd = ("You are one of two rival podcast hosts mid-argument — "
+          "genuinely reacting to what the other just said. Talk TO "
+          "someone, not AT a script: interruptions of energy, real "
+          "amusement, real exasperation.")
+    if audio:
+        out = EXPLORATIONS_DIR / f"{slug}.debate.m4a"
+        r = _video.render_podcast(scenes, out, on_progress=say,
+                                  voice_direction=vd, mood="warm")
+    else:
+        out = EXPLORATIONS_DIR / f"{slug}.debate.mp4"
+        r = _video.render_scenes(
+            scenes, out, on_progress=say, title=title, badge="THE DEBATE",
+            voice_direction=vd, mood="warm")
     r["title"] = title
     r["doc"] = doc_path
     return r

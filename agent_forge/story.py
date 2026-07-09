@@ -194,7 +194,8 @@ def covered_cases() -> list[str]:
         return []
 
 
-def build_story(case: str, on_progress=None, on_doc=None) -> dict:
+def build_story(case: str, on_progress=None, on_doc=None,
+                audio: bool = False) -> dict:
     """Research the case file, deliver it, then render the episode."""
     say = on_progress or (lambda _m: None)
     provider = get_provider("anthropic")
@@ -225,10 +226,11 @@ def build_story(case: str, on_progress=None, on_doc=None) -> dict:
             on_doc(doc_path)
         except Exception:
             pass
-    return video_from_casefile(doc_path, on_progress=say)
+    return video_from_casefile(doc_path, on_progress=say, audio=audio)
 
 
-def video_from_casefile(doc_path: str | Path, on_progress=None) -> dict:
+def video_from_casefile(doc_path: str | Path, on_progress=None,
+                        audio: bool = False) -> dict:
     """Script and render the episode from an existing case file — also
     the resume path."""
     say = on_progress or (lambda _m: None)
@@ -267,17 +269,21 @@ def video_from_casefile(doc_path: str | Path, on_progress=None) -> dict:
                 "the respect rule absolute, and make the closing "
                 "question land like a stone in a well.")
 
-    out = EXPLORATIONS_DIR / f"{slug}.case.mp4"
-    r = _video.render_scenes(
-        scenes, out, on_progress=say, title=title, badge="CASE FILE",
-        voice_direction=(
-            "You are a seasoned documentary narrator telling a dark true "
-            "story late at night — low, intimate, measured. Controlled "
-            "dread, never theatrical, never announcer-y. Let sentences "
-            "land and breathe; drop almost to a murmur on the chilling "
-            "details; slow down on names and times like they matter — "
-            "because they do."),
-        mood="dark")
+    vd = ("You are a seasoned documentary narrator telling a dark true "
+          "story late at night — low, intimate, measured. Controlled "
+          "dread, never theatrical, never announcer-y. Let sentences "
+          "land and breathe; drop almost to a murmur on the chilling "
+          "details; slow down on names and times like they matter — "
+          "because they do.")
+    if audio:
+        out = EXPLORATIONS_DIR / f"{slug}.case.m4a"
+        r = _video.render_podcast(scenes, out, on_progress=say,
+                                  voice_direction=vd, mood="dark")
+    else:
+        out = EXPLORATIONS_DIR / f"{slug}.case.mp4"
+        r = _video.render_scenes(
+            scenes, out, on_progress=say, title=title, badge="CASE FILE",
+            voice_direction=vd, mood="dark")
     r["title"] = title
     r["doc"] = doc_path
     return r

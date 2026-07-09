@@ -1020,6 +1020,113 @@ def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None
         shutil.rmtree(src, ignore_errors=True)
 
 
+def _narrate_all(scenes, work: Path, ff: str, say, persona: str):
+    """Parallel TTS for every scene. Returns (mp3s, durs, narrated,
+    fallbacks)."""
+    say(f"narrating {len(scenes)} scenes…")
+
+    def _narrate(args):
+        i, sc = args
+        text = sc.get("narration", "").strip()
+        if not text:
+            return None, False
+        mp3 = work / f"s{i:02d}.mp3"
+        rate, pitch = _delivery(sc)
+        spk = str(sc.get("speaker", "") or "").strip().lower()
+        if _openai_tts(text, mp3, _acting_notes(sc, persona),
+                       voice=_speaker_openai_voice(spk)):
+            return mp3, False
+        ok = synth(text, mp3, rate=rate, pitch=pitch,
+                   voice=_speaker_edge_voice(spk))
+        return (mp3 if ok else None), ok      # fallback = robotic voice
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=2) as ex:   # gentle on rate limits
+        results = list(ex.map(_narrate, enumerate(scenes, 1)))
+    mp3s, durs, narrated = [], [], 0
+    fallbacks = sum(1 for _m, fb in results if fb)
+    if fallbacks:
+        say(f"⚠️ {fallbacks} scenes fell back to the robotic voice — "
+            "check OpenAI rate limits/credits")
+    for sc, (mp3, _fb) in zip(scenes, results):
+        if mp3 is not None:
+            narrated += 1
+            mp3s.append(mp3)
+            durs.append(_audio_dur(ff, mp3) + 0.65)
+        else:
+            mp3s.append(None)
+            durs.append(_reading_seconds(sc.get("narration", "")))
+    return mp3s, durs, narrated, fallbacks
+
+
+def render_podcast(scenes: list[dict], out: Path, on_progress=None,
+                   voice_direction: str | None = None,
+                   mood: str | None = None) -> dict:
+    """Assemble the scene list as a PODCAST episode: narration with
+    breathing room, music bed ducked underneath — no video render at all.
+    Minutes instead of half-hours."""
+    say = on_progress or (lambda _m: None)
+    work = Path(tempfile.mkdtemp(prefix="forge_pod_"))
+    ff = _ffmpeg()
+    mp3s, durs, narrated, fallbacks = _narrate_all(
+        scenes, work, ff, say, voice_direction or "")
+    voiced = [m for m in mp3s if m is not None]
+    if not voiced:
+        raise RuntimeError("no narration could be synthesized")
+
+    say("assembling the episode…")
+    gap = work / "gap.wav"
+    subprocess.run([ff, "-y", "-f", "lavfi", "-t", "0.65",
+                    "-i", "anullsrc=channel_layout=mono:sample_rate=24000",
+                    str(gap)], check=True, capture_output=True)
+    inputs, chain = [], []
+    n = 0
+    for m in voiced:
+        if n:
+            inputs += ["-i", str(gap)]
+            chain.append(f"[{n}:a]")
+            n += 1
+        inputs += ["-i", str(m)]
+        chain.append(f"[{n}:a]")
+        n += 1
+    voice = work / "voice.m4a"
+    subprocess.run(
+        [ff, "-y"] + inputs
+        + ["-filter_complex",
+           "".join(chain) + f"concat=n={n}:v=0:a=1[a]",
+           "-map", "[a]", "-c:a", "aac", "-b:a", "128k", str(voice)],
+        check=True, capture_output=True)
+
+    total_s = _audio_dur(ff, voice)
+    if os.environ.get("FORGE_MUSIC", "1") != "0":
+        try:
+            say("laying the music bed…")
+            from . import music as _music
+            bed = work / "bed.wav"
+            _music.ambient_bed(total_s, bed,
+                               mood or _music.pick_mood(scenes))
+            subprocess.run(
+                [ff, "-y", "-i", str(voice), "-i", str(bed),
+                 "-filter_complex",
+                 "[1:a]volume=0.35,afade=t=in:d=2.5[m];"
+                 "[m][0:a]sidechaincompress=threshold=0.02:ratio=10:"
+                 "attack=40:release=450[md];"
+                 "[0:a][md]amix=inputs=2:duration=first:"
+                 "dropout_transition=0:normalize=0[a]",
+                 "-map", "[a]", "-c:a", "aac", "-b:a", "128k",
+                 str(out)], check=True, capture_output=True)
+        except Exception:
+            import logging
+            logging.getLogger("agent_forge.video").exception(
+                "podcast music failed; delivering dry voice")
+            out.write_bytes(voice.read_bytes())
+    else:
+        out.write_bytes(voice.read_bytes())
+    return {"path": out, "scenes": len(scenes), "narrated": narrated,
+            "voiced": True, "fallback": fallbacks,
+            "minutes": round(total_s / 60, 1)}
+
+
 def render_scenes(scenes: list[dict], out: Path, on_progress=None,
                   title: str | None = None, badge: str | None = None,
                   voice_direction: str | None = None,
@@ -1065,45 +1172,8 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=3) as ex:
             list(ex.map(_fetch_imagery, wanted))
-    # Phase 1: narration first — scene durations come from the audio.
-    # TTS calls are network-bound; run them in parallel.
-    say(f"narrating {total} scenes…")
-    persona = voice_direction or ""
-
-    def _narrate(args):
-        i, sc = args
-        text = sc.get("narration", "").strip()
-        if not text:
-            return None, False
-        mp3 = work / f"s{i:02d}.mp3"
-        rate, pitch = _delivery(sc)
-        spk = str(sc.get("speaker", "") or "").strip().lower()
-        if _openai_tts(text, mp3, _acting_notes(sc, persona),
-                       voice=_speaker_openai_voice(spk)):
-            return mp3, False
-        ok = synth(text, mp3, rate=rate, pitch=pitch,
-                   voice=_speaker_edge_voice(spk))
-        return (mp3 if ok else None), ok      # ok fallback = robotic voice
-
-    from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=2) as ex:   # gentle on TTS rate limits
-        results = list(ex.map(_narrate, enumerate(scenes, 1)))
-    mp3s: list[Path | None] = []
-    durs: list[float] = []
-    narrated = 0
-    fallbacks = sum(1 for _m, fb in results if fb)
-    if fallbacks:
-        say(f"⚠️ {fallbacks} scenes fell back to the robotic voice — "
-            "check OpenAI rate limits/credits")
-    for sc, (mp3, _fb) in zip(scenes, results):
-        if mp3 is not None:
-            narrated += 1
-            mp3s.append(mp3)
-            # a breath in, a short settle out — tight, not sleepy
-            durs.append(_audio_dur(ff, mp3) + 0.65)
-        else:
-            mp3s.append(None)
-            durs.append(_reading_seconds(sc.get("narration", "")))
+    mp3s, durs, narrated, fallbacks = _narrate_all(
+        scenes, work, ff, say, voice_direction or "")
     # Phase 2: capture each scene (virtual-time, pixel-perfect) and encode
     # it immediately — frames are freed before the next scene is captured.
     clips: list[Path] = []
@@ -1176,7 +1246,8 @@ def build_video(md_path: str | Path, on_progress=None,
                 script_system: str | None = None,
                 badge: str | None = None,
                 voice_direction: str | None = None,
-                mood: str | None = None) -> dict:
+                mood: str | None = None,
+                audio: bool = False) -> dict:
     """Compile a dive markdown into a narrated (or silent-captioned) MP4."""
     say = on_progress or (lambda _m: None)
     md_path = Path(md_path)
@@ -1188,6 +1259,10 @@ def build_video(md_path: str | Path, on_progress=None,
         raise RuntimeError("script generation returned no scenes")
     m = re.search(r"^#\s+(.+)$", essay, re.M)
     title = m.group(1).strip() if m else None
+    if audio:
+        return render_podcast(
+            scenes, EXPLORATIONS_DIR / (md_path.stem + ".m4a"),
+            on_progress=say, voice_direction=voice_direction, mood=mood)
     out = EXPLORATIONS_DIR / (md_path.stem + ".mp4")
     return render_scenes(
         scenes, out, on_progress=say,

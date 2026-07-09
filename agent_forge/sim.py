@@ -139,7 +139,8 @@ _SIM_SCRIPT_SYSTEM = (
 )
 
 
-def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
+def build_sim(scenario: str, on_progress=None, on_doc=None,
+              audio: bool = False) -> dict:
     """Research a scenario dossier, deliver it, then render the timeline
     playback video."""
     say = on_progress or (lambda _m: None)
@@ -170,10 +171,11 @@ def build_sim(scenario: str, on_progress=None, on_doc=None) -> dict:
             on_doc(doc_path)
         except Exception:
             pass
-    return video_from_dossier(doc_path, on_progress=say)
+    return video_from_dossier(doc_path, on_progress=say, audio=audio)
 
 
-def video_from_dossier(doc_path: str | Path, on_progress=None) -> dict:
+def video_from_dossier(doc_path: str | Path, on_progress=None,
+                       audio: bool = False) -> dict:
     """Script and render the playback from an existing dossier — also the
     resume path when a restart killed the render half."""
     say = on_progress or (lambda _m: None)
@@ -211,14 +213,19 @@ def video_from_dossier(doc_path: str | Path, on_progress=None) -> dict:
                 "make the branch-point tension sharper, and keep every "
                 "number traceable to the dossier.")
 
-    out = EXPLORATIONS_DIR / f"{slug}.sim.mp4"
-    r = _video.render_scenes(
-        scenes, out, on_progress=say, title=title, badge="SIMULATION",
-        voice_direction=(
-            "You are a mission-control operator narrating a live run — "
-            "calm, precise, quietly intense. Tension builds in the "
-            "voice as the clock advances; clipped on the data, hushed "
-            "at the forks."))
+    vd = ("You are a mission-control operator narrating a live run — "
+          "calm, precise, quietly intense. Tension builds in the "
+          "voice as the clock advances; clipped on the data, hushed "
+          "at the forks.")
+    if audio:
+        out = EXPLORATIONS_DIR / f"{slug}.sim.m4a"
+        r = _video.render_podcast(scenes, out, on_progress=say,
+                                  voice_direction=vd)
+    else:
+        out = EXPLORATIONS_DIR / f"{slug}.sim.mp4"
+        r = _video.render_scenes(
+            scenes, out, on_progress=say, title=title, badge="SIMULATION",
+            voice_direction=vd)
     r["title"] = title
     r["doc"] = doc_path
     return r

@@ -25,6 +25,8 @@ _MOODS = {
     "warm": (220.00, 174.61, 130.81, 196.00),
     # dark: low A minor drift
     "dark": (110.00, 130.81, 98.00, 87.31),
+    # bright: major movement for lessons/uplift — C - G - F - C
+    "bright": (130.81, 196.00, 174.61, 261.63),
 }
 
 

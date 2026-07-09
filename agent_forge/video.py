@@ -385,21 +385,27 @@ def _speaker_edge_voice(spk: str) -> str | None:
 
 def _openai_tts(text: str, out_mp3: Path, instructions: str,
                 voice: str | None = None) -> bool:
-    """Expressive narration via OpenAI TTS. Returns False (so the caller
-    falls back to edge-tts) when no key is set or the call fails."""
+    """Expressive narration via OpenAI TTS. Retries hard (rate limits are
+    the common failure) before returning False — a silent fallback to the
+    robotic voice ruins a whole video, so fight for this one."""
     if not os.environ.get("OPENAI_API_KEY"):
         return False
-    try:
-        from openai import OpenAI
-        resp = OpenAI().audio.speech.create(
-            model="gpt-4o-mini-tts",
-            voice=voice or os.environ.get("FORGE_OPENAI_VOICE", "onyx"),
-            input=text, instructions=instructions,
-        )
-        out_mp3.write_bytes(resp.content)
-        return out_mp3.exists() and out_mp3.stat().st_size > 0
-    except Exception:
-        return False
+    import time as _t
+    from openai import OpenAI
+    client = OpenAI()
+    for attempt in range(4):
+        try:
+            resp = client.audio.speech.create(
+                model="gpt-4o-mini-tts",
+                voice=voice or os.environ.get("FORGE_OPENAI_VOICE", "onyx"),
+                input=text, instructions=instructions,
+            )
+            out_mp3.write_bytes(resp.content)
+            if out_mp3.exists() and out_mp3.stat().st_size > 0:
+                return True
+        except Exception:
+            _t.sleep(3 * (attempt + 1))     # 429s clear on the next window
+    return False
 
 
 def synth(text: str, out_mp3: Path,
@@ -1009,7 +1015,8 @@ def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None
 
 def render_scenes(scenes: list[dict], out: Path, on_progress=None,
                   title: str | None = None, badge: str | None = None,
-                  voice_direction: str | None = None) -> dict:
+                  voice_direction: str | None = None,
+                  mood: str | None = None) -> dict:
     """Narrate, record and stitch a scene list into an MP4 at `out`.
     With `title`, the video gets show packaging: a branded title card in
     and a library card out (music-only beats, no narration)."""
@@ -1045,23 +1052,28 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
         i, sc = args
         text = sc.get("narration", "").strip()
         if not text:
-            return None
+            return None, False
         mp3 = work / f"s{i:02d}.mp3"
         rate, pitch = _delivery(sc)
         spk = str(sc.get("speaker", "") or "").strip().lower()
-        ok = (_openai_tts(text, mp3, _acting_notes(sc, persona),
-                          voice=_speaker_openai_voice(spk))
-              or synth(text, mp3, rate=rate, pitch=pitch,
-                       voice=_speaker_edge_voice(spk)))
-        return mp3 if ok else None
+        if _openai_tts(text, mp3, _acting_notes(sc, persona),
+                       voice=_speaker_openai_voice(spk)):
+            return mp3, False
+        ok = synth(text, mp3, rate=rate, pitch=pitch,
+                   voice=_speaker_edge_voice(spk))
+        return (mp3 if ok else None), ok      # ok fallback = robotic voice
 
     from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(max_workers=4) as ex:
+    with ThreadPoolExecutor(max_workers=2) as ex:   # gentle on TTS rate limits
         results = list(ex.map(_narrate, enumerate(scenes, 1)))
     mp3s: list[Path | None] = []
     durs: list[float] = []
     narrated = 0
-    for sc, mp3 in zip(scenes, results):
+    fallbacks = sum(1 for _m, fb in results if fb)
+    if fallbacks:
+        say(f"⚠️ {fallbacks} scenes fell back to the robotic voice — "
+            "check OpenAI rate limits/credits")
+    for sc, (mp3, _fb) in zip(scenes, results):
         if mp3 is not None:
             narrated += 1
             mp3s.append(mp3)
@@ -1085,7 +1097,8 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
             say("sound design…")
             from . import music as _music
             bed = work / "bed.wav"
-            _music.ambient_bed(sum(durs), bed, _music.pick_mood(scenes))
+            _music.ambient_bed(sum(durs), bed,
+                               mood or _music.pick_mood(scenes))
             sfx = None
             if os.environ.get("FORGE_SFX", "0") == "1":
                 # optional sound-design layer (off by default — the
@@ -1107,7 +1120,7 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
             logging.getLogger("agent_forge.video").exception(
                 "music bed failed; delivering without it")
     return {"path": out, "scenes": total, "narrated": narrated,
-            "voiced": narrated > 0}
+            "voiced": narrated > 0, "fallback": fallbacks}
 
 
 def _mix_music(ff: str, video: Path, bed: Path, sfx: Path | None = None) -> None:
@@ -1140,7 +1153,8 @@ def _mix_music(ff: str, video: Path, bed: Path, sfx: Path | None = None) -> None
 def build_video(md_path: str | Path, on_progress=None,
                 script_system: str | None = None,
                 badge: str | None = None,
-                voice_direction: str | None = None) -> dict:
+                voice_direction: str | None = None,
+                mood: str | None = None) -> dict:
     """Compile a dive markdown into a narrated (or silent-captioned) MP4."""
     say = on_progress or (lambda _m: None)
     md_path = Path(md_path)
@@ -1159,7 +1173,8 @@ def build_video(md_path: str | Path, on_progress=None,
         voice_direction=voice_direction or
         "You are a gifted storyteller sharing something that genuinely "
         "amazes you — natural, warm, alive. Real inflection: lean into "
-        "the surprising word, drop for the aside, lift for the reveal.")
+        "the surprising word, drop for the aside, lift for the reveal.",
+        mood=mood)
 
 
 def _audio_dur(ff: str, mp3: Path) -> float:

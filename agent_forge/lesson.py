@@ -199,7 +199,8 @@ def build_lesson(topic: str, on_progress=None, on_doc=None) -> dict:
         voice_direction=(
             "You are a brilliant friend teaching something you love — "
             "energetic but natural, smiling through the good parts, "
-            "dead serious on the warnings. Never lecture-y.")
+            "dead serious on the warnings. Never lecture-y."),
+        mood="bright"
     )
     return {"title": title, "doc": doc_path, "video": vid["path"],
             "voiced": vid["voiced"], "scenes": vid["scenes"]}

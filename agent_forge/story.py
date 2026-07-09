@@ -271,7 +271,8 @@ def video_from_casefile(doc_path: str | Path, on_progress=None) -> dict:
             "dread, never theatrical, never announcer-y. Let sentences "
             "land and breathe; drop almost to a murmur on the chilling "
             "details; slow down on names and times like they matter — "
-            "because they do."))
+            "because they do."),
+        mood="dark")
     r["title"] = title
     r["doc"] = doc_path
     return r

@@ -37,6 +37,30 @@ The exploration engine is the main event. Standing preferences:
 - A full deep dive+compile takes ~30-40 min; run it in the background and
   deliver when done. Use `queue` to batch several overnight.
 
+## The split: documents HERE, audio/video on the BOT
+
+The system has two delivery channels; use each for what it's good at.
+
+- **Documents run IN-SESSION, free.** `deep` dossiers, debate briefs, sim
+  dossiers, case files, lessons all run on the session's own Claude CLI
+  auth (no API-key spend). When Chantz asks for a deep document — or says
+  `deep: <question>` — run `agent_forge.deep.build_deep` (or the format's
+  builder) with `PYTHONPATH=/path/to/repo`, render with
+  `docrender.md_to_pdf`, and deliver the PDF via SendUserFile. Long runs
+  (10-20 min) go in a background Bash task; deliver on completion. QA the
+  output before sending.
+- **Audio/video/feed live on the Telegram bot** (Render worker): the
+  sandbox proxy blocks TTS, Wikimedia, and image generation, and only the
+  bot is always-on (auto-feed, /tonight, branch replies, voice memos).
+- **Script QA is free here too**: rebuild any format's script by
+  monkeypatching `video.render_scenes`/`render_podcast` to dump scenes,
+  then critique the actual text before Chantz spends on a render. Do this
+  before shipping prompt changes — never tune writing blind.
+- **Quality manifests**: every bot delivery ends with a 🧪 line (scenes,
+  expressive-voice count, imagery hit rate). Ask for it when debugging
+  "this was bad" reports — it distinguishes pipeline problems from silent
+  degradation (TTS fallback, failed research, missing imagery).
+
 ## Choosing the machinery
 
 - Factual / research questions → prefer `/deep-research` (multi-agent,

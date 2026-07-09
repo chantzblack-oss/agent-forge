@@ -48,6 +48,7 @@ from . import feed as _feed
 from . import debate as _debate
 from . import sim as _sim
 from . import story as _story
+from . import deep as _deep
 from . import taste as _taste
 
 # last delivered sim dossier per chat — enables "branch A/B" continuations
@@ -175,6 +176,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "dossier + timeline playback.\n"
         "• “story <case>” — a dark-documentary episode: true crime, "
         "disasters, mysteries. Case file + the full tale.\n"
+        "• “deep <question>” — no video: the definitive dossier. "
+        "Multi-pass research, adversarial review, editor pass, typeset "
+        "PDF.\n"
         "• /tonight — the programming director picks tonight's format "
         "and topic for you.\n"
         "• /surprise — a fresh, wild explainer.\n"
@@ -425,6 +429,14 @@ async def _route_text(update, context, txt: str):
     if low.startswith("debate"):
         await _make_debate(update, context, txt[len("debate"):].strip(" :—-"))
         return
+    if low.startswith(("deep:", "deep ", "go deep on")):
+        q = txt.split(":", 1)[1] if low.startswith("deep:") else \
+            (txt[len("go deep on"):] if low.startswith("go deep on")
+             else txt[len("deep"):])
+        q = q.strip(" :—-")
+        if q:
+            await _make_deep(update, context, q)
+            return
     if low.startswith(("story", "case:")):
         case = (txt[len("story"):] if low.startswith("story")
                 else txt.split(":", 1)[1]).strip(" :—-")
@@ -496,6 +508,50 @@ async def _discover_story(update, context):
         return
     await context.bot.send_message(chat, f"Tonight's case: {case}")
     await _make_story(update, context, case)
+
+
+async def _make_deep(update, context, question: str):
+    """Document-only flagship: the definitive dossier, no video."""
+    if not _job_allowed():
+        await context.bot.send_message(
+            update.effective_chat.id,
+            f"Daily budget guard: {_MAX_JOBS_PER_DAY} jobs/day reached.")
+        return
+    chat = update.effective_chat.id
+    await context.bot.send_message(
+        chat, f"Going deep: {question}\n(10-15 minutes — research, "
+              "adversarial review, synthesis, edit…)")
+    try:
+        r = await _run_blocking(_deep.build_deep, question,
+                                _progress_sender(context, chat))
+    except Exception as e:
+        log.exception("deep failed")
+        await context.bot.send_message(
+            chat, f"That one failed: {type(e).__name__}: {e}")
+        return
+    send_path = r["doc"]
+    try:
+        from .docrender import md_to_pdf
+        send_path = await _run_blocking(
+            md_to_pdf, r["doc"], "Agent Forge deep dossier")
+    except Exception:
+        log.exception("pdf render failed; sending raw md")
+    with open(send_path, "rb") as f:
+        await context.bot.send_document(
+            chat_id=chat, document=f, filename=send_path.name,
+            caption=f"📜 {r['title']}", **_SEND_KW)
+
+
+async def cmd_deep(update, context):
+    if not _ok(update):
+        return
+    q = " ".join(context.args) if context.args else ""
+    if not q:
+        await update.message.reply_text(
+            "Say: /deep <the question/idea/debate/scenario you want the "
+            "definitive document on>")
+        return
+    await _make_deep(update, context, q)
 
 
 async def cmd_tonight(update, context):
@@ -936,6 +992,7 @@ def main() -> None:
     app.add_handler(CommandHandler("story", cmd_story))
     app.add_handler(CommandHandler("tonight", cmd_tonight))
     app.add_handler(CommandHandler("test", cmd_test))
+    app.add_handler(CommandHandler("deep", cmd_deep))
     app.add_handler(CommandHandler("surprise", cmd_surprise))
     app.add_handler(CommandHandler("diag", cmd_diag))
     app.add_handler(CommandHandler("feed", cmd_feed))

@@ -17,7 +17,9 @@ services:
     name: forge-learning-feed
     runtime: docker
     dockerfilePath: ./deploy/Dockerfile.worker
-    plan: starter            # background workers need a paid plan (~$7/mo)
+    plan: standard           # 2GB RAM — video rendering OOMs on starter's
+                             # 512MB; the blueprint reverts dashboard
+                             # upgrades, so the plan must live HERE
     autoDeploy: true
     envVars:
       - key: TELEGRAM_BOT_TOKEN

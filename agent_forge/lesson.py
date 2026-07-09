@@ -77,7 +77,8 @@ _LESSON_SYSTEM = (
     "markdown, viewBox='0 0 800 400', LIGHT theme palette: ink #1d3038, "
     "accent #ff7a5e, accent2 #0e8ea3, muted #6b8893; text >= 20px; no "
     "background rect.\n"
-    "- Bold the load-bearing numbers and commands."
+    "- Bold the load-bearing numbers and commands.\n"
+    "- FORMATTING DISCIPLINE: every bullet on its OWN line starting '- ' (never inline ' - ' chains); blockquote callouts are for STRIKING FACTS — a number, a date, a record — never for quoting philosophy or prose."
 )
 
 

@@ -67,7 +67,8 @@ _CASEFILE_SYSTEM = (
     "route map, a deck plan, a timeline rail). Raw <svg>, viewBox='0 0 "
     "800 400', LIGHT palette: ink #1d3038, accent #ff7a5e, accent2 "
     "#0e8ea3, muted #6b8893; text >= 20px; no background rect.\n"
-    "- Bold the load-bearing facts."
+    "- Bold the load-bearing facts.\n"
+    "- FORMATTING DISCIPLINE: every bullet on its OWN line starting '- ' (never inline ' - ' chains); blockquote callouts are for STRIKING FACTS — a number, a date, a record — never for quoting philosophy or prose."
 )
 
 

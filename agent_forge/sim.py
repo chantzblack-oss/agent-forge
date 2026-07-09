@@ -189,7 +189,7 @@ def video_from_dossier(doc_path: str | Path, on_progress=None,
 
     say("staging the playback…")
     from . import taste as _taste
-    script_system = _SIM_SCRIPT_SYSTEM + _taste.context()
+    script_system = (_SIM_SCRIPT_SYSTEM + (_video.AUDIO_SCRIPT_ADDENDUM if audio else "") + _taste.context())
     raw = provider.complete(
         system=script_system, user=f"The dossier:\n\n{dossier}",
         model=WRITER_MODEL, max_tokens=16000,
@@ -209,7 +209,7 @@ def video_from_dossier(doc_path: str | Path, on_progress=None,
         raise RuntimeError("simulation script returned no scenes")
     say("script-doctor pass…")
     scenes = _video.polish_scenes(
-        scenes, "This is a simulation playback: keep the advancing clock, "
+        scenes, (_video.AUDIO_POLISH_NOTE if audio else "") + "This is a simulation playback: keep the advancing clock, "
                 "make the branch-point tension sharper, and keep every "
                 "number traceable to the dossier.")
 

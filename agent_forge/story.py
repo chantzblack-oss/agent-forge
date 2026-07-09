@@ -244,7 +244,7 @@ def video_from_casefile(doc_path: str | Path, on_progress=None,
 
     say("writing the episode…")
     from . import taste as _taste
-    script_system = _STORY_SCRIPT_SYSTEM + _taste.context()
+    script_system = (_STORY_SCRIPT_SYSTEM + (_video.AUDIO_SCRIPT_ADDENDUM if audio else "") + _taste.context())
     raw = provider.complete(
         system=script_system, user=f"The case file:\n\n{casefile}",
         model=WRITER_MODEL, max_tokens=16000,
@@ -264,7 +264,7 @@ def video_from_casefile(doc_path: str | Path, on_progress=None,
         raise RuntimeError("story script returned no scenes")
     say("script-doctor pass…")
     scenes = _video.polish_scenes(
-        scenes, "This is a dark-documentary episode: protect the cold "
+        scenes, (_video.AUDIO_POLISH_NOTE if audio else "") + "This is a dark-documentary episode: protect the cold "
                 "open, keep the dread building scene over scene, keep "
                 "the respect rule absolute, and make the closing "
                 "question land like a stone in a well.")

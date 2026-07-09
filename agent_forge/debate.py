@@ -186,7 +186,7 @@ def video_from_brief(doc_path: str | Path, on_progress=None,
 
     say("staging the debate…")
     from . import taste as _taste
-    script_system = _DEBATE_SCRIPT_SYSTEM + _taste.context()
+    script_system = (_DEBATE_SCRIPT_SYSTEM + (_video.AUDIO_SCRIPT_ADDENDUM if audio else "") + _taste.context())
     raw = provider.complete(
         system=script_system, user=f"The brief:\n\n{brief}",
         model=WRITER_MODEL, max_tokens=16000,
@@ -206,7 +206,7 @@ def video_from_brief(doc_path: str | Path, on_progress=None,
         raise RuntimeError("debate script returned no scenes")
     say("script-doctor pass…")
     scenes = _video.polish_scenes(
-        scenes, "This is a two-host debate: keep the speakers' characters "
+        scenes, (_video.AUDIO_POLISH_NOTE if audio else "") + "This is a two-host debate: keep the speakers' characters "
                 "distinct (A warm believer, B dry skeptic), keep the "
                 "rebuttal structure, and make the clash at the cruxes "
                 "sharper.")

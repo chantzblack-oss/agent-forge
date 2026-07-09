@@ -157,6 +157,28 @@ _SCRIPT_SYSTEM = (
 )
 
 
+AUDIO_SCRIPT_ADDENDUM = (
+    "\n\nAUDIO EDITION — this is a PODCAST episode, not a video. The "
+    "listener sees nothing; visual fields (layout/visual/data/photo/"
+    "image/pose/headline) are unnecessary. Instead of many short scenes, "
+    "return 6-10 SEGMENTS: each {kicker (chapter label), narration "
+    "(120-260 words of FLOWING spoken prose — full paragraphs, real "
+    "transitions carrying the listener forward, varied sentence music; "
+    "write the whole thing as one continuous radio piece cut into "
+    "chapters, NOT fragments), delivery, read (an acting note for the "
+    "whole segment), speaker where the format has speakers}. The 40-word "
+    "cap does NOT apply here. Describe what matters — the listener "
+    "can't see anything. Segments must flow into each other: end each "
+    "one leaning into the next."
+)
+
+AUDIO_POLISH_NOTE = (
+    " AUDIO EDITION: segments are 120-260 words of flowing spoken "
+    "prose — do NOT shorten them to captions; improve flow, transitions "
+    "and inflection cues instead. The 40-word cap does not apply."
+)
+
+
 def _repair_json(txt: str) -> str:
     """Escape raw newlines/tabs inside JSON string literals — the usual
     reason model-written JSON with embedded SVG fails to parse."""
@@ -215,8 +237,12 @@ def _parse_scenes(raw: str) -> list[dict]:
         return []
     if not isinstance(scenes, list):
         return []
-    return [s for s in scenes
-            if isinstance(s, dict) and s.get("narration") and s.get("headline")]
+    out = []
+    for s in scenes:
+        if isinstance(s, dict) and s.get("narration"):
+            s.setdefault("headline", str(s.get("kicker", "")) or "…")
+            out.append(s)
+    return out
 
 
 _POLISH_SYSTEM = (
@@ -295,7 +321,8 @@ def polish_scenes(scenes: list[dict], note: str = "") -> list[dict]:
     return scenes
 
 
-def script_from_essay(essay: str, script_system: str | None = None) -> list[dict]:
+def script_from_essay(essay: str, script_system: str | None = None,
+                      polish_note: str = "") -> list[dict]:
     system = script_system or _SCRIPT_SYSTEM
     try:
         from . import taste as _taste
@@ -309,7 +336,7 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
     )
     scenes = _parse_scenes(raw)
     if scenes:
-        return polish_scenes(scenes)
+        return polish_scenes(scenes, polish_note)
     # One corrective retry: no visuals this time (guaranteed parseable).
     import logging
     logging.getLogger("agent_forge.video").warning(
@@ -324,7 +351,7 @@ def script_from_essay(essay: str, script_system: str | None = None) -> list[dict
         model=WRITER_MODEL, max_tokens=16000,
     )
     scenes = _parse_scenes(raw2)
-    return polish_scenes(scenes) if scenes else scenes
+    return polish_scenes(scenes, polish_note) if scenes else scenes
 
 
 # ── 2. narration (host only; silent fallback in sandbox) ──
@@ -1025,6 +1052,8 @@ def _narrate_all(scenes, work: Path, ff: str, say, persona: str):
     fallbacks)."""
     say(f"narrating {len(scenes)} scenes…")
 
+    prevs = [""] + [s.get("narration", "").strip() for s in scenes[:-1]]
+
     def _narrate(args):
         i, sc = args
         text = sc.get("narration", "").strip()
@@ -1033,7 +1062,15 @@ def _narrate_all(scenes, work: Path, ff: str, say, persona: str):
         mp3 = work / f"s{i:02d}.mp3"
         rate, pitch = _delivery(sc)
         spk = str(sc.get("speaker", "") or "").strip().lower()
-        if _openai_tts(text, mp3, _acting_notes(sc, persona),
+        notes = _acting_notes(sc, persona)
+        prev = prevs[i - 1]
+        if prev:
+            # continuity: the read should pick up where the last line
+            # left off, not restart cold
+            notes += (" You are mid-piece — the line just before this "
+                      f"one was: \"…{prev[-140:]}\" Continue from that "
+                      "energy, don't restart.")
+        if _openai_tts(text, mp3, notes,
                        voice=_speaker_openai_voice(spk)):
             return mp3, False
         ok = synth(text, mp3, rate=rate, pitch=pitch,
@@ -1254,7 +1291,11 @@ def build_video(md_path: str | Path, on_progress=None,
     essay = re.sub(r"^<!--.*?-->\s*", "", md_path.read_text(encoding="utf-8"), flags=re.S)
 
     say("writing the script…")
-    scenes = script_from_essay(essay, script_system=script_system)
+    base_system = script_system or _SCRIPT_SYSTEM
+    scenes = script_from_essay(
+        essay,
+        script_system=base_system + (AUDIO_SCRIPT_ADDENDUM if audio else ""),
+        polish_note=AUDIO_POLISH_NOTE if audio else "")
     if not scenes:
         raise RuntimeError("script generation returned no scenes")
     m = re.search(r"^#\s+(.+)$", essay, re.M)

@@ -118,6 +118,13 @@ _SCRIPT_SYSTEM = (
     "room', 'Muhammad Ali Liston'. Specific proper nouns work best. Use "
     "on 2-5 scenes per video where reality punches hardest; the photo "
     "becomes the full-bleed background of that scene.\n"
+    "- image: a cinematic SHOT DESCRIPTION for scenes where neither a "
+    "real photo nor a chart fits — write it like a film still: subject, "
+    "camera angle, lighting, mood ('overhead view of a container ship "
+    "dwarfed by a rogue wave, storm light'). The engine paints it in "
+    "the channel's house style as the scene's full-bleed background. "
+    "MOST scenes should carry photo, image, or data — a text-only "
+    "frame is the exception, not the default.\n"
     "- layout: the shot type — standard | punch | fullviz. Use 'punch' "
     "2-4 times per video for the biggest one-liners (giant centered "
     "type, no diagram): the hook, a shocking number, a hard question, "
@@ -146,7 +153,7 @@ _SCRIPT_SYSTEM = (
     "triplets; ask the viewer a hard question now and then, or give a "
     "flat command. Never sound like a narrator reading slides.\n"
     "Return ONLY a JSON array of {kicker, headline, narration, layout, "
-    "pose, delivery, read, photo?, data?, visual?}."
+    "pose, delivery, read, photo?, image?, data?, visual?}."
 )
 
 
@@ -1032,17 +1039,32 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
     work = Path(tempfile.mkdtemp(prefix="forge_video_"))
     ff = _ffmpeg()
     total = len(scenes)
-    # Phase 0: fetch real photographs for scenes that name one.
-    for i, sc in enumerate(scenes):
+    # Phase 0: imagery — real photographs and generated scene art run in
+    # parallel (both are network-bound).
+    def _fetch_imagery(args):
+        i, sc = args
         q = str(sc.get("photo", "") or "").strip()
-        if not q:
-            continue
-        say(f"finding photo: {q}")
-        from . import photos as _photos
-        r = _photos.find_photo(q, work / f"ph{i:02d}.jpg")
-        if r:
-            sc["_photo"] = str(r["path"])
-            sc["_photocredit"] = r["credit"]
+        if q:
+            from . import photos as _photos
+            r = _photos.find_photo(q, work / f"ph{i:02d}.jpg")
+            if r:
+                sc["_photo"] = str(r["path"])
+                sc["_photocredit"] = r["credit"]
+                return
+        shot = str(sc.get("image", "") or "").strip()
+        if shot:
+            from . import imagery as _imagery
+            p = work / f"art{i:02d}.png"
+            if _imagery.generate_image(shot, p):
+                sc["_photo"] = str(p)
+                sc["_photocredit"] = ""
+    wanted = [(i, sc) for i, sc in enumerate(scenes)
+              if sc.get("photo") or sc.get("image")]
+    if wanted:
+        say(f"painting {len(wanted)} scenes…")
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            list(ex.map(_fetch_imagery, wanted))
     # Phase 1: narration first — scene durations come from the audio.
     # TTS calls are network-bound; run them in parallel.
     say(f"narrating {total} scenes…")

@@ -300,6 +300,8 @@ async def _make_show(update, context, topic: str, builder, *,
     _pending_clear()
     tag = "" if r["voiced"] else " (silent — no TTS on this host)"
     await _deliver_video(context, chat, r["path"], f"{emoji} {r['title']}{tag}")
+    if r.get("quality"):
+        await context.bot.send_message(chat, f"🧪 {r['quality']}")
     return r
 
 

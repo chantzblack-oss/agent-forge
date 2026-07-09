@@ -65,8 +65,8 @@ _SCRIPT_SYSTEM = (
     "feel like a host who genuinely reacts to what they're telling you, "
     "and it can shift as the story turns.\n\n"
     "Rules:\n"
-    "- narration: 1-3 spoken sentences, HARD MAX 40 words (a scene should "
-    "run 8-15 seconds — long monologues kill the pace; split big ideas "
+    "- narration: 1-3 spoken sentences, HARD MAX 55 words (a scene should "
+    "run 10-18 seconds — long monologues kill the pace; split big ideas "
     "into more scenes), no markdown, no stage directions — "
     "just what the voice says. Engineer the pacing with punctuation — "
     "the narrator performs it: em-dashes for a sharp mid-thought pivot, "
@@ -844,7 +844,8 @@ def _caption_html(narration: str, dur: float) -> str:
     if not sents:
         return ""
     total_chars = sum(len(s) for s in sents) or 1
-    lead, tail = 0.45, 0.8          # breath in, settle out
+    lead, tail = 0.5, 1.2           # breath in, LONG settle so the last
+                                    # caption stays readable
     span = max(dur - lead - tail, 1.0)
     out, acc = [], 0
     for i, s in enumerate(sents):
@@ -1089,7 +1090,7 @@ def _narrate_all(scenes, work: Path, ff: str, say, persona: str):
         if mp3 is not None:
             narrated += 1
             mp3s.append(mp3)
-            durs.append(_audio_dur(ff, mp3) + 0.65)
+            durs.append(_audio_dur(ff, mp3) + 1.0)
         else:
             mp3s.append(None)
             durs.append(_reading_seconds(sc.get("narration", "")))
@@ -1219,6 +1220,11 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
         _clip(ff, fdir, durs[i], clip, mp3s[i])
         clips.append(clip)
 
+    req_img = sum(1 for s in scenes if s.get("image") or s.get("photo"))
+    got_img = sum(1 for s in scenes if s.get("_photo"))
+    n_data = sum(1 for s in scenes if isinstance(s.get("data"), dict))
+    quality = (f"{total} scenes · voice {narrated - fallbacks}/{narrated} "
+               f"expressive · imagery {got_img}/{req_img} · charts {n_data}")
     say("stitching…")
     _concat(ff, clips, out, silent=(narrated == 0))
     if os.environ.get("FORGE_MUSIC", "1") != "0":
@@ -1249,7 +1255,8 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
             logging.getLogger("agent_forge.video").exception(
                 "music bed failed; delivering without it")
     return {"path": out, "scenes": total, "narrated": narrated,
-            "voiced": narrated > 0, "fallback": fallbacks}
+            "voiced": narrated > 0, "fallback": fallbacks,
+            "quality": quality}
 
 
 def _mix_music(ff: str, video: Path, bed: Path, sfx: Path | None = None) -> None:

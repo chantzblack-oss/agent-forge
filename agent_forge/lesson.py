@@ -121,7 +121,7 @@ _LESSON_VIDEO_SYSTEM = (
     "command; vary the sentence music — one clean punch here, a quick "
     "triplet there. Never sound like someone reading slides.\n\n"
     "Each scene: {kicker (2-4 words), headline (<=7 words, on-screen), "
-    "narration (1-3 spoken sentences, HARD MAX 40 words — split big "
+    "narration (1-3 spoken sentences, HARD MAX 55 words — split big "
     "ideas into more scenes — in the video's chosen voice; engineer "
     "pacing with punctuation: em-dashes for pivots, ellipses for "
     "hesitation, short sentences for punch — the narrator performs it; "

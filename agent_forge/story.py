@@ -124,7 +124,7 @@ _STORY_SCRIPT_SYSTEM = (
     "floorplans, a route.\n"
     "Each scene: {kicker (2-4 words, often the timestamp), headline "
     "(<=7 words, on-screen), narration (1-3 spoken sentences, HARD MAX "
-    "40 words; engineer pacing with punctuation — ellipses for dread, "
+    "55 words; engineer pacing with punctuation — ellipses for dread, "
     "em-dashes for the turn, short sentences like footsteps), layout "
     "(standard | punch | fullviz), pose (explain | point | warn | think "
     "| none — the host mostly stays still in this format; 'none' is "

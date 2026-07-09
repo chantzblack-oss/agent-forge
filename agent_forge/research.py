@@ -77,12 +77,17 @@ def notes_block(question: str, on_progress=None) -> str:
     """The suffix appended to a doc-writer's user prompt, or ''. """
     if not enabled():
         return ""
+    say = on_progress or (lambda _m: None)
     try:
         notes = deep_research(question, on_progress)
     except Exception:
+        say("⚠️ deep research FAILED — doc will be single-pass")
         return ""
     if not notes.strip():
+        say("⚠️ deep research returned nothing — doc will be single-pass")
         return ""
+    say(f"research notes ready: {len(notes) // 1000}k chars, "
+        f"{notes.count('## Crux')} crux dives")
     return ("\n\nRESEARCH NOTES from your scout team (verify anything "
             "load-bearing before asserting it; the notes may be "
             "incomplete but they are a head start):\n" + notes)

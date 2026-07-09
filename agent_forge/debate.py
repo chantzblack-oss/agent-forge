@@ -111,7 +111,7 @@ _DEBATE_SCRIPT_SYSTEM = (
     "centered type: the opening question, a kill shot, the final line; "
     "'fullviz' when the diagram is the story), kicker (2-4 words), headline "
     "(<=7 words, on-screen), narration (1-3 spoken sentences, HARD MAX "
-    "40 words — split big ideas into more scenes; engineer pacing with "
+    "55 words — split big ideas into more scenes; engineer pacing with "
     "punctuation — em-dashes for sharp pivots, ellipses for hesitation, "
     "a short sentence for a jab — the voices perform it), pose "
     "(explain | point | warn | celebrate | think | wave), delivery "

@@ -108,7 +108,7 @@ _SIM_SCRIPT_SYSTEM = (
     "number, the closing signal; 'fullviz' when the branch map is the "
     "story), kicker (2-4 words, usually the timestamp), headline "
     "(<=7 words, on-screen), narration (1-3 spoken sentences, HARD MAX "
-    "40 words — split big ideas into more scenes; engineer pacing with "
+    "55 words — split big ideas into more scenes; engineer pacing with "
     "punctuation — em-dashes for pivots, ellipses for tension before a "
     "reveal — the operator performs it), pose "
     "(explain | point | warn | celebrate | think | wave | none), delivery "

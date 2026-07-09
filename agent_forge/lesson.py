@@ -177,6 +177,8 @@ def build_lesson(topic: str, on_progress=None, on_doc=None,
         user=f"Teach me: {topic}" + _research.notes_block(topic, say),
         model=WRITER_MODEL, max_tokens=6000,
     ).strip()
+    from .docrender import clean_markdown
+    doc = clean_markdown(doc)
 
     m = re.search(r"^#\s+(.+)$", doc, re.M)
     if not m or doc.count("##") < 3 or len(doc) < 1200:

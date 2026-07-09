@@ -154,6 +154,8 @@ def build_sim(scenario: str, on_progress=None, on_doc=None,
                 else _research.notes_block(scenario, say)),
         model=WRITER_MODEL, max_tokens=6000,
     ).strip()
+    from .docrender import clean_markdown
+    dossier = clean_markdown(dossier)
 
     m = re.search(r"^#\s+(.+)$", dossier, re.M)
     if not m or dossier.count("##") < 4 or len(dossier) < 1200:

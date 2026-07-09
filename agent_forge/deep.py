@@ -120,6 +120,8 @@ def build_deep(question: str, on_progress=None) -> dict:
     except Exception:
         pass
 
+    from .docrender import clean_markdown
+    draft = clean_markdown(draft)
     m = re.search(r"^#\s+(.+)$", draft, re.M)
     if not m or draft.count("##") < 4 or len(draft) < 2500:
         raise RuntimeError("the dossier came back malformed — try "

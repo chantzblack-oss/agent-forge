@@ -56,6 +56,17 @@ _CSS = """
 """
 
 
+def clean_markdown(md: str) -> str:
+    """Drop any model preamble before the first heading ("Now I have
+    enough information, let me…") so it never reaches a typeset PDF."""
+    i = md.find("\n# ")
+    if md.startswith("# "):
+        return md
+    if i != -1:
+        return md[i + 1:]
+    return md
+
+
 def _md_to_html(md: str) -> str:
     """Markdown -> HTML. Uses python-markdown when available; falls back to
     a small built-in converter good enough for our lesson structure."""

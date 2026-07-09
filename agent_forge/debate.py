@@ -151,6 +151,8 @@ def build_debate(topic: str, on_progress=None, on_doc=None,
         user=f"The question: {topic}" + _research.notes_block(topic, say),
         model=WRITER_MODEL, max_tokens=6000,
     ).strip()
+    from .docrender import clean_markdown
+    brief = clean_markdown(brief)
 
     m = re.search(r"^#\s+(.+)$", brief, re.M)
     if not m or brief.count("##") < 4 or len(brief) < 1200:

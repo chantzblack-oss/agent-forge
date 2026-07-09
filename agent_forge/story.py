@@ -206,6 +206,8 @@ def build_story(case: str, on_progress=None, on_doc=None,
         user=f"The case: {case}" + _research.notes_block(case, say),
         model=WRITER_MODEL, max_tokens=6500,
     ).strip()
+    from .docrender import clean_markdown
+    casefile = clean_markdown(casefile)
 
     # a real case file has a title and sections; anything else (the model
     # asking a question back, a refusal) must never reach the render

@@ -207,8 +207,13 @@ def video_from_brief(doc_path: str | Path, on_progress=None) -> dict:
                 "sharper.")
 
     out = EXPLORATIONS_DIR / f"{slug}.debate.mp4"
-    r = _video.render_scenes(scenes, out, on_progress=say,
-                             title=title, badge="THE DEBATE")
+    r = _video.render_scenes(
+        scenes, out, on_progress=say, title=title, badge="THE DEBATE",
+        voice_direction=(
+            "You are one of two rival podcast hosts mid-argument — "
+            "genuinely reacting to what the other just said. Talk TO "
+            "someone, not AT a script: interruptions of energy, real "
+            "amusement, real exasperation."))
     r["title"] = title
     r["doc"] = doc_path
     return r

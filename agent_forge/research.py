@@ -54,17 +54,22 @@ def deep_research(question: str, on_progress=None) -> str:
     cruxes = [c.strip() for c in
               re.findall(r"^\s*CRUX:\s*(.+)$", scout, re.M)][:4]
     notes = [f"## Scout notes\n{scout.strip()}"]
-    for i, crux in enumerate(cruxes, 1):
-        say(f"research: deep dive {i}/{len(cruxes)} — {crux[:50]}")
-        try:
-            dive = provider.complete(
-                system=_CRUX_SYSTEM,
-                user=f"The larger question: {question}\n\nYour crux: {crux}",
-                model=WRITER_MODEL, max_tokens=2400,
-            )
-            notes.append(f"## Crux: {crux}\n{dive.strip()}")
-        except Exception:
-            continue
+    if cruxes:
+        say(f"research: {len(cruxes)} deep dives in parallel…")
+
+        def _dive(crux: str) -> str | None:
+            try:
+                d = provider.complete(
+                    system=_CRUX_SYSTEM,
+                    user=f"The larger question: {question}\n\nYour crux: {crux}",
+                    model=WRITER_MODEL, max_tokens=2400,
+                )
+                return f"## Crux: {crux}\n{d.strip()}"
+            except Exception:
+                return None
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            notes += [n for n in ex.map(_dive, cruxes) if n]
     return "\n\n".join(notes)[:26000]
 
 

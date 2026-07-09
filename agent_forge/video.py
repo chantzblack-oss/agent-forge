@@ -223,6 +223,10 @@ _POLISH_SYSTEM = (
     "- Sharpen every narration line: cut filler, replace abstraction with "
     "a concrete image, make lines quotable. Keep the punctuation-as-"
     "performance style (em-dashes, ellipses) and the 40-word cap.\n"
+    "- KILL cliches on sight: 'vanished without a trace', 'little did "
+    "they know', 'to this day', 'sent chills', 'what happened next', "
+    "'nestled in', 'shrouded in mystery', 'only time will tell' — "
+    "replace each with the specific concrete detail it was hiding.\n"
     "- Deepen: wherever the draft gestures ('costs a lot', 'takes time'), "
     "replace with the precise number or name ALREADY IN THE DRAFT's "
     "material — never invent facts that aren't there.\n"
@@ -348,13 +352,14 @@ def _delivery(scene: dict) -> tuple[str, str]:
         str(scene.get("delivery", "")).strip().lower(), _DELIVERIES["neutral"])
 
 
-def _acting_notes(scene: dict) -> str:
+def _acting_notes(scene: dict, persona: str = "") -> str:
     base = _DELIVERY_NOTES.get(
         str(scene.get("delivery", "")).strip().lower(),
         _DELIVERY_NOTES["neutral"])
     read = str(scene.get("read", "") or "").strip()
-    note = f"{base} {read}" if read else base
-    return note + " Keep a brisk conversational pace — no long pauses."
+    parts = [p for p in (persona, base, read) if p]
+    return " ".join(parts) + (" Keep the pace natural — engaged, never "
+                              "sleepy, never announcer-y.")
 
 
 # Voice casting: strict recurring roles so the format is recognizable the
@@ -490,7 +495,7 @@ _SLIDE_TMPL = """<!doctype html><html><head><meta charset=utf-8><style>
   // stagger svg children so diagrams draw themselves in — but never touch
   // elements that carry their own inline animation (it would desync them,
   // and the class fade they replaced can't run anyway)
-  document.querySelectorAll('.viz svg > *').forEach(function(el, i) {{
+  document.querySelectorAll('.viz svg > *, .artl svg > *').forEach(function(el, i) {{
     if (el.style.animation) {{ el.style.opacity = 1; return; }}
     el.style.animationDelay = ({vizdelay} + 0.15 + i * 0.22) + 's';
   }});
@@ -832,6 +837,19 @@ def _scene_html(scene: dict, idx: int, total: int, dur: float = 8.0) -> str:
         viz = ""          # punch scenes are type-only by design
     photo_html, photo_css = "", ""
     ph = scene.get("_photo")
+    art = (scene.get("artwork") or "").strip()
+    if not ph and art and "<svg" in art.lower():
+        art = _expand_icons(art)
+        if not _SVG_FORBIDDEN.search(art):
+            photo_html = f'<div class=artl>{art}</div>'
+            photo_css = (
+                " body>*{position:relative;z-index:1}"
+                " .artl{position:absolute;inset:0;z-index:0;opacity:.95}"
+                " .artl svg{width:100%;height:100%;display:block}"
+                " .artl svg > *{opacity:0;animation:vizin 1.2s"
+                " cubic-bezier(.16,1,.3,1) forwards,"
+                f" artfloat {max(dur * 0.9, 6):.1f}s ease-in-out infinite alternate}}"
+                " @keyframes artfloat{to{transform:translateY(-16px)}}")
     if ph:
         credit = (scene.get("_photocredit") or "").replace("<", "&lt;")
         photo_html = (
@@ -990,7 +1008,8 @@ def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None
 
 
 def render_scenes(scenes: list[dict], out: Path, on_progress=None,
-                  title: str | None = None, badge: str | None = None) -> dict:
+                  title: str | None = None, badge: str | None = None,
+                  voice_direction: str | None = None) -> dict:
     """Narrate, record and stitch a scene list into an MP4 at `out`.
     With `title`, the video gets show packaging: a branded title card in
     and a library card out (music-only beats, no narration)."""
@@ -1018,25 +1037,39 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
             sc["_photo"] = str(r["path"])
             sc["_photocredit"] = r["credit"]
     # Phase 1: narration first — scene durations come from the audio.
-    mp3s: list[Path | None] = []
-    durs: list[float] = []
-    narrated = 0
-    for i, sc in enumerate(scenes, 1):
-        say(f"narrating {i}/{total}")
+    # TTS calls are network-bound; run them in parallel.
+    say(f"narrating {total} scenes…")
+    persona = voice_direction or ""
+
+    def _narrate(args):
+        i, sc = args
+        text = sc.get("narration", "").strip()
+        if not text:
+            return None
         mp3 = work / f"s{i:02d}.mp3"
         rate, pitch = _delivery(sc)
         spk = str(sc.get("speaker", "") or "").strip().lower()
-        if (_openai_tts(sc["narration"], mp3, _acting_notes(sc),
-                        voice=_speaker_openai_voice(spk))
-                or synth(sc["narration"], mp3, rate=rate, pitch=pitch,
-                         voice=_speaker_edge_voice(spk))):
+        ok = (_openai_tts(text, mp3, _acting_notes(sc, persona),
+                          voice=_speaker_openai_voice(spk))
+              or synth(text, mp3, rate=rate, pitch=pitch,
+                       voice=_speaker_edge_voice(spk)))
+        return mp3 if ok else None
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        results = list(ex.map(_narrate, enumerate(scenes, 1)))
+    mp3s: list[Path | None] = []
+    durs: list[float] = []
+    narrated = 0
+    for sc, mp3 in zip(scenes, results):
+        if mp3 is not None:
             narrated += 1
             mp3s.append(mp3)
             # a breath in, a short settle out — tight, not sleepy
             durs.append(_audio_dur(ff, mp3) + 0.65)
         else:
             mp3s.append(None)
-            durs.append(_reading_seconds(sc["narration"]))
+            durs.append(_reading_seconds(sc.get("narration", "")))
     # Phase 2: capture each scene (virtual-time, pixel-perfect) and encode
     # it immediately — frames are freed before the next scene is captured.
     clips: list[Path] = []
@@ -1053,19 +1086,21 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
             from . import music as _music
             bed = work / "bed.wav"
             _music.ambient_bed(sum(durs), bed, _music.pick_mood(scenes))
-            # sound-design events: a whoosh on every cut, a tick as a chart
-            # lands, a riser into each punch card
-            events, t = [], 0.0
-            for i, (sc, d) in enumerate(zip(scenes, durs)):
-                if i:
-                    events.append(("whoosh", t - 0.18))
-                if isinstance(sc.get("data"), dict):
-                    events.append(("tick", t + 1.25))
-                if str(sc.get("layout", "") or "").lower() == "punch" and i:
-                    events.append(("riser", t - 0.9))
-                t += d
-            sfx = work / "sfx.wav"
-            _music.sfx_track(sum(durs), events, sfx)
+            sfx = None
+            if os.environ.get("FORGE_SFX", "0") == "1":
+                # optional sound-design layer (off by default — the
+                # transition sounds wore thin fast)
+                events, t = [], 0.0
+                for i, (sc, d) in enumerate(zip(scenes, durs)):
+                    if i:
+                        events.append(("whoosh", t - 0.18))
+                    if isinstance(sc.get("data"), dict):
+                        events.append(("tick", t + 1.25))
+                    if str(sc.get("layout", "") or "").lower() == "punch" and i:
+                        events.append(("riser", t - 0.9))
+                    t += d
+                sfx = work / "sfx.wav"
+                _music.sfx_track(sum(durs), events, sfx)
             _mix_music(ff, out, bed, sfx)
         except Exception:
             import logging
@@ -1104,7 +1139,8 @@ def _mix_music(ff: str, video: Path, bed: Path, sfx: Path | None = None) -> None
 
 def build_video(md_path: str | Path, on_progress=None,
                 script_system: str | None = None,
-                badge: str | None = None) -> dict:
+                badge: str | None = None,
+                voice_direction: str | None = None) -> dict:
     """Compile a dive markdown into a narrated (or silent-captioned) MP4."""
     say = on_progress or (lambda _m: None)
     md_path = Path(md_path)
@@ -1117,8 +1153,13 @@ def build_video(md_path: str | Path, on_progress=None,
     m = re.search(r"^#\s+(.+)$", essay, re.M)
     title = m.group(1).strip() if m else None
     out = EXPLORATIONS_DIR / (md_path.stem + ".mp4")
-    return render_scenes(scenes, out, on_progress=say,
-                         title=title, badge=badge or "THE EXPLAINER")
+    return render_scenes(
+        scenes, out, on_progress=say,
+        title=title, badge=badge or "THE EXPLAINER",
+        voice_direction=voice_direction or
+        "You are a gifted storyteller sharing something that genuinely "
+        "amazes you — natural, warm, alive. Real inflection: lean into "
+        "the surprising word, drop for the aside, lift for the reveal.")
 
 
 def _audio_dur(ff: str, mp3: Path) -> float:

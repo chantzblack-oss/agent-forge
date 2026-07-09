@@ -101,6 +101,21 @@ _STORY_SCRIPT_SYSTEM = (
     "case file hedges, the narration hedges — honest uncertainty IS the "
     "atmosphere.\n"
     "Every fact, time, and name must come from the case file.\n\n"
+    "BANNED PHRASES (instant rewrite): 'vanished without a trace', "
+    "'little did they know', 'to this day', 'sent chills', 'what "
+    "happened next', 'the answers died with', 'nestled in', 'sleepy "
+    "town', 'shrouded in mystery'. Say the specific thing instead.\n"
+    "ARTWORK: this format should FEEL illustrated, not slideshow'd. On "
+    "scene-setting and atmosphere beats (5-10 scenes), provide artwork: "
+    "a FULL-SCREEN atmospheric SVG illustration, viewBox='0 0 1080 "
+    "1920', built from layered flat silhouettes — treeline, mountains, "
+    "a road, a house with one lit window, water, rain lines, a lone "
+    "figure — dark-on-dark (#0a1c24 #12333f #1b4552 silhouettes, "
+    "#eaf3f2 sparingly for moon/window/headlights, accents #ff7a5e "
+    "#35c2d6 for the single focal detail). 8-20 elements, single line, "
+    "under 1400 chars, no backdrop rect (the video's dark gradient IS "
+    "the sky). The engine animates the layers in and drifts them "
+    "continuously — compose in depth layers.\n"
     "Each scene: {kicker (2-4 words, often the timestamp), headline "
     "(<=7 words, on-screen), narration (1-3 spoken sentences, HARD MAX "
     "40 words; engineer pacing with punctuation — ellipses for dread, "
@@ -248,8 +263,15 @@ def video_from_casefile(doc_path: str | Path, on_progress=None) -> dict:
                 "question land like a stone in a well.")
 
     out = EXPLORATIONS_DIR / f"{slug}.case.mp4"
-    r = _video.render_scenes(scenes, out, on_progress=say,
-                             title=title, badge="CASE FILE")
+    r = _video.render_scenes(
+        scenes, out, on_progress=say, title=title, badge="CASE FILE",
+        voice_direction=(
+            "You are a seasoned documentary narrator telling a dark true "
+            "story late at night — low, intimate, measured. Controlled "
+            "dread, never theatrical, never announcer-y. Let sentences "
+            "land and breathe; drop almost to a murmur on the chilling "
+            "details; slow down on names and times like they matter — "
+            "because they do."))
     r["title"] = title
     r["doc"] = doc_path
     return r

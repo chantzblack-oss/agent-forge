@@ -208,8 +208,13 @@ def video_from_dossier(doc_path: str | Path, on_progress=None) -> dict:
                 "number traceable to the dossier.")
 
     out = EXPLORATIONS_DIR / f"{slug}.sim.mp4"
-    r = _video.render_scenes(scenes, out, on_progress=say,
-                             title=title, badge="SIMULATION")
+    r = _video.render_scenes(
+        scenes, out, on_progress=say, title=title, badge="SIMULATION",
+        voice_direction=(
+            "You are a mission-control operator narrating a live run — "
+            "calm, precise, quietly intense. Tension builds in the "
+            "voice as the clock advances; clipped on the data, hushed "
+            "at the forks."))
     r["title"] = title
     r["doc"] = doc_path
     return r

@@ -49,6 +49,7 @@ from . import debate as _debate
 from . import sim as _sim
 from . import story as _story
 from . import deep as _deep
+from . import narrate as _narrate
 from . import taste as _taste
 
 # last delivered sim dossier per chat — enables "branch A/B" continuations
@@ -190,6 +191,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "and topic for you.\n"
         "• /surprise — a fresh, wild explainer.\n"
         "• Reply to any video with a question — the host answers you.\n"
+        "• Reply “read it” to any PDF — a narrated audiobook version.\n"
         "• Send a voice memo instead of typing — I’ll transcribe it.\n"
         "• After a simulation: reply “branch <name>” to run a fork as "
         "its own episode.\n"
@@ -346,6 +348,10 @@ def _find_doc_for(caption: str) -> Path | None:
     return hits[0] if hits else None
 
 
+_READ_WORDS = ("read it", "read", "narrate", "narrate it",
+               "read it to me", "read this", "audiobook")
+
+
 async def _answer_reply(update, context, question: str):
     """The viewer replied to a delivered video/cheat-sheet with a question:
     answer as the host — text plus a voice note. Cheap (one text call + TTS),
@@ -353,7 +359,42 @@ async def _answer_reply(update, context, question: str):
     chat = update.effective_chat.id
     target = update.message.reply_to_message
     caption = target.caption or target.text or ""
-    doc = _find_doc_for(caption)
+    doc = None
+    # a reply to a PDF: the filename maps exactly to its markdown source
+    if getattr(target, "document", None) and target.document.file_name:
+        stem = Path(target.document.file_name).stem
+        cand = _explorer.EXPLORATIONS_DIR / f"{stem}.md"
+        if cand.exists():
+            doc = cand
+    if doc is None:
+        doc = _find_doc_for(caption)
+
+    # "read it" on a document -> the audiobook layer
+    if question.lower().strip(" !.") in _READ_WORDS:
+        if doc is None:
+            await update.message.reply_text(
+                "Couldn't match that message to a document — reply "
+                "directly to the PDF you want read.")
+            return
+        await context.bot.send_message(
+            chat, "🎧 Adapting the document for narration (5-10 min)…")
+        try:
+            r = await _run_blocking(_narrate.build_narration, doc,
+                                    _progress_sender(context, chat))
+        except Exception as e:
+            log.exception("narration failed")
+            await context.bot.send_message(
+                chat, f"Narration failed: {type(e).__name__}: {e}")
+            return
+        tag = (f" ({r.get('minutes', '?')} min)"
+               if r.get("minutes") else "")
+        await _deliver_video(context, chat, r["path"],
+                             f"🎧 {r['title']}{tag}")
+        if r.get("fallback"):
+            await context.bot.send_message(
+                chat, f"⚠️ {r['fallback']} segments used the fallback "
+                      "voice — check OpenAI limits.")
+        return
     grounding = ""
     if doc is not None:
         try:

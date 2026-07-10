@@ -174,6 +174,14 @@ def md_to_pdf(md_path: str | Path, subtitle: str = "Agent Forge lesson") -> Path
                   "--single-process"])
         pg = b.new_page()
         pg.goto("file://" + html_path)
+        painted = pg.evaluate(
+            "() => [...document.querySelectorAll('svg')].filter("
+            "s => s.children.length > 1 && "
+            "s.getBoundingClientRect().height > 20).length")
+        if painted < len(svgs):
+            raise RuntimeError(
+                f"render self-check failed: {len(svgs)} svg diagrams in "
+                f"the source but only {painted} painted on the page")
         pg.pdf(path=str(pdf_path), format="A4", print_background=True)
         b.close()
     return pdf_path

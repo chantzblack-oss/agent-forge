@@ -127,12 +127,29 @@ def _inline(text: str) -> str:
     return text
 
 
+def _protect_svgs(md: str):
+    """Markdown mangles multiline inline SVG (it injects <p> tags inside,
+    which blanks the drawing). Pull every svg out, collapse it to one
+    line, and swap in placeholders; reinsert after conversion."""
+    svgs: list[str] = []
+
+    def _stash(m):
+        svgs.append(re.sub(r"\s*\n\s*", " ", m.group(0)))
+        return f"\n\nFORGESVG{len(svgs) - 1}ENDSVG\n\n"
+
+    return re.sub(r"<svg\b.*?</svg>", _stash, md, flags=re.S), svgs
+
+
 def md_to_pdf(md_path: str | Path, subtitle: str = "Agent Forge lesson") -> Path:
     """Render a markdown doc to a typeset PDF next to it. Returns the path."""
     md_path = Path(md_path)
     md = md_path.read_text(encoding="utf-8")
     md = re.sub(r"^<!--.*?-->\s*", "", md, flags=re.DOTALL)
+    md, svgs = _protect_svgs(md)
     body = _md_to_html(md)
+    for i, svg in enumerate(svgs):
+        token = f"FORGESVG{i}ENDSVG"
+        body = body.replace(f"<p>{token}</p>", svg).replace(token, svg)
     page = (f"<!doctype html><html><head><meta charset='utf-8'>"
             f"<style>{_CSS}</style></head><body>"
             f"<div class='band'></div><div class='page'>"

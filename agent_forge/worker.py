@@ -371,16 +371,38 @@ async def _answer_reply(update, context, question: str):
 
     # "read it" on a document -> the audiobook layer
     if question.lower().strip(" !.") in _READ_WORDS:
+        pdf_text = None
+        out_hint = None
+        if doc is None and getattr(target, "document", None) \
+                and str(target.document.file_name or "").lower().endswith(".pdf"):
+            # a PDF we don't have the source for (forwarded / uploaded /
+            # made in a session): download and extract its text
+            import tempfile
+            tg_file = await context.bot.get_file(target.document.file_id)
+            pdf_local = Path(tempfile.mkdtemp(prefix="forge_read_")) / \
+                (target.document.file_name or "doc.pdf")
+            await tg_file.download_to_drive(str(pdf_local))
+            try:
+                pdf_text = await _run_blocking(_narrate.pdf_to_text, pdf_local)
+            except Exception as e:
+                await update.message.reply_text(
+                    f"Couldn't extract text from that PDF: {type(e).__name__}")
+                return
+            doc = pdf_local
+            out_hint = str(_explorer.EXPLORATIONS_DIR / (pdf_local.stem + ".m4a"))
         if doc is None:
             await update.message.reply_text(
                 "Couldn't match that message to a document — reply "
-                "directly to the PDF you want read.")
+                "directly to the PDF you want read (forwarded PDFs "
+                "work too).")
             return
         await context.bot.send_message(
             chat, "🎧 Adapting the document for narration (5-10 min)…")
         try:
-            r = await _run_blocking(_narrate.build_narration, doc,
-                                    _progress_sender(context, chat))
+            r = await _run_blocking(
+                lambda: _narrate.build_narration(
+                    doc, _progress_sender(context, chat),
+                    text=pdf_text, out_path=out_hint))
         except Exception as e:
             log.exception("narration failed")
             await context.bot.send_message(

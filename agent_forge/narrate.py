@@ -45,14 +45,28 @@ _NARRATION_SYSTEM = (
 )
 
 
-def build_narration(doc_path: str | Path, on_progress=None) -> dict:
-    """Convert a document to a narrated m4a next to it."""
+def pdf_to_text(pdf_path: str | Path) -> str:
+    """Extract readable text from any PDF (for narrating documents that
+    only exist as files — forwarded, uploaded, or made in a session)."""
+    from pypdf import PdfReader
+    reader = PdfReader(str(pdf_path))
+    return "\n".join((p.extract_text() or "") for p in reader.pages)
+
+
+def build_narration(doc_path: str | Path, on_progress=None,
+                    text: str | None = None,
+                    out_path: str | Path | None = None) -> dict:
+    """Convert a document to a narrated m4a next to it. Pass `text` to
+    narrate extracted content (e.g. from a PDF) instead of reading md."""
     say = on_progress or (lambda _m: None)
     doc_path = Path(doc_path)
-    doc = re.sub(r"^<!--.*?-->\s*", "",
-                 doc_path.read_text(encoding="utf-8"), flags=re.S).strip()
+    doc = text if text is not None else doc_path.read_text(encoding="utf-8")
+    doc = re.sub(r"^<!--.*?-->\s*", "", doc, flags=re.S).strip()
+    if len(doc) < 800:
+        raise RuntimeError("document too short/unreadable to narrate")
     m = re.search(r"^#\s+(.+)$", doc, re.M)
-    title = m.group(1).strip() if m else doc_path.stem
+    title = (m.group(1).strip() if m
+             else doc.splitlines()[0].strip()[:80] or doc_path.stem)
 
     say("adapting the document for narration…")
     provider = get_provider("anthropic")
@@ -72,7 +86,7 @@ def build_narration(doc_path: str | Path, on_progress=None) -> dict:
     if not scenes:
         raise RuntimeError("narration adaptation returned no segments")
 
-    out = doc_path.with_suffix(".m4a")
+    out = Path(out_path) if out_path else doc_path.with_suffix(".m4a")
     r = _video.render_podcast(
         scenes, out, on_progress=say,
         voice_direction=(

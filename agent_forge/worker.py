@@ -352,6 +352,84 @@ _READ_WORDS = ("read it", "read", "narrate", "narrate it",
                "read it to me", "read this", "audiobook")
 
 
+async def _narrate_message(update, context, target, doc: Path | None):
+    """Narrate the document carried by `target` (a Telegram message).
+    `doc` is a known markdown source, if the filename matched the library;
+    otherwise the PDF is downloaded and its text extracted."""
+    chat = update.effective_chat.id
+    pdf_text = None
+    out_hint = None
+    if doc is None and getattr(target, "document", None) \
+            and str(target.document.file_name or "").lower().endswith(".pdf"):
+        # a PDF we don't have the source for (forwarded / uploaded /
+        # made in a session): download and extract its text
+        import tempfile
+        tg_file = await context.bot.get_file(target.document.file_id)
+        pdf_local = Path(tempfile.mkdtemp(prefix="forge_read_")) / \
+            (target.document.file_name or "doc.pdf")
+        await tg_file.download_to_drive(str(pdf_local))
+        try:
+            pdf_text = await _run_blocking(_narrate.pdf_to_text, pdf_local)
+        except Exception as e:
+            await update.message.reply_text(
+                f"Couldn't extract text from that PDF: {type(e).__name__}")
+            return
+        doc = pdf_local
+        out_hint = str(_explorer.EXPLORATIONS_DIR / (pdf_local.stem + ".m4a"))
+    if doc is None:
+        await update.message.reply_text(
+            "Couldn't match that message to a document — reply "
+            "directly to the PDF you want read (forwarded PDFs "
+            "work too).")
+        return
+    await context.bot.send_message(
+        chat, "🎧 Adapting the document for narration (5-10 min)…")
+    try:
+        r = await _run_blocking(
+            lambda: _narrate.build_narration(
+                doc, _progress_sender(context, chat),
+                text=pdf_text, out_path=out_hint))
+    except Exception as e:
+        log.exception("narration failed")
+        await context.bot.send_message(
+            chat, f"Narration failed: {type(e).__name__}: {e}")
+        return
+    tag = (f" ({r.get('minutes', '?')} min)"
+           if r.get("minutes") else "")
+    await _deliver_video(context, chat, r["path"],
+                         f"🎧 {r['title']}{tag}")
+    if r.get("fallback"):
+        await context.bot.send_message(
+            chat, f"⚠️ {r['fallback']} segments used the fallback "
+                  "voice — check OpenAI limits.")
+
+
+async def on_document(update, context):
+    """A PDF sent straight to the bot (no reply chain). Caption with a
+    read-word — or NO caption at all — starts the audiobook narration;
+    anything else gets a hint. This exists because Telegram's attach flow
+    makes captions easy to miss: sending a PDF is itself the intent."""
+    if not _ok(update):
+        return
+    msg = update.message
+    if not (msg and msg.document
+            and str(msg.document.file_name or "").lower().endswith(".pdf")):
+        return
+    # a library PDF's filename maps back to its markdown source
+    doc = None
+    stem = Path(msg.document.file_name).stem
+    cand = _explorer.EXPLORATIONS_DIR / f"{stem}.md"
+    if cand.exists():
+        doc = cand
+    caption = (msg.caption or "").lower().strip(" !.")
+    if caption and caption not in _READ_WORDS:
+        await msg.reply_text(
+            "Got the PDF. Send it with no caption (or caption it "
+            "“read it”) and I'll narrate it as an audiobook.")
+        return
+    await _narrate_message(update, context, msg, doc)
+
+
 async def _answer_reply(update, context, question: str):
     """The viewer replied to a delivered video/cheat-sheet with a question:
     answer as the host — text plus a voice note. Cheap (one text call + TTS),
@@ -371,51 +449,7 @@ async def _answer_reply(update, context, question: str):
 
     # "read it" on a document -> the audiobook layer
     if question.lower().strip(" !.") in _READ_WORDS:
-        pdf_text = None
-        out_hint = None
-        if doc is None and getattr(target, "document", None) \
-                and str(target.document.file_name or "").lower().endswith(".pdf"):
-            # a PDF we don't have the source for (forwarded / uploaded /
-            # made in a session): download and extract its text
-            import tempfile
-            tg_file = await context.bot.get_file(target.document.file_id)
-            pdf_local = Path(tempfile.mkdtemp(prefix="forge_read_")) / \
-                (target.document.file_name or "doc.pdf")
-            await tg_file.download_to_drive(str(pdf_local))
-            try:
-                pdf_text = await _run_blocking(_narrate.pdf_to_text, pdf_local)
-            except Exception as e:
-                await update.message.reply_text(
-                    f"Couldn't extract text from that PDF: {type(e).__name__}")
-                return
-            doc = pdf_local
-            out_hint = str(_explorer.EXPLORATIONS_DIR / (pdf_local.stem + ".m4a"))
-        if doc is None:
-            await update.message.reply_text(
-                "Couldn't match that message to a document — reply "
-                "directly to the PDF you want read (forwarded PDFs "
-                "work too).")
-            return
-        await context.bot.send_message(
-            chat, "🎧 Adapting the document for narration (5-10 min)…")
-        try:
-            r = await _run_blocking(
-                lambda: _narrate.build_narration(
-                    doc, _progress_sender(context, chat),
-                    text=pdf_text, out_path=out_hint))
-        except Exception as e:
-            log.exception("narration failed")
-            await context.bot.send_message(
-                chat, f"Narration failed: {type(e).__name__}: {e}")
-            return
-        tag = (f" ({r.get('minutes', '?')} min)"
-               if r.get("minutes") else "")
-        await _deliver_video(context, chat, r["path"],
-                             f"🎧 {r['title']}{tag}")
-        if r.get("fallback"):
-            await context.bot.send_message(
-                chat, f"⚠️ {r['fallback']} segments used the fallback "
-                      "voice — check OpenAI limits.")
+        await _narrate_message(update, context, target, doc)
         return
     grounding = ""
     if doc is not None:
@@ -1086,6 +1120,7 @@ def main() -> None:
     app.add_handler(CommandHandler("feed", cmd_feed))
     app.add_handler(CommandHandler("play", cmd_play))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    app.add_handler(MessageHandler(filters.Document.PDF, on_document))
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, on_voice))
     log.info("learning-feed worker up; auto-feed every %ss",
              os.environ.get("RESTOCK_EVERY", "0"))

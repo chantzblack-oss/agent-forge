@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=412, initial-scale=1">
+<title>The Reef With an Insurance Policy</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --coral:#ff5b3e;--aqua:#35efd6;--amber:#ffc23d;
+  --ink:#eef7f6;--mut:#7ba0a8;--dim:#4d7079;
+  --line:rgba(125,175,185,.16);
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+html,body{background:#02090d}
+body{font-family:var(--sans);display:flex;flex-direction:column;align-items:center;gap:22px;padding:22px 0;-webkit-font-smoothing:antialiased}
+.slide{
+  width:412px;height:900px;overflow:hidden;position:relative;
+  background:radial-gradient(130% 90% at 50% -10%,#0c2c39 0%,#071b25 46%,#03101a 100%);
+  color:var(--ink);display:flex;flex-direction:column;
+  padding:40px 34px 30px;border:1px solid rgba(125,175,185,.10)
+}
+.slide::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 70% at 50% 122%,rgba(0,0,0,.55),transparent 60%)}
+.top{display:flex;justify-content:space-between;align-items:center;z-index:2}
+.kick{font:600 11px/1 var(--mono);letter-spacing:.22em;text-transform:uppercase;color:var(--aqua)}
+.pos{font:600 11px/1 var(--mono);letter-spacing:.14em;color:var(--dim)}
+.mid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;z-index:2;min-height:0}
+.mid.top-al{justify-content:flex-start;padding-top:16px}
+.pull{z-index:2;border-top:1px solid var(--line);padding-top:14px;margin-top:14px;
+  font:600 14px/1.3 var(--sans);color:var(--aqua);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.pull.warn{color:var(--coral)}
+.pull b{font-size:19px;line-height:1}
+.disp{font-weight:900;letter-spacing:-.02em;line-height:.96;font-size:52px}
+.disp.xl{font-size:82px;line-height:.9}
+.disp.l{font-size:42px}
+.body{font-size:18px;line-height:1.44;color:#d6e7e7}
+.sm{font-size:13.5px;line-height:1.5;color:var(--mut)}
+.hl{color:var(--coral)}.ha{color:var(--aqua)}.hy{color:var(--amber)}
+.tag{display:inline-flex;align-items:center;gap:6px;font:600 11px/1.35 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--amber);border:1px solid rgba(255,194,61,.4);border-radius:12px;padding:7px 11px;align-self:flex-start;max-width:100%}
+.tag.d2{color:var(--coral);border-color:rgba(255,91,62,.45)}
+.svgwrap{display:flex;justify-content:center}
+svg{display:block;max-width:100%}
+.slide svg text{fill:var(--mut);font-family:var(--mono);font-size:12px}
+.opt{display:flex;align-items:center;gap:14px;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02)}
+.badge{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font:700 15px var(--mono);color:var(--aqua);border:1px solid rgba(53,239,214,.35)}
+.opt span{font-size:16px;color:#dcecec;font-weight:600;line-height:1.2}
+.optlist{display:flex;flex-direction:column;gap:10px}
+.chips{display:flex;gap:9px}
+.chip{flex:1;text-align:center;padding:15px 6px;border:1px solid var(--line);border-radius:14px;font:800 19px var(--sans);background:rgba(255,255,255,.02)}
+.chip small{display:block;font:600 9.5px var(--mono);letter-spacing:.1em;color:var(--dim);margin-top:5px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{border:1px solid var(--line);border-radius:16px;padding:15px}
+.stat b{display:block;font:900 42px/1 var(--sans);color:var(--aqua);letter-spacing:-.02em}
+.stat.c b{color:var(--coral)}
+.stat span{font:600 11px/1.35 var(--mono);letter-spacing:.05em;color:var(--mut);text-transform:uppercase}
+.bars{display:flex;flex-direction:column;gap:13px}
+.barrow{display:flex;flex-direction:column;gap:6px}
+.barlab{display:flex;justify-content:space-between;font:600 13px var(--mono);color:var(--mut)}
+.track{height:15px;border-radius:8px;background:#0e2a34;overflow:hidden;border:1px solid var(--line)}
+.fill{height:100%;border-radius:8px;background:var(--aqua)}
+.fill.coral{background:linear-gradient(90deg,#ffc23d,#ff5b3e)}
+.quote{font:700 24px/1.32 var(--sans);color:#eef7f6}
+.quote .m{color:var(--aqua)}
+.cite{font:600 12px var(--mono);letter-spacing:.06em;color:var(--mut);text-transform:uppercase}
+.diagram .thr{fill:#9fc0c6;font-size:12px}
+.diagram .pct{fill:#eef7f6;font-size:13px;font-weight:700}
+.diagram .cap{fill:#5f858d;font-size:10.5px;letter-spacing:.14em}
+.diagram .lab{fill:#9fc0c6;font-size:11px;letter-spacing:.06em}
+.threads{display:flex;flex-direction:column;gap:11px}
+.thread{display:flex;gap:12px;align-items:flex-start}
+.tn{flex:none;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font:800 13px var(--mono);color:#03101a;background:var(--aqua)}
+.thread:nth-child(2) .tn{background:var(--amber)}
+.thread:nth-child(3) .tn{background:var(--coral)}
+.thread p{font-size:13px;line-height:1.42;color:var(--mut)}
+.reply{z-index:2;margin-top:14px;font:800 15px var(--sans);color:var(--ink);border:1px dashed rgba(53,239,214,.45);border-radius:12px;padding:13px 14px;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- 01 · COLD OPEN -->
+<div class="slide">
+  <div class="top"><span class="kick">Puerto Morelos · Oct 2020</span><span class="pos">01 · 14</span></div>
+  <div class="mid">
+    <div class="disp">The storm passed. Then the boats came back — stacked with <span class="hl">cement.</span></div>
+    <div class="svgwrap"><svg viewBox="0 0 344 158" width="330" height="152" fill="none">
+      <path d="M0 60 C40 52 62 68 100 60 S182 52 222 60 300 68 344 60" stroke="#35efd6" stroke-width="2" opacity=".45"/>
+      <path d="M126 46 H236 L222 62 H140 Z" fill="#ff5b3e"/>
+      <rect x="150" y="33" width="15" height="15" rx="2" fill="#ffc23d"/>
+      <rect x="176" y="31" width="15" height="17" rx="2" fill="#ffc23d"/>
+      <rect x="202" y="34" width="14" height="14" rx="2" fill="#ffc23d"/>
+      <line x1="181" y1="62" x2="181" y2="112" stroke="#6f99a1" stroke-width="1.5" stroke-dasharray="3 5"/>
+      <g stroke="#35efd6" stroke-width="4" stroke-linecap="round">
+        <path d="M181 150 V120"/><path d="M181 132 l-16 -14"/><path d="M181 128 l16 -18"/>
+        <path d="M165 118 l-8 -12"/><path d="M197 110 l6 -12"/>
+      </g>
+      <ellipse cx="181" cy="150" rx="26" ry="6" fill="#6f99a1" opacity=".45"/>
+    </svg></div>
+    <div class="body">Divers mixing it in buckets on the deck, <span class="ha">“like contractors getting ready to repair a sidewalk.”</span> The patient: a coral reef.</div>
+  </div>
+  <div class="pull">swipe — someone is paying for this <b>→</b></div>
+</div>
+
+<!-- 02 · THE DARE -->
+<div class="slide">
+  <div class="top"><span class="kick">The Dare · Lock it in</span><span class="pos">02 · 14</span></div>
+  <div class="mid">
+    <div class="disp l">How does an insurance policy know a <span class="ha">coral reef</span> got hurt?</div>
+    <div class="optlist">
+      <div class="opt"><div class="badge">A</div><span>Pressure sensors bolted to the coral</span></div>
+      <div class="opt"><div class="badge">B</div><span>Divers survey it and file a claim</span></div>
+      <div class="opt"><div class="badge">C</div><span>A wind model, watched from space</span></div>
+      <div class="opt"><div class="badge">D</div><span>Government inspectors sign off</span></div>
+    </div>
+    <div class="reply">Lock in A–D before you swipe. No peeking.</div>
+  </div>
+  <div class="pull">the answer isn’t the obvious one <b>→</b></div>
+</div>
+
+<!-- 03 · THE PAYOFF -->
+<div class="slide">
+  <div class="top"><span class="kick">The Payoff</span><span class="pos">03 · 14</span></div>
+  <div class="mid">
+    <span class="tag d2">It’s C</span>
+    <div class="disp">There is <span class="hl">no sensor</span> on the reef.</div>
+    <div class="svgwrap"><svg viewBox="0 0 344 168" width="300" height="146" fill="none">
+      <rect x="150" y="14" width="44" height="26" rx="4" fill="#eef7f6"/>
+      <rect x="120" y="20" width="24" height="14" fill="#35efd6"/>
+      <rect x="200" y="20" width="24" height="14" fill="#35efd6"/>
+      <g stroke="#ffc23d" stroke-width="2" stroke-dasharray="2 6" opacity=".85">
+        <line x1="172" y1="42" x2="118" y2="128"/><line x1="172" y1="42" x2="172" y2="128"/><line x1="172" y1="42" x2="226" y2="128"/>
+      </g>
+      <g stroke="#6f99a1" stroke-width="4" stroke-linecap="round" opacity=".8">
+        <path d="M150 150 v-18"/><path d="M172 150 v-26"/><path d="M194 150 v-16"/>
+      </g>
+      <line x1="130" y1="156" x2="214" y2="120" stroke="#ff5b3e" stroke-width="4" stroke-linecap="round"/>
+    </svg></div>
+    <div class="body">The trigger never looks at the coral. It watches the <span class="hy">wind</span> — satellites, radar and ground stations, refereed by the U.S. National Hurricane Center.</div>
+    <div class="sm">Most people picture a diver filing a claim. The reef doesn’t get a vote.</div>
+  </div>
+  <div class="pull">so what exactly trips it? <b>→</b></div>
+</div>
+
+<!-- 04 · MECHANISM -->
+<div class="slide">
+  <div class="top"><span class="kick">The Trigger · Modeled Wind</span><span class="pos">04 · 14</span></div>
+  <div class="mid">
+    <div class="disp l">Not a switch. A <span class="hy">ladder.</span></div>
+    <div class="svgwrap"><svg class="diagram" viewBox="0 0 344 196" width="330" height="188">
+      <defs><linearGradient id="heat" x1="0" x2="1"><stop offset="0" stop-color="#ffc23d"/><stop offset="1" stop-color="#ff5b3e"/></linearGradient></defs>
+      <text class="thr" x="92" y="30" text-anchor="end">~100–110 kt</text>
+      <rect x="100" y="16" width="190" height="22" rx="6" fill="#0e2a34" stroke="rgba(125,175,185,.18)"/>
+      <rect x="100" y="16" width="76" height="22" rx="6" fill="url(#heat)"/>
+      <text class="pct" x="340" y="31" text-anchor="end">~40%</text>
+      <text class="thr" x="92" y="78" text-anchor="end">~130 kt</text>
+      <rect x="100" y="64" width="190" height="22" rx="6" fill="#0e2a34" stroke="rgba(125,175,185,.18)"/>
+      <rect x="100" y="64" width="152" height="22" rx="6" fill="url(#heat)"/>
+      <text class="pct" x="340" y="79" text-anchor="end">~80%</text>
+      <text class="thr" x="92" y="126" text-anchor="end">~160 kt +</text>
+      <rect x="100" y="112" width="190" height="22" rx="6" fill="#0e2a34" stroke="rgba(125,175,185,.18)"/>
+      <rect x="100" y="112" width="190" height="22" rx="6" fill="url(#heat)"/>
+      <text class="pct" x="340" y="127" text-anchor="end">100%</text>
+      <text class="cap" x="100" y="170">SUSTAINED WIND NEAR ZONE → PAYOUT RELEASED</text>
+    </svg></div>
+    <div class="sm">Less a smoke alarm than a graduated set of tripwires — set by actuaries who never get wet.</div>
+    <span class="tag">~ figures · tiered, disputed in retellings</span>
+  </div>
+  <div class="pull warn">now watch reality test it <b>→</b></div>
+</div>
+
+<!-- 05 · THE RESPONSE -->
+<div class="slide">
+  <div class="top"><span class="kick">Hurricane Delta · The Response</span><span class="pos">05 · 14</span></div>
+  <div class="mid top-al">
+    <div class="stats">
+      <div class="stat"><b>1,200</b><span>colonies re-cemented</span></div>
+      <div class="stat c"><b>~9,000</b><span>fragments saved</span></div>
+    </div>
+    <span class="tag">16 → 30 → ~80 divers · the counts disagree</span>
+    <div class="quote">“We worked <span class="m">12 hours every day for a month and a half.</span> It was exhausting.”</div>
+    <div class="cite">— a volunteer, from the core crew</div>
+  </div>
+  <div class="pull">and who paid the bill? <b>→</b></div>
+</div>
+
+<!-- 06 · THE AMBULANCE -->
+<div class="slide">
+  <div class="top"><span class="kick">The Ambulance</span><span class="pos">06 · 14</span></div>
+  <div class="mid">
+    <div class="quote">“Like with medical insurance, you need the <span class="m">hospital and the ambulance</span> for it to work.”</div>
+    <div class="cite">— Fernando Secaira, The Nature Conservancy</div>
+    <div class="svgwrap"><svg viewBox="0 0 300 56" width="300" height="52" fill="none">
+      <path d="M0 30 H116 l9 -20 l11 40 l9 -30 H206" stroke="#35efd6" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M206 30 q30 0 40 -16" stroke="#ff5b3e" stroke-width="3" stroke-linecap="round"/>
+      <path d="M246 14 l6 -12 M246 14 l-11 -7" stroke="#ff5b3e" stroke-width="3" stroke-linecap="round"/>
+    </svg></div>
+    <div class="body">The “ambulance” is a trained corps — divers, biologists, volunteers. By late 2022, <span class="ha">200+</span> Reef Guardians across four countries.</div>
+  </div>
+  <div class="pull">an ambulance for just one kind of emergency <b>→</b></div>
+</div>
+
+<!-- 07 · MID-DECK DARE -->
+<div class="slide">
+  <div class="top"><span class="kick">The Dare · Round Two</span><span class="pos">07 · 14</span></div>
+  <div class="mid">
+    <div class="sm">One whole season’s premium on the reef policy —</div>
+    <div class="disp xl" style="color:var(--aqua)">~$230K</div>
+    <div class="body">Then Delta made landfall. How big was the payout it triggered?</div>
+    <div class="chips">
+      <div class="chip">$50K<small>A</small></div>
+      <div class="chip">$230K<small>B</small></div>
+      <div class="chip">$800K<small>C</small></div>
+      <div class="chip">$2M<small>D</small></div>
+    </div>
+    <div class="reply">Guess locked? Then swipe.</div>
+  </div>
+  <div class="pull warn">the number does the talking <b>→</b></div>
+</div>
+
+<!-- 08 · MID-DECK PAYOFF -->
+<div class="slide">
+  <div class="top"><span class="kick">The Payoff · Follow the Money</span><span class="pos">08 · 14</span></div>
+  <div class="mid">
+    <span class="tag d2">The answer · it’s C</span>
+    <div class="disp xl"><span class="hl">$800K</span></div>
+    <div class="body">About <span class="hl">3.5×</span> the whole season’s premium — wired before the divers finished counting.</div>
+    <div class="bars">
+      <div class="barrow"><div class="barlab"><span>premium</span><span>~$230k</span></div><div class="track"><div class="fill" style="width:29%"></div></div></div>
+      <div class="barrow"><div class="barlab"><span>Delta payout</span><span>~$800k</span></div><div class="track"><div class="fill coral" style="width:100%"></div></div></div>
+    </div>
+    <div class="sm">But “return” is the wrong word. Half rebuilt <span class="hy">beaches</span>, not coral. The reef is the co-benefit; the hotel zone is the client.</div>
+  </div>
+  <div class="pull warn">then a direct hit paid nothing <b>→</b></div>
+</div>
+
+<!-- 09 · TWIST -->
+<div class="slide">
+  <div class="top"><span class="kick">Hurricane Grace · Aug 2021</span><span class="pos">09 · 14</span></div>
+  <div class="mid">
+    <div class="disp l">It hit the reef head-on. The policy stayed <span class="hl">silent.</span></div>
+    <div class="svgwrap"><svg viewBox="0 0 344 168" width="320" height="156" fill="none">
+      <path d="M52 150 A120 120 0 0 1 292 150" stroke="#123a46" stroke-width="15"/>
+      <path d="M278 94 A120 120 0 0 1 292 150" stroke="#ff5b3e" stroke-width="15"/>
+      <line x1="172" y1="150" x2="77" y2="95" stroke="#eef7f6" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="172" cy="150" r="7" fill="#eef7f6"/>
+      <text x="52" y="166" fill="#5f858d">0</text>
+      <text x="256" y="82" fill="#ff8a72">~115 floor</text>
+      <text x="284" y="166" text-anchor="end" fill="#5f858d">160+</text>
+      <text x="64" y="80" fill="#eef7f6" style="font-size:14px;font-weight:700">51 mph</text>
+    </svg></div>
+    <div class="sm">Grace logged 51 mph sustained, ~86 mph at landfall — below the ~115 mph floor. Delta was “the first” payout, Beryl (2024) the “second.” Grace, the most direct hit, never made the list.</div>
+    <span class="tag d2">Failure, or working as designed? No public damage assessment says which.</span>
+  </div>
+  <div class="pull warn">the dial has a secret <b>→</b></div>
+</div>
+
+<!-- 10 · NOBODY TELLS YOU -->
+<div class="slide">
+  <div class="top"><span class="kick">The Part Nobody Tells You</span><span class="pos">10 · 14</span></div>
+  <div class="mid">
+    <div class="disp l">One dial isn’t tuned to the <span class="ha">reef.</span> It’s tuned to the <span class="hl">divers.</span></div>
+    <div class="svgwrap"><svg viewBox="0 0 344 150" width="300" height="132" fill="none">
+      <circle cx="172" cy="72" r="54" fill="#0e2a34" stroke="#35efd6" stroke-width="2"/>
+      <g stroke="#3a5a63" stroke-width="2"><line x1="172" y1="24" x2="172" y2="34"/><line x1="220" y1="72" x2="210" y2="72"/><line x1="124" y1="72" x2="134" y2="72"/><line x1="206" y1="38" x2="199" y2="45"/><line x1="138" y1="38" x2="145" y2="45"/></g>
+      <line x1="172" y1="72" x2="206" y2="44" stroke="#ff5b3e" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="172" cy="72" r="7" fill="#eef7f6"/>
+      <text x="210" y="122" fill="#ff8a72">how fast a brigade spends cement</text>
+    </svg></div>
+    <div class="body">After Hurricane Lisa (2022), WTW rebuilt a sister policy’s payout tiers — not to new coral science, but to how fast a certified brigade can physically <span class="hy">spend cement.</span></div>
+    <span class="tag">On the Belize sister-policy — whether Puerto Morelos’s own tiers were retuned isn’t public.</span>
+  </div>
+  <div class="pull">the scientists have a bigger problem <b>→</b></div>
+</div>
+
+<!-- 11 · THE FIGHT -->
+<div class="slide">
+  <div class="top"><span class="kick">The Field-Wide Fight</span><span class="pos">11 · 14</span></div>
+  <div class="mid">
+    <div class="disp l">Triage, or an expensive <span class="hl">distraction?</span></div>
+    <div class="svgwrap"><svg viewBox="0 0 344 150" width="330" height="146" fill="none">
+      <circle cx="62" cy="60" r="30" fill="#0e2a34" stroke="#35efd6" stroke-width="2"/>
+      <path d="M62 44 v26 M50 58 l12 12 l12 -12" stroke="#35efd6" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="282" cy="60" r="30" fill="#0e2a34" stroke="#ff5b3e" stroke-width="2"/>
+      <path d="M272 50 l20 20 M292 50 l-20 20" stroke="#ff5b3e" stroke-width="3" stroke-linecap="round"/>
+      <path d="M96 60 L142 50 L160 74 L196 54 L224 66 L248 58" stroke="#ffc23d" stroke-width="2" fill="none"/>
+      <text x="62" y="112" text-anchor="middle" class="lab" style="fill:#9fc0c6">ALVAREZ-FILIP</text>
+      <text x="282" y="112" text-anchor="middle" class="lab" style="fill:#9fc0c6">BELLWOOD</text>
+      <text x="172" y="134" text-anchor="middle" style="fill:#5f858d;font-size:11px;letter-spacing:.12em">THE FAULT LINE</text>
+    </svg></div>
+    <div class="body"><span class="ha">Alvarez-Filip:</span> 40 years of reef flattening — cement saves a fragment, not the 3-D cathedral. <span class="hl">Bellwood:</span> restoration is “costly, premature, and doomed to fail” without emissions cuts.</div>
+    <span class="tag">Not in dialogue — two poles of one field-wide fight.</span>
+  </div>
+  <div class="pull warn">and a clock nobody’s watching <b>→</b></div>
+</div>
+
+<!-- 12 · HIDDEN CLOCK -->
+<div class="slide">
+  <div class="top"><span class="kick">The Clock You Can’t See</span><span class="pos">12 · 14</span></div>
+  <div class="mid">
+    <div class="disp l">The reef has an <span class="hl">infection clock.</span></div>
+    <div class="svgwrap"><svg viewBox="0 0 344 150" width="320" height="140" fill="none">
+      <circle cx="92" cy="72" r="46" fill="#0e2a34" stroke="#35efd6" stroke-width="3"/>
+      <line x1="92" y1="72" x2="92" y2="38" stroke="#eef7f6" stroke-width="3" stroke-linecap="round"/>
+      <line x1="92" y1="72" x2="118" y2="84" stroke="#ff5b3e" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="92" cy="72" r="4" fill="#eef7f6"/>
+      <path d="M196 128 q22 -66 54 -76 q22 42 44 20" stroke="#6f99a1" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <circle cx="222" cy="78" r="5" fill="#ffc23d"/><circle cx="248" cy="60" r="4" fill="#ffc23d"/><circle cx="268" cy="82" r="4" fill="#ffc23d"/>
+    </svg></div>
+    <div class="body">Most storm fragments don’t seed new colonies — they die, buried and abraded. After Hurricane Earl (2010), broken fragments broke out in lesions <span class="hy">“most similar to” white plague</span>, sickening together in the silt.</div>
+    <span class="tag d2">“Most similar to” — named, never confirmed. The brigades aren’t just outrunning exposure; they’re outrunning infection.</span>
+  </div>
+  <div class="pull">step back — here’s the shape of it <b>→</b></div>
+</div>
+
+<!-- 13 · THE FRAME -->
+<div class="slide">
+  <div class="top"><span class="kick">A Frame — Mine, Not Theirs</span><span class="pos">13 · 14</span></div>
+  <div class="mid">
+    <div class="disp l">A <span class="hy">Geiger counter,</span> where the reef needs a <span class="ha">dosimeter.</span></div>
+    <div class="svgwrap"><svg viewBox="0 0 344 172" width="330" height="166" fill="none">
+      <defs><linearGradient id="dose" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#35efd6" stop-opacity=".5"/><stop offset="1" stop-color="#35efd6" stop-opacity="0"/></linearGradient></defs>
+      <text x="8" y="14" fill="#ff8a72" style="letter-spacing:.1em">WIND · A SPIKE</text>
+      <path d="M8 58 H150 L158 20 L166 58 H336" stroke="#ff5b3e" stroke-width="3" stroke-linejoin="round"/>
+      <text x="8" y="104" fill="#57cabd" style="letter-spacing:.1em">HEAT · A SLOPE</text>
+      <path d="M8 156 L336 116 L336 160 L8 160 Z" fill="url(#dose)"/>
+      <path d="M8 156 L336 116" stroke="#35efd6" stroke-width="3"/>
+    </svg></div>
+    <div class="sm">Wind is an <span class="hl">event</span> — a line crossed in an afternoon, paid before the rain stops. Heat is a <span class="ha">dose</span> — piling up over weeks (“degree heating weeks”), no click, no alarm. A 2025 Maldives pilot is trying to trigger on heat instead.</div>
+    <div class="disp l">Brilliant at spikes. <span class="hl">Blind to slopes.</span></div>
+    <span class="tag">A framing, not a fact.</span>
+  </div>
+  <div class="pull">one thread still loose <b>→</b></div>
+</div>
+
+<!-- 14 · STINGER -->
+<div class="slide">
+  <div class="top"><span class="kick">The Stinger · One Thread Loose</span><span class="pos">14 · 14</span></div>
+  <div class="mid">
+    <div class="disp l">Can you insure a <span class="ha">slow</span> disaster like a <span class="hl">fast</span> one?</div>
+    <div class="body">Wind pays out in an afternoon. Bleaching kills over weeks. If the trigger can’t feel a slope, the reefs actually dying never file a claim.</div>
+    <div class="threads">
+      <div class="thread"><div class="tn">1</div><p>Is Puerto Morelos still on its 2018/19 wind-mortality calibration — or quietly retuned to the divers?</p></div>
+      <div class="thread"><div class="tn">2</div><p>Did Grace do reef damage that went uncompensated? Nobody has run the assessment.</p></div>
+      <div class="thread"><div class="tn">3</div><p>Can a “dosimeter” trigger pay out fast and cheap enough — or does a slope break the economics?</p></div>
+    </div>
+  </div>
+  <div class="reply">reply 1, 2, or 3 to pull the next thread</div>
+</div>
+
+</body>
+</html>

@@ -94,47 +94,86 @@ class AnthropicProvider(Provider):
     # ── public ────────────────────────────────────────────
 
     def stream(self, system: str, user: str, model: str, max_tokens: int) -> Iterator[str]:
-        kwargs = self._call_kwargs(system, user, model, max_tokens)
-        with self._client.messages.stream(**kwargs) as stream:
-            for text in stream.text_stream:
-                if text:
-                    yield text
+        base = self._call_kwargs(system, user, model, max_tokens)
+        for kwargs in self._thinking_variants(base, max_tokens):
+            try:
+                with self._client.messages.stream(**kwargs) as stream:
+                    for text in stream.text_stream:
+                        if text:
+                            yield text
+                return
+            except Exception as e:  # noqa: BLE001
+                if self._is_thinking_400(e):
+                    continue  # this model rejects that thinking form; try next
+                raise
+
+    # Remembers which thinking-variant index worked per resolved model, so a
+    # model that rejects adaptive costs exactly ONE failed (unbilled-output)
+    # probe per process, not one per call.
+    _variant_memo: dict[str, int] = {}
 
     def complete(self, system: str, user: str, model: str, max_tokens: int) -> str:
-        kwargs = self._call_kwargs(system, user, model, max_tokens)
-        msg = self._client.messages.create(**kwargs)
-        parts: list[str] = []
-        for block in msg.content:
-            # TextBlock has .text; tool_use / thinking blocks are filtered out
-            # for the final prose string.
-            if getattr(block, "type", "") == "thinking":
-                continue
-            text = getattr(block, "text", None)
-            if text:
-                parts.append(text)
-        return "".join(parts)
+        base = self._call_kwargs(system, user, model, max_tokens)
+        variants = self._thinking_variants(base, max_tokens)
+        resolved = base["model"]
+        start = self._variant_memo.get(resolved, 0)
+        last: Exception | None = None
+        for i in range(start, len(variants)):
+            try:
+                msg = self._client.messages.create(**variants[i])
+                self._variant_memo[resolved] = i
+                parts: list[str] = []
+                for block in msg.content:
+                    if getattr(block, "type", "") == "thinking":
+                        continue  # thinking blocks aren't part of the prose
+                    text = getattr(block, "text", None)
+                    if text:
+                        parts.append(text)
+                return "".join(parts)
+            except Exception as e:  # noqa: BLE001
+                last = e
+                if self._is_thinking_400(e):
+                    continue
+                raise
+        raise last  # type: ignore[misc]
+
+    # ── thinking negotiation ──────────────────────────────
+
+    @staticmethod
+    def _is_thinking_400(e: Exception) -> bool:
+        """True when a request failed specifically because of the thinking
+        parameter (so a different thinking form may succeed)."""
+        msg = str(getattr(e, "message", e)).lower()
+        return ("400" in str(getattr(e, "status_code", "")) or "400" in msg
+                or "invalid_request" in msg) and "thinking" in msg
+
+    def _thinking_variants(self, base: dict, max_tokens: int) -> list[dict]:
+        """Highest-quality thinking form first, then graceful fallbacks.
+
+        Order: adaptive (current models) -> enabled+budget_tokens (older
+        models) -> no thinking (last resort). We keep thinking ON for quality
+        and only drop a form when THIS model rejects it with a 400."""
+        if not self._enable_thinking:
+            return [base]
+        adaptive = {**base, "thinking": {"type": "adaptive"},
+                    "output_config": {"effort": "high"}}
+        enabled = {**base, "thinking": {"type": "enabled",
+                                        "budget_tokens": _thinking_budget(max_tokens)}}
+        return [adaptive, enabled, base]
 
     # ── call construction ────────────────────────────────
 
     def _call_kwargs(
         self, system: str, user: str, model: str, max_tokens: int,
     ) -> dict:
-        """Build the kwargs dict for messages.create / messages.stream."""
-        kwargs: dict = {
+        """Build the base kwargs (thinking added per-variant by the caller)."""
+        return {
             "model": _resolve_model(model),
             "max_tokens": max_tokens,
             "system": system,
             "messages": [{"role": "user", "content": user}],
             "tools": self._tools(),
         }
-        if self._enable_thinking:
-            # Anthropic API rule: when extended thinking is on, temperature
-            # must be exactly 1.0 (or omitted, which defaults to 1.0).
-            kwargs["thinking"] = {
-                "type": "enabled",
-                "budget_tokens": _thinking_budget(max_tokens),
-            }
-        return kwargs
 
     # ── tools ────────────────────────────────────────────
 
@@ -144,12 +183,12 @@ class AnthropicProvider(Provider):
             tools.append({
                 "type": "web_search_20250305",
                 "name": "web_search",
-                "max_uses": 15,
+                "max_uses": 8,
             })
         if self._enable_web_fetch:
             tools.append({
                 "type": "web_fetch_20250910",
                 "name": "web_fetch",
-                "max_uses": 15,
+                "max_uses": 8,
             })
         return tools

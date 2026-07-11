@@ -1,0 +1,34 @@
+# systemd unit for running the Agent Forge Telegram bot on a VPS / Raspberry Pi
+# without Docker. Runs straight from a checkout of the repo.
+#
+# Install:
+#   sudo cp deploy/agent-forge-bot.service /etc/systemd/system/
+#   # edit the paths/User below to match your machine, then:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now agent-forge-bot
+#   journalctl -u agent-forge-bot -f      # watch logs
+#
+# Prereqs on the host:
+#   cd /opt/agent-forge && python3 -m venv .venv
+#   .venv/bin/pip install rich edge-tts anthropic google-genai openai python-telegram-bot
+#   cp .env.telegram.example .env && edit .env
+
+[Unit]
+Description=Agent Forge Telegram Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agentforge
+WorkingDirectory=/opt/agent-forge
+EnvironmentFile=/opt/agent-forge/.env
+ExecStart=/opt/agent-forge/.venv/bin/python -m agent_forge.telegram_bot
+Restart=on-failure
+RestartSec=5
+# Hardening (optional, tighten as you like)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,22 @@
+# Agent Forge Telegram bot — always-on via Docker Compose.
+#
+#   1. cp .env.telegram.example .env   (then fill in your keys)
+#   2. docker compose up -d --build
+#   3. docker compose logs -f          (watch it come up)
+#
+# The bot auto-restarts on crash/reboot. Stop with: docker compose down
+
+services:
+  agent-forge-bot:
+    build: .
+    image: agent-forge-bot
+    container_name: agent-forge-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Persist cross-session memory + resolved-model cache across restarts.
+      - agentforge_data:/root/.agent_forge
+
+volumes:
+  agentforge_data:

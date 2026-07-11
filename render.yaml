@@ -1,0 +1,38 @@
+# Render blueprint — deploys the Agent Forge LEARNING FEED worker:
+# a Telegram bot that makes narrated lesson/explainer videos and sends
+# them to your phone.
+#
+# Phone-only setup:
+#   1. Telegram: message @BotFather -> /newbot -> copy the token.
+#      Message @userinfobot -> copy your numeric user id.
+#   2. Get an Anthropic API key: console.anthropic.com
+#   3. render.com -> sign up with GitHub -> New + -> Blueprint ->
+#      pick this repo & branch -> Render reads this file and asks for
+#      the secret values below -> Apply.
+#   4. Watch logs for "learning-feed worker up", then message your bot:
+#      teach me how to negotiate a raise
+
+services:
+  - type: worker
+    name: forge-learning-feed
+    runtime: docker
+    dockerfilePath: ./deploy/Dockerfile.worker
+    plan: standard           # 2GB RAM — video rendering OOMs on starter's
+                             # 512MB; the blueprint reverts dashboard
+                             # upgrades, so the plan must live HERE
+    autoDeploy: true
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false          # Render prompts you; never stored in git
+      - key: TELEGRAM_ALLOWED_USERS
+        sync: false          # your numeric Telegram id — keeps strangers out
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FORGE_TTS_VOICE
+        value: en-US-AndrewMultilingualNeural
+      - key: RESTOCK_EVERY
+        value: "0"           # 0 = only videos you ask for; 21600 = push one every 6h
+    disk:
+      name: forge-explorations
+      mountPath: /app/explorations   # your growing video/lesson library
+      sizeGB: 2

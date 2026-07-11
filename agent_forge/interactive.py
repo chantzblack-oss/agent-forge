@@ -1,0 +1,146 @@
+"""Interactive compiler — turn a dive into something you play with, not read.
+
+Takes a finished exploration (the markdown from ``explorer.dive``) plus its
+scout briefing and compiles a single self-contained HTML page designed for a
+phone: no external requests, works offline, light/dark aware.
+
+The compile prompt enforces interaction patterns rather than layout details,
+so every episode is different but always *does* something:
+
+- **Predict-before-reveal** — the reader commits to a guess (tap a choice,
+  drag a slider to their estimate) BEFORE the real number/answer animates in.
+  This is the single highest-value interaction for learning; every episode
+  must open with one.
+- **A manipulable model** — at least one slider/toggle "toy" where dragging a
+  parameter visibly changes an outcome (a canvas or SVG redrawn by JS), built
+  from the essay's core mechanism.
+- **Myth vs. reality flips** — tap cards that show the familiar version, flip
+  to what's actually defensible (sourced from the dive's own skeptic pass).
+- **Tap-through scenes** — content arrives as a sequence of screens with a
+  progress dots row, not a wall of text. Each scene: at most ~60 words plus
+  its interaction.
+- **A final synthesis challenge** — the cross-field connection posed as a
+  question to the reader first, their tap revealing the essay's framing.
+
+Usage:
+    from agent_forge.interactive import compile_interactive
+    path = compile_interactive(md_path)          # explorations/<slug>.html
+"""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+from .providers import get_provider
+
+from .explorer import EXPLORATIONS_DIR, WRITER_MODEL
+
+_COMPILE_SYSTEM = """You are an interactive-experience designer compiling a
+researched essay into a single-file interactive HTML page for a PHONE.
+
+Hard requirements (violating any of these is failure):
+- ONE self-contained HTML document. All CSS in one <style>, all JS in one
+  <script>. No external requests of any kind: no CDNs, no fonts, no images
+  (draw with inline SVG / canvas / unicode). No console errors.
+- Mobile-first: max content width ~600px centered, 16px+ base font, buttons
+  min 44px tall, generous spacing. Must also look fine on desktop.
+- Light AND dark: style via CSS custom properties; respect
+  @media (prefers-color-scheme: dark) and also honor
+  :root[data-theme="dark"] / :root[data-theme="light"] overrides.
+- Structure: tap-through scenes (divs shown one at a time) with progress
+  dots and Back/Next buttons. 8-14 scenes total. NEVER a long scroll of
+  paragraphs; max ~60 words of prose per scene.
+- CRITICAL (mobile blank-page bug): the FIRST scene must carry its visible
+  class in the STATIC HTML (e.g. class="scene is-active"), so the page shows
+  content before any JavaScript runs. Never rely on an onload script to
+  reveal scene 1. Include a <noscript> line at the top of the body telling
+  the reader to open the page in a browser if interactions don't respond.
+  That <noscript> MUST include a <style> that reveals every scene as a
+  readable vertical scroll (e.g. .scene{display:block !important} and hide
+  the dots/nav), so a JS-less renderer shows the full content, never blank.
+
+Required interactions (all of them, adapted to THIS content):
+1. Scene 2 or 3 is a PREDICT-BEFORE-REVEAL: the reader drags a slider or
+   taps a choice to commit a guess, then the real answer animates in with a
+   one-line "you were close / way off" verdict.
+2. One MANIPULABLE MODEL scene: a slider or toggles driving a live SVG or
+   canvas drawing of the essay's core mechanism — dragging visibly changes
+   the picture and a number readout.
+3. One MYTH VS REALITY scene: 2-4 tap-to-flip cards (familiar claim on the
+   front, the defensible version on the back).
+4. One QUIZ scene late in the flow: 3 questions, one at a time, instant
+   feedback that TEACHES (the explanation matters more than right/wrong).
+5. Final scene: the essay's cross-field synthesis posed as a question the
+   reader answers first (free tap on 2-3 stances), then the essay's framing
+   is revealed, clearly labeled as a framing, not a fact.
+
+CSS robustness (these cause silent 0-size collapse — avoid them):
+- Any element you size with width/height percentages or position its
+  children with absolute/inset MUST be display:block or flex — never leave
+  a <span> at its default inline display while giving it width/height (inline
+  boxes ignore both and collapse to 0, taking absolutely-positioned children
+  with them). Flip-card inner wrappers are the classic trap: set display:block.
+- Give flip cards and any absolutely-positioned-face component an explicit
+  min-height so they never collapse.
+- Prefer flex or grid with real track sizes over absolute positioning for
+  layout; reserve absolute positioning for overlays (like card faces).
+
+Content rules:
+- Every number, date, and claim must come from the provided essay. Do not
+  invent facts the essay doesn't contain. Where the essay hedges, the page
+  hedges.
+- Keep the essay's voice: vivid, precise, occasionally wry.
+- Title the page with the essay's title.
+
+Output ONLY the raw HTML document, starting with <!doctype html>. No
+markdown fences, no commentary."""
+
+
+def compile_interactive(md_path: str | Path, on_progress=None) -> Path:
+    """Compile a dive's markdown into a self-contained interactive HTML page."""
+    say = on_progress or (lambda _m: None)
+    md_path = Path(md_path)
+    essay = md_path.read_text(encoding="utf-8")
+
+    say("compiling interactive experience…")
+    html = get_provider("anthropic").complete(
+        system=_COMPILE_SYSTEM,
+        user=f"Essay to compile:\n\n{essay}",
+        model=WRITER_MODEL,
+        max_tokens=16000,
+    ).strip()
+
+    # Strip accidental markdown fences.
+    html = re.sub(r"^```(?:html)?\s*", "", html)
+    html = re.sub(r"\s*```$", "", html)
+    if "<html" not in html.lower():
+        raise RuntimeError("compiler did not return an HTML document")
+
+    out = EXPLORATIONS_DIR / (md_path.stem + ".html")
+    out.write_text(html, encoding="utf-8")
+
+    # Also emit an Artifact-ready fragment (no doctype/html/head/body wrapper)
+    # so the page can be published as a hosted claude.ai Artifact — the only
+    # delivery that reliably runs the JS on a phone.
+    try:
+        (EXPLORATIONS_DIR / (md_path.stem + ".artifact.html")).write_text(
+            to_artifact_fragment(html), encoding="utf-8"
+        )
+    except Exception:
+        pass
+    return out
+
+
+def to_artifact_fragment(html: str) -> str:
+    """Strip the doctype/html/head/body skeleton, keeping <title>+<style>
+    from head and the body's markup+script — the shape the Artifact tool
+    wraps at publish time."""
+    head_m = re.search(r"<head[^>]*>(.*?)</head>", html, re.S | re.I)
+    body_m = re.search(r"<body[^>]*>(.*?)</body>", html, re.S | re.I)
+    head = head_m.group(1) if head_m else ""
+    body = body_m.group(1) if body_m else html
+    keep = re.findall(
+        r"<title[^>]*>.*?</title>|<style[^>]*>.*?</style>", head, re.S | re.I
+    )
+    return "\n".join(keep) + "\n" + body.strip() + "\n"

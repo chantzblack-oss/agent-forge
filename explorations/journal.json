@@ -1,0 +1,87 @@
+[
+  {
+    "date": "2026-07-03",
+    "topic": "Who's Actually Paying for Your Cash Back",
+    "tags": [
+      "actually",
+      "paying",
+      "cashback",
+      "points",
+      "transfer"
+    ],
+    "file": "explorations/20260703-who-s-actually-paying-for-your-cash-back.md",
+    "threads": [
+      "The new Visa/Mastercard settlement lets merchants surcharge or decline by card tier for the first time. Once that plays out at real registers, does the cross-subsidy actually shrink — or just relocate?",
+      "The 2010/2013 dispute was fought entirely with assumption-sensitive models that can't agree on the transfer's sign. Is there a way to estimate it directly from real transaction and pricing data instead?",
+      "Australia (cap the fee, ban the surcharge) and the U.S. (legalize the surcharge, leave the fee alone) are running opposite bets on the same problem starting the same year. Which actually shrinks the transfer more — and does either one do anything for the unbanked households sitting outside the mechanism entirely?"
+    ]
+  },
+  {
+    "date": "2026-07-07",
+    "topic": "The Reef With an Insurance Policy",
+    "tags": [
+      "insurance",
+      "policy",
+      "insuring",
+      "coral",
+      "mexico"
+    ],
+    "file": "explorations/20260707-the-reef-with-an-insurance-policy.md",
+    "threads": [
+      "Has anyone retuned the Puerto Morelos-specific payout tiers against brigade throughput, the way WTW reportedly did for the Belize sister-policy after Hurricane Lisa — or is the original 2018/2019 wind-mortality calibration still setting today's thresholds?",
+      "Did Hurricane Grace cause reef damage in 2021 that went uncompensated? A post-storm damage assessment checked against the wind-speed record could actually settle whether that non-payout was basis risk or correct calibration — nobody seems to have run it yet.",
+      "The Maldives sea-surface-temperature pilot is the first real attempt at a \"dosimeter\" trigger for reefs. Can a cumulative-exposure instrument pay out fast and cheap enough to function the way the wind trigger does, or does insuring a slope instead of a spike break the economics that make parametric coral insurance work at all?"
+    ]
+  },
+  {
+    "date": "2026-07-07",
+    "topic": "Eighteen Bodies Short",
+    "tags": [
+      "eighteen",
+      "bodies",
+      "short",
+      "street",
+      "pandemic"
+    ],
+    "file": "explorations/20260707-eighteen-bodies-short.md",
+    "threads": [
+      "Whether Olga Jonas's account of internal Bank knowledge can be corroborated — an internal memo, a second insider, anything that would settle whether the triggers' weakness was foreseen at design time in 2016–17 or only recognized once the bonds began failing to pay.",
+      "Whether the \"whoever sets the dial pays only for false positives\" pattern shows up in other financialized duty-of-care instruments — catastrophe bonds for hurricanes, sovereign disaster insurance, pandemic-adjacent parametric products — or whether pandemic bonds are closer to a one-off design failure than a template.",
+      "How the 2026 Bundibugyo response actually finishes: whether the Pandemic Fund's frontline disbursement caught up after the Independent Panel's early criticism, and what a full accounting of that outbreak looks like next to Kasese and the 2018–20 Kivu epidemic."
+    ]
+  },
+  {
+    "date": "2026-07-07",
+    "topic": "Sixty Million Years Without Sex",
+    "tags": [
+      "sixty",
+      "million",
+      "years",
+      "without",
+      "bdelloid"
+    ],
+    "file": "explorations/20260707-sixty-million-years-without-sex.md",
+    "threads": [
+      "**Catch cryptic sex in the act.** The population-genomic signal from 2020 to 2022 implies rare recombination without ever showing it happening. Live imaging, induced-stress mating assays, or multi-generation single-animal sequencing could settle the exchange-versus-contamination standoff directly, instead of by statistical inference alone.",
+      "**Test the RAID hypothesis.** If shatter-and-splice repair really does lean on homeologous copies the way a storage array leans on parity data, that predicts something checkable: foreign DNA insertions should cluster in genomic neighborhoods with higher homeolog divergence or copy number. Nobody has looked for that correlation yet.",
+      "**Mine the pirated chemistry.** Bdelloids fight a fungal parasite using stolen bacterial polyketide and NRPS gene clusters related to real antibiotic pathways. Whether those specific bdelloid-hosted clusters produce a compound that works outside the animal — and whether it's something new — is open, and would be worth knowing."
+    ]
+  },
+  {
+    "date": "2026-07-07",
+    "topic": "How Old Is the World's Oldest Fire? Nobody Has Actually Dated It",
+    "tags": [
+      "world",
+      "oldest",
+      "nobody",
+      "actually",
+      "dated"
+    ],
+    "file": "explorations/20260707-how-old-is-the-world-s-oldest-fire-nobody-has-ac.md",
+    "threads": [
+      "What would it actually take to date this fire properly — charcoal dating at the ignition end, paleomagnetic readings from baked clay along the scar, something else — and why, more than a century after Abbott's guess, nobody appears to have funded it.",
+      "How Cara Cross's more careful \"among the earliest documented\" claim became \"the first culture on Earth\" in secondary coverage: a live, traceable case of a hedge dissolving into a superlative within a few retellings — the exact process this essay just accused Abbott's number of running.",
+      "A proper side-by-side of the world's other long-burning coal and peat fires — Centralia, Jharia, the Brennender Berg, Burning Mountain — sorted by confirmed ignition date, human versus natural cause, and years actually measured versus years merely inferred."
+    ]
+  }
+]

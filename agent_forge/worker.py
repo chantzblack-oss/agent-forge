@@ -124,7 +124,13 @@ def _progress_sender(context, chat: int, every: float = 75.0):
     the chat, throttled so a render sends a handful of updates, not one
     per frame. Answers 'is it working or hung?' without log-digging."""
     import time as _t
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # constructed off the event loop (inside an executor job) —
+        # fall back to the bot's own loop so progress still flows
+        loop = getattr(getattr(context, "application", context), "_forge_loop",
+                       None) or asyncio.get_event_loop()
     last = {"t": _t.time()}
 
     def say(msg: str):
@@ -384,11 +390,11 @@ async def _narrate_message(update, context, target, doc: Path | None):
         return
     await context.bot.send_message(
         chat, "🎧 Adapting the document for narration (5-10 min)…")
+    say = _progress_sender(context, chat)
     try:
         r = await _run_blocking(
             lambda: _narrate.build_narration(
-                doc, _progress_sender(context, chat),
-                text=pdf_text, out_path=out_hint))
+                doc, say, text=pdf_text, out_path=out_hint))
     except Exception as e:
         log.exception("narration failed")
         await context.bot.send_message(
@@ -912,6 +918,7 @@ def _selfcheck() -> None:
 
 async def _post_init(app: Application) -> None:
     """Runs inside the bot's event loop — safe to schedule background tasks."""
+    app._forge_loop = asyncio.get_running_loop()
     asyncio.get_event_loop().run_in_executor(None, _selfcheck)
     # A restart (deploy, OOM, crash) kills any in-flight job — announce
     # it, then RESUME the job from its persisted state.

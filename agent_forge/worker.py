@@ -111,7 +111,12 @@ _ALLOWED = {int(x) for x in os.environ.get("TELEGRAM_ALLOWED_USERS", "").replace
 
 
 def _ok(update: Update) -> bool:
-    return not _ALLOWED or (update.effective_user and update.effective_user.id in _ALLOWED)
+    """Authorization: fail CLOSED. An empty allowlist admits nobody unless
+    FORGE_ALLOW_PUBLIC=1 explicitly opts into public mode (local dev)."""
+    if _ALLOWED:
+        return bool(update.effective_user
+                    and update.effective_user.id in _ALLOWED)
+    return os.environ.get("FORGE_ALLOW_PUBLIC") == "1"
 
 
 async def _run_blocking(fn, *a, **k):
@@ -706,7 +711,8 @@ async def cmd_test(update, context):
         return
     chat = update.effective_chat.id
     await context.bot.send_message(
-        chat, "🔧 Rendering the pipeline check (~2 min, no API spend)…")
+        chat, "🔧 Rendering the pipeline check (~2 min; no LLM spend, "
+              "~1¢ of TTS)…")
     scenes = [
         {"kicker": "check one", "headline": "Voice and captions",
          "narration": "If you can hear this line, narration and the music "
@@ -838,9 +844,9 @@ async def cmd_diag(update, context):
         return
     chat = update.effective_chat.id
     key = os.environ.get("ANTHROPIC_API_KEY", "")
-    head = key[:14] + "…" if key else "(missing)"
     await context.bot.send_message(
-        chat, f"key: {head} len={len(key)}\ntesting a live call…")
+        chat, f"key: {'configured' if key else 'MISSING'} "
+              f"(len={len(key)})\ntesting a live call…")
 
     def _test() -> str:
         try:
@@ -1111,6 +1117,13 @@ def main() -> None:
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         raise SystemExit("TELEGRAM_BOT_TOKEN not set")
+    if not _ALLOWED and os.environ.get("FORGE_ALLOW_PUBLIC") != "1":
+        raise SystemExit(
+            "TELEGRAM_ALLOWED_USERS is empty — refusing to start a bot "
+            "that anyone on Telegram could use to spend your API credits. "
+            "Set TELEGRAM_ALLOWED_USERS to your numeric Telegram id, or "
+            "set FORGE_ALLOW_PUBLIC=1 to explicitly run open (local dev "
+            "only).")
 
     app = Application.builder().token(token).post_init(_post_init).build()
     app.add_handler(CommandHandler("start", cmd_start))

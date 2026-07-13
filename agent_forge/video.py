@@ -1048,15 +1048,57 @@ def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None
         shutil.rmtree(src, ignore_errors=True)
 
 
-def _synthesis_key(text: str, notes: str, spk: str) -> str:
+def _synthesis_key(text: str, notes: str, spk: str,
+                   provider: str = "openai",
+                   rate: str = "", pitch: str = "") -> str:
     """Stable identity of one TTS request: same key -> same audio, so a
-    clip found on disk under this key is safe to reuse after a restart."""
+    clip found on disk under this key is safe to reuse after a restart.
+    Includes every sound-affecting input — provider, model, voice, and
+    (for the Edge fallback) rate/pitch — so OpenAI and Edge audio can
+    never be confused for each other."""
     import hashlib
-    model = os.environ.get("FORGE_TTS_MODEL", "gpt-4o-mini-tts")
-    voice = _speaker_openai_voice(spk) or \
-        os.environ.get("FORGE_OPENAI_VOICE", "onyx")
-    raw = "\x1f".join((text, notes, spk, model, voice))
+    if provider == "edge":
+        voice = _speaker_edge_voice(spk) or \
+            os.environ.get("FORGE_TTS_VOICE", VOICE)
+        raw = "\x1f".join((text, notes, spk, "edge", voice, rate, pitch))
+    else:
+        model = os.environ.get("FORGE_TTS_MODEL", "gpt-4o-mini-tts")
+        voice = _speaker_openai_voice(spk) or \
+            os.environ.get("FORGE_OPENAI_VOICE", "onyx")
+        raw = "\x1f".join((text, notes, spk, "openai", model, voice))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
+
+
+def _clip_valid(ff: str, p: Path) -> bool:
+    """A cached/renamed clip must actually decode — size alone lets a
+    corrupt or truncated file masquerade as finished audio."""
+    try:
+        if not p.exists() or p.stat().st_size < 1000:
+            return False
+        r = subprocess.run([ff, "-v", "error", "-i", str(p),
+                            "-f", "null", "-"],
+                           capture_output=True, timeout=30)
+        return r.returncode == 0 and not r.stderr.strip()
+    except Exception:
+        return False
+
+
+def _commit_clip(ff: str, tmp: Path, final: Path, meta: dict) -> bool:
+    """Validate-then-rename: invalid TTS bytes are never promoted to a
+    completed clip. A sidecar json records provenance (provider, model,
+    voice, fallback) so cache hits report the truth after a restart."""
+    if not _clip_valid(ff, tmp):
+        tmp.unlink(missing_ok=True)
+        return False
+    meta = dict(meta, size=tmp.stat().st_size,
+                duration=_audio_dur(ff, tmp))
+    os.replace(tmp, final)
+    try:
+        from .job_state import atomic_write_json
+        atomic_write_json(final.with_suffix(".json"), meta)
+    except Exception:
+        pass                      # provenance is best-effort, audio is not
+    return True
 
 
 def _narrate_all(scenes, work: Path, ff: str, say, persona: str,
@@ -1088,23 +1130,53 @@ def _narrate_all(scenes, work: Path, ff: str, say, persona: str,
                       f"one was: \"…{prev[-140:]}\" Continue from that "
                       "energy, don't restart.")
         if clips_dir is not None:
-            final = clips_dir / f"{_synthesis_key(text, notes, spk)}.mp3"
-            if final.exists() and final.stat().st_size > 1000:
-                return final, False          # restart reuse: $0
-            # keep a real .mp3 tail — writers infer format from extension
-            tmp = final.with_name(final.stem + ".part.mp3")
-        else:
-            final = work / f"s{i:02d}.mp3"
-            tmp = final
-        if _openai_tts(text, tmp, notes,
+            import uuid as _uuid
+            oai_final = clips_dir / \
+                f"{_synthesis_key(text, notes, spk)}.mp3"
+            edge_final = clips_dir / \
+                (f"{_synthesis_key(text, notes, spk, 'edge', rate, pitch)}"
+                 ".edge.mp3")
+            # a valid OpenAI clip is authoritative: reuse, $0
+            if _clip_valid(ff, oai_final):
+                return oai_final, False
+            # per-attempt unique temp: duplicate identical scenes can
+            # never race on one .part file
+            tmp = clips_dir / f".{_uuid.uuid4().hex[:10]}.part.mp3"
+            if _openai_tts(text, tmp, notes,
+                           voice=_speaker_openai_voice(spk)) and \
+                    _commit_clip(ff, tmp, oai_final, {
+                        "provider": "openai", "fallback": False,
+                        "model": os.environ.get("FORGE_TTS_MODEL",
+                                                "gpt-4o-mini-tts"),
+                        "voice": _speaker_openai_voice(spk)
+                        or os.environ.get("FORGE_OPENAI_VOICE", "onyx"),
+                        "key": oai_final.stem}):
+                return oai_final, False
+            tmp.unlink(missing_ok=True)
+            # OpenAI unavailable: a cached Edge clip is reused but STAYS
+            # marked as fallback (its filename is its provenance) — and
+            # because OpenAI is always tried first, it upgrades on the
+            # next healthy run
+            if _clip_valid(ff, edge_final):
+                return edge_final, True
+            tmp = clips_dir / f".{_uuid.uuid4().hex[:10]}.part.mp3"
+            if synth(text, tmp, rate=rate, pitch=pitch,
+                     voice=_speaker_edge_voice(spk)) and \
+                    _commit_clip(ff, tmp, edge_final, {
+                        "provider": "edge", "fallback": True,
+                        "voice": _speaker_edge_voice(spk)
+                        or os.environ.get("FORGE_TTS_VOICE", VOICE),
+                        "rate": rate, "pitch": pitch,
+                        "key": edge_final.stem.replace(".edge", "")}):
+                return edge_final, True
+            tmp.unlink(missing_ok=True)
+            return None, False
+        final = work / f"s{i:02d}.mp3"
+        if _openai_tts(text, final, notes,
                        voice=_speaker_openai_voice(spk)):
-            if tmp is not final:
-                os.replace(tmp, final)
             return final, False
-        ok = synth(text, tmp, rate=rate, pitch=pitch,
+        ok = synth(text, final, rate=rate, pitch=pitch,
                    voice=_speaker_edge_voice(spk))
-        if ok and tmp is not final:
-            os.replace(tmp, final)
         return (final if ok else None), ok    # fallback = robotic voice
 
     from concurrent.futures import ThreadPoolExecutor
@@ -1371,10 +1443,9 @@ def build_video(md_path: str | Path, on_progress=None,
     if not scenes:
         raise RuntimeError("script generation returned no scenes")
     if checkpoint is not None:
-        try:
-            checkpoint("script", scenes)
-        except Exception:
-            pass
+        # durable checkpoint: a script that can't be persisted
+        # must stop the pipeline BEFORE any TTS spend
+        checkpoint("script", scenes)
     m = re.search(r"^#\s+(.+)$", essay, re.M)
     title = m.group(1).strip() if m else None
     if audio:

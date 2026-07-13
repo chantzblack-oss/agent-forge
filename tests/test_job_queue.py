@@ -36,10 +36,58 @@ def test_release_hands_slot_to_next_in_order():
     nxt = js.STORE.release(a)
     assert nxt == b.id
     assert js.STORE.active_id() is None            # b must acquire explicitly
+    # crash-safety: b is only PEEKED — it stays queued until acquire
+    assert b.id in js.STORE.queued_ids()
     bb = js.STORE.load(b.id)
     assert js.STORE.acquire(bb) is True
     assert js.STORE.active_id() == b.id
     assert js.STORE.queued_ids() == [c.id]
+
+
+def test_crash_between_release_and_acquire_never_orphans():
+    """The exact P0 scenario: release returns the next id, then the
+    process dies before acquire. On 'reboot', the job must still be
+    reachable — queued or reconciled — never lost."""
+    a = js.STORE.create("lesson", "audio", "a", 1)
+    b = js.STORE.create("lesson", "audio", "b", 1)
+    js.STORE.acquire(a)
+    js.STORE.acquire(b)
+    nxt = js.STORE.release(a)                      # …and then we "crash"
+    assert nxt == b.id
+    # reboot: reconcile + the boot queue-starter can see b
+    js.STORE.reconcile()
+    assert b.id in js.STORE.queued_ids()
+    bb = js.STORE.load(b.id)
+    assert js.STORE.acquire(bb) is True
+
+
+def test_reconcile_clears_terminal_pointer_and_keeps_queue():
+    a = js.STORE.create("lesson", "audio", "a", 1)
+    b = js.STORE.create("lesson", "audio", "b", 1)
+    js.STORE.acquire(a)
+    js.STORE.acquire(b)
+    a.set_stage("delivered")                       # done but pointer left
+    js.STORE.reconcile()
+    assert js.STORE.active_id() is None            # stale pointer cleared
+    assert js.STORE.queued_ids() == [b.id]         # queue intact
+
+
+def test_reconcile_requeues_orphaned_nonterminal_job():
+    a = js.STORE.create("lesson", "audio", "orphan", 1)
+    a.set_stage("script_ready")                    # mid-flight
+    # neither active nor queued (simulated metadata loss)
+    assert js.STORE.active_id() is None
+    assert js.STORE.queued_ids() == []
+    js.STORE.reconcile()
+    assert a.id in js.STORE.queued_ids()
+    # retained/terminal jobs are NOT resurrected
+    r = js.STORE.create("story", "audio", "kept", 1)
+    r.set_stage("needs_attention")
+    d = js.STORE.create("sim", "audio", "done", 1)
+    d.set_stage("delivered")
+    js.STORE.reconcile()
+    q = js.STORE.queued_ids()
+    assert r.id not in q and d.id not in q
 
 
 def test_release_by_non_active_keeps_pointer():

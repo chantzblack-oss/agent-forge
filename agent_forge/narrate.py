@@ -92,10 +92,9 @@ def build_narration(doc_path: str | Path, on_progress=None,
     if not scenes:
         raise RuntimeError("narration adaptation returned no segments")
     if checkpoint is not None:
-        try:
-            checkpoint("script", scenes)
-        except Exception:
-            pass
+        # durable checkpoint: a script that can't be persisted
+        # must stop the pipeline BEFORE any TTS spend
+        checkpoint("script", scenes)
 
     out = Path(out_path) if out_path else doc_path.with_suffix(".m4a")
     r = _video.render_podcast(

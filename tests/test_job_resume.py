@@ -216,3 +216,136 @@ def test_resume_gives_up_after_crash_loop(tmp_path, monkeypatch):
     app = types.SimpleNamespace(bot=FakeBot())
     asyncio.run(worker._resume_job(app))
     assert js.STORE.load(job.id).stage == "needs_attention"
+
+
+def test_dead_resume_paths_hand_slot_to_queue(tmp_path, monkeypatch):
+    """A malformed/over-resumed active job must not strand the queue:
+    the early-return paths start the next queued job."""
+    dead = js.STORE.create("story", "audio", "loopy", 5)
+    dead.d["resume_count"] = 4
+    dead.save()
+    js.STORE.acquire(dead)
+    queued = js.STORE.create("lesson", "audio", "next up", 5)
+    js.STORE.acquire(queued)                       # -> queued
+
+    started = []
+
+    async def fake_execute(context, job):
+        started.append(job.id)
+    monkeypatch.setattr(worker, "_execute_job", fake_execute)
+    app = types.SimpleNamespace(bot=FakeBot())
+    asyncio.run(worker._resume_job(app))
+    assert js.STORE.load(dead.id).stage == "needs_attention"
+    assert started == [queued.id]                  # queue continued
+
+
+def test_delivery_failure_keeps_delivery_as_resume_stage(tmp_path,
+                                                         monkeypatch):
+    """P0: an upload failure must NOT send /retry back through the
+    builder — resume_stage stays delivery_pending."""
+    doc = _good_doc(tmp_path)
+    job = js.STORE.create("story", "audio", "t", 5)
+    job.set_path("document", doc)
+    job.set_stage("document_ready")
+    js.STORE.acquire(job)
+
+    def fake_from_doc(d, say, audio, cp, clips, sc):
+        out = tmp_path / "e.m4a"
+        out.write_bytes(b"finished audio")
+        return {"title": "T", "path": out, "voiced": True}
+    monkeypatch.setitem(worker._FORMATS, "story",
+                        dict(worker._FORMATS["story"],
+                             from_doc=fake_from_doc))
+    ctx = FakeCtx()
+    ctx.bot.fail_sends = 99
+    asyncio.run(worker._execute_job(ctx, job))
+    kept = js.STORE.load(job.id)
+    assert kept.stage == "waiting_retry"
+    assert kept.get("resume_stage") == "delivery_pending"
+
+    # retry: upload only — any builder/TTS call is a failure
+    def must_not_build(*a, **k):
+        raise AssertionError("retry rebuilt instead of uploading")
+    monkeypatch.setitem(worker._FORMATS, "story",
+                        dict(worker._FORMATS["story"],
+                             builder=must_not_build,
+                             from_doc=must_not_build))
+    before = kept.get_path("final").read_bytes()
+    ctx2 = FakeCtx()
+    js.STORE.acquire(kept)
+    asyncio.run(worker._execute_job(ctx2, kept))
+    done = js.STORE.load(job.id)
+    assert done.stage == "delivered"
+    assert done.d["delivery"]["message_id"] == 777
+    assert done.get_path("final").read_bytes() == before   # byte-for-byte
+    assert any(s[0] == "audio" for s in ctx2.bot.sent)
+
+
+def test_retry_resets_failed_stage_counter(tmp_path):
+    job = js.STORE.create("story", "audio", "t", 5)
+    job.d["stage_failures"] = {"delivery_pending": 2}
+    job.set_stage("waiting_retry", resume_stage="delivery_pending")
+    # the reset targets resume_stage, not the retained bookkeeping stage
+    failed = job.get("resume_stage") or job.stage
+    job.d.setdefault("stage_failures", {})[failed] = 0
+    assert job.d["stage_failures"]["delivery_pending"] == 0
+
+
+def test_unsent_document_resent_on_resume(tmp_path, monkeypatch):
+    """Restart after document checkpoint but before its PDF reached
+    Telegram: the resume sends the PDF."""
+    doc = _good_doc(tmp_path)
+    job = js.STORE.create("story", "audio", "t", 5)
+    job.set_path("document", doc)
+    job.set_stage("document_ready")           # doc_sent never recorded
+    js.STORE.acquire(job)
+
+    def fake_from_doc(d, say, audio, cp, clips, sc):
+        out = tmp_path / "e.m4a"
+        out.write_bytes(b"m4a")
+        return {"title": "T", "path": out, "voiced": True}
+    monkeypatch.setitem(worker._FORMATS, "story",
+                        dict(worker._FORMATS["story"],
+                             from_doc=fake_from_doc))
+    from agent_forge import docrender
+    monkeypatch.setattr(docrender, "md_to_pdf", lambda p, *a, **k: p)
+    ctx = FakeCtx()
+    asyncio.run(worker._execute_job(ctx, job))
+    assert any(s[0] == "document" for s in ctx.bot.sent)   # PDF re-sent
+    assert js.STORE.load(job.id).get("doc_sent") is True
+
+
+def test_script_checkpoint_failure_stops_before_tts(tmp_path, monkeypatch):
+    """P1: a durable checkpoint that cannot persist must prevent paid
+    TTS work — the job is retained, not silently degraded."""
+    from agent_forge import story as _story
+    doc = _good_doc(tmp_path)
+    job = js.STORE.create("story", "audio", "t", 5)
+    job.set_path("document", doc)
+    job.set_stage("document_ready")
+    js.STORE.acquire(job)
+
+    def exploding_cp(kind, payload):
+        raise OSError("volume full")
+    monkeypatch.setattr(worker, "_job_checkpoint",
+                        lambda job, loop=None: exploding_cp)
+
+    def must_not_render(*a, **k):
+        raise AssertionError("TTS ran after checkpoint failure")
+    monkeypatch.setattr(worker._video, "render_podcast", must_not_render)
+    monkeypatch.setattr(worker._video, "render_scenes", must_not_render)
+
+    scenes = [{"kicker": "a", "narration": "x"}]
+    real_from_doc = worker._FORMATS["story"]["from_doc"]
+
+    def from_doc_with_script(d, say, audio, cp, clips, sc):
+        return _story.video_from_casefile(d, say, audio=audio,
+                                          checkpoint=cp, clips_dir=clips,
+                                          scenes=scenes)
+    monkeypatch.setitem(worker._FORMATS, "story",
+                        dict(worker._FORMATS["story"],
+                             from_doc=from_doc_with_script))
+    ctx = FakeCtx()
+    asyncio.run(worker._execute_job(ctx, job))
+    kept = js.STORE.load(job.id)
+    assert kept.stage in ("waiting_retry", "needs_attention")

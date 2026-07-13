@@ -168,10 +168,9 @@ def build_debate(topic: str, on_progress=None, on_doc=None,
                         encoding="utf-8")
 
     if on_doc is not None:
-        try:
-            on_doc(doc_path)
-        except Exception:
-            pass
+        # durable checkpoint: if the document can't be persisted,
+        # no paid script/TTS work may follow — let it raise
+        on_doc(doc_path)
     return video_from_brief(doc_path, on_progress=say, audio=audio,
                             checkpoint=checkpoint, clips_dir=clips_dir)
 
@@ -218,10 +217,9 @@ def video_from_brief(doc_path: str | Path, on_progress=None,
                     "rebuttal structure, and make the clash at the cruxes "
                     "sharper.")
     if checkpoint is not None:
-        try:
-            checkpoint("script", scenes)
-        except Exception:
-            pass
+        # durable checkpoint: a script that can't be persisted
+        # must stop the pipeline BEFORE any TTS spend
+        checkpoint("script", scenes)
 
     vd = ("You are one of two rival podcast hosts mid-argument — "
           "genuinely reacting to what the other just said. Talk TO "

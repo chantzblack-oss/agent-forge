@@ -196,10 +196,9 @@ def build_lesson(topic: str, on_progress=None, on_doc=None,
     )
 
     if on_doc is not None:
-        try:
-            on_doc(doc_path)
-        except Exception:
-            pass
+        # durable checkpoint: if the document can't be persisted,
+        # no paid script/TTS work may follow — let it raise
+        on_doc(doc_path)
 
     say("rendering the lesson video…")
     vid = _video.build_video(

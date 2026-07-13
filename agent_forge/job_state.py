@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -34,6 +35,12 @@ from pathlib import Path
 from .explorer import EXPLORATIONS_DIR
 
 SCHEMA_VERSION = 2
+
+# One lock guards every read-modify-write on shared durable state
+# (pointer, queue, ledger, job saves). The worker is a single process
+# with an event loop plus executor threads — a process-wide RLock is
+# sufficient and removes the whole lost-update class.
+_LOCK = threading.RLock()
 
 # Stage vocabulary (Phase 1 uses a subset; Phase 3 fills in the canary
 # stages). Order matters only for display; transitions are recorded, not
@@ -74,9 +81,13 @@ def _ledger_path() -> Path:
 
 def atomic_write_json(path: Path, obj) -> None:
     """tmp in the SAME directory + flush + fsync + os.replace: a crash at
-    any instant leaves either the old file or the new file, never a mix."""
+    any instant leaves either the old file or the new file, never a mix.
+    The temp name is unique per process/thread/call so concurrent writers
+    can never collide on one temp file."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + f".tmp{os.getpid()}")
+    tmp = path.with_name(
+        f"{path.name}.tmp-{os.getpid()}-{threading.get_ident()}-"
+        f"{uuid.uuid4().hex[:8]}")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(obj, f, ensure_ascii=False, indent=1)
         f.flush()
@@ -150,16 +161,25 @@ class Job:
 
     # -- persistence --------------------------------------------------------
     def save(self) -> None:
-        self.d["updated_at"] = time.time()
-        atomic_write_json(self.path("state.json"), self.d)
+        with _LOCK:
+            self.d["updated_at"] = time.time()
+            atomic_write_json(self.path("state.json"), self.d)
 
     def set_stage(self, stage: str, **fields) -> None:
         assert stage in STAGES, stage
-        self.d["stage"] = stage
-        history = self.d.setdefault("stage_history", [])
-        history.append({"stage": stage, "at": time.time()})
-        self.d.update(fields)
-        self.save()
+        with _LOCK:
+            self.d["stage"] = stage
+            # status is derived from stage — the two can't drift apart
+            if stage in TERMINAL:
+                self.d["status"] = "done"
+            elif stage in RETAINED:
+                self.d["status"] = "retained"
+            elif self.d.get("status") != "queued":
+                self.d["status"] = "running"
+            history = self.d.setdefault("stage_history", [])
+            history.append({"stage": stage, "at": time.time()})
+            self.d.update(fields)
+            self.save()
 
     def set_path(self, key: str, p) -> None:
         self.d.setdefault("paths", {})[key] = str(p)
@@ -245,20 +265,30 @@ class JobStore:
         return None
 
     def acquire(self, job: Job) -> bool:
-        """Try to make `job` the active heavy job. False -> it was queued."""
-        active = self.active_id()
-        if active and active != job.id and self.load(active):
+        """Try to make `job` the active heavy job. False -> it was queued.
+
+        Handoff order is crash-safe: the active pointer is committed
+        FIRST, and only then is the job removed from the queue. A crash
+        between the two leaves the job both active and queued — benign
+        duplication that release()/reconcile() clean up — never orphaned."""
+        with _LOCK:
+            active = self.active_id()
+            if active and active != job.id and self.load(active):
+                q = read_json(_queue_path(), default=[]) or []
+                if job.id not in q:
+                    q.append(job.id)
+                    atomic_write_json(_queue_path(), q)
+                job.d["status"] = "queued"
+                job.save()
+                return False
+            atomic_write_json(_pointer_path(), {"job_id": job.id})
             q = read_json(_queue_path(), default=[]) or []
-            if job.id not in q:
-                q.append(job.id)
-                atomic_write_json(_queue_path(), q)
-            job.d["status"] = "queued"
+            if job.id in q:
+                atomic_write_json(_queue_path(),
+                                  [j for j in q if j != job.id])
+            job.d["status"] = "running"
             job.save()
-            return False
-        atomic_write_json(_pointer_path(), {"job_id": job.id})
-        job.d["status"] = "running"
-        job.save()
-        return True
+            return True
 
     def queue_position(self, job_id: str) -> int | None:
         q = read_json(_queue_path(), default=[]) or []
@@ -266,25 +296,64 @@ class JobStore:
 
     def release(self, job: Job) -> str | None:
         """Free the active slot (only if `job` holds it) and return the
-        next queued job id, if any."""
-        if self.active_id() == job.id:
-            try:
-                _pointer_path().unlink(missing_ok=True)
-            except OSError:
-                pass
-        q = read_json(_queue_path(), default=[]) or []
-        q = [j for j in q if j != job.id]
-        nxt = None
-        while q and nxt is None:
-            cand = q[0]
-            if self.load(cand):
-                nxt = cand
-            q = q[1:] if nxt is None else q[1:]
-        atomic_write_json(_queue_path(), q)
-        return nxt
+        next queued job id, if any. The next job is only PEEKED — it
+        stays in the queue until its own acquire() commits the pointer,
+        so a crash here can never orphan it."""
+        with _LOCK:
+            if self.active_id() == job.id:
+                try:
+                    _pointer_path().unlink(missing_ok=True)
+                except OSError:
+                    pass
+            q = read_json(_queue_path(), default=[]) or []
+            if job.id in q:
+                q = [j for j in q if j != job.id]
+                atomic_write_json(_queue_path(), q)
+            for cand in q:
+                if self.load(cand):
+                    return cand
+            return None
 
     def queued_ids(self) -> list[str]:
         return list(read_json(_queue_path(), default=[]) or [])
+
+    def reconcile(self) -> None:
+        """Boot-time repair of pointer/queue metadata:
+        - a pointer to a missing or terminal job is cleared;
+        - queue entries that are missing, terminal, or the active job
+          are dropped;
+        - non-terminal, non-retained jobs that are neither active nor
+          queued (orphans from a crash mid-handoff) are re-queued."""
+        with _LOCK:
+            active = self.active_id()
+            aj = self.load(active) if active else None
+            if active and (aj is None or aj.stage in TERMINAL):
+                try:
+                    _pointer_path().unlink(missing_ok=True)
+                except OSError:
+                    pass
+                active = None
+            q = read_json(_queue_path(), default=[]) or []
+            clean = []
+            for jid in q:
+                j = self.load(jid)
+                if jid != active and j is not None \
+                        and j.stage not in TERMINAL:
+                    clean.append(jid)
+            known = set(clean) | ({active} if active else set())
+            for state_p in sorted(jobs_dir().glob("*/state.json")):
+                d = read_json(state_p)
+                if not d:
+                    continue
+                jid = d.get("job_id")
+                stage = d.get("stage")
+                if jid and jid not in known \
+                        and stage not in TERMINAL \
+                        and stage not in RETAINED:
+                    clean.append(jid)       # orphan -> back in line
+                    known.add(jid)
+            if clean != q:
+                atomic_write_json(_queue_path(), clean)
 
     # -- retained jobs (waiting_retry / needs_attention) ---------------------
     def latest_retained(self) -> Job | None:
@@ -304,11 +373,12 @@ class JobStore:
         return sum(1 for e in entries if e.get("at", 0) > cutoff)
 
     def ledger_add(self, kind: str) -> None:
-        entries = read_json(_ledger_path(), default=[]) or []
-        cutoff = time.time() - 86400
-        entries = [e for e in entries if e.get("at", 0) > cutoff]
-        entries.append({"at": time.time(), "kind": kind})
-        atomic_write_json(_ledger_path(), entries)
+        with _LOCK:
+            entries = read_json(_ledger_path(), default=[]) or []
+            cutoff = time.time() - 86400
+            entries = [e for e in entries if e.get("at", 0) > cutoff]
+            entries.append({"at": time.time(), "kind": kind})
+            atomic_write_json(_ledger_path(), entries)
 
     # -- retention --------------------------------------------------------------
     def sweep(self) -> None:
@@ -344,6 +414,18 @@ class JobStore:
         for _upd, jdir in delivered[KEEP_DELIVERED:]:
             if self.active_id() != jdir.name:
                 shutil.rmtree(jdir, ignore_errors=True)
+        # final media in explorations/ itself is also capped (newest N
+        # kept) — the 2 GB volume can't hold an unbounded library
+        keep_media = int(os.environ.get("FORGE_KEEP_MEDIA", "60"))
+        media = sorted(
+            (p for pat in ("*.mp4", "*.m4a", "*.mp3")
+             for p in EXPLORATIONS_DIR.glob(pat)),
+            key=lambda p: p.stat().st_mtime, reverse=True)
+        for p in media[keep_media:]:
+            try:
+                p.unlink()
+            except OSError:
+                pass
 
 
 STORE = JobStore()

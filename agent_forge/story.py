@@ -226,10 +226,9 @@ def build_story(case: str, on_progress=None, on_doc=None,
                         encoding="utf-8")
 
     if on_doc is not None:
-        try:
-            on_doc(doc_path)
-        except Exception:
-            pass
+        # durable checkpoint: if the document can't be persisted,
+        # no paid script/TTS work may follow — let it raise
+        on_doc(doc_path)
     return video_from_casefile(doc_path, on_progress=say, audio=audio,
                                checkpoint=checkpoint, clips_dir=clips_dir)
 
@@ -276,10 +275,9 @@ def video_from_casefile(doc_path: str | Path, on_progress=None,
                     "the respect rule absolute, and make the closing "
                     "question land like a stone in a well.")
     if checkpoint is not None:
-        try:
-            checkpoint("script", scenes)
-        except Exception:
-            pass
+        # durable checkpoint: a script that can't be persisted
+        # must stop the pipeline BEFORE any TTS spend
+        checkpoint("script", scenes)
 
     vd = ("You are a seasoned documentary narrator telling a dark true "
           "story late at night — low, intimate, measured. Controlled "

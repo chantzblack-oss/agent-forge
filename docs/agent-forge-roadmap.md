@@ -54,9 +54,45 @@ the execution pack (kept in the session/upload, not in the repo).
         bought exactly the 1 missing clip, episode delivered
   - Deviations: `_make_lesson`/`_make_show` kept as thin wrappers over
     the runner (compatibility with routing call sites); full
-    stage-granular canary fields land with Phase 3; delivery failures
-    release the queue slot but retain the job (retry re-assembles from
-    cached clips at ~$0)
+    stage-granular canary fields land with Phase 3
+- [x] **Phase 1 repair pass** (independent review findings, 2026-07-13)
+  - [x] P0 crash-safe queue handoff: release() only PEEKS the next job
+        (it stays queued until its own acquire commits the pointer);
+        acquire() commits pointer before dequeue; `reconcile()` at boot
+        repairs stale pointers, dead queue entries, and re-queues
+        orphaned non-terminal jobs; every `_resume_job` early-return
+        hands the slot to the queue via `_release_and_continue`
+  - [x] P0 thread safety: process-wide RLock over every read-modify-
+        write (saves, pointer, queue, ledger); unique per-thread/call
+        temp names in atomic_write_json
+  - [x] P0 TTS cache provenance: provider-separated keys and filenames
+        (`.mp3` vs `.edge.mp3`, Edge key includes rate/pitch), decode
+        validation (`_clip_valid`) before rename AND before reuse,
+        sidecar provenance json (provider/model/voice/fallback/duration/
+        size), per-attempt unique temp files, automatic upgrade of
+        fallback clips when OpenAI recovers, fallback status truthful
+        across restarts
+  - [x] P0 delivery preserved as resume stage: `resume_stage` persisted
+        on failure; delivery failures retry via `_deliver_final` (upload
+        only — no builder/TTS/assembly, byte-for-byte reuse); /retry
+        resets the actually-failed stage's counter; message id committed
+        before `delivered`
+  - [x] P1 durable early-document delivery: send observed and recorded
+        (`doc_sent` + message id); unconfirmed PDFs re-sent on resume;
+        failures warn visibly and keep the episode going
+  - [x] P1 checkpoint failures no longer swallowed: on_doc/checkpoint
+        exceptions propagate in every builder — a script that can't
+        persist stops the pipeline before TTS spend (checkpoint=None
+        session use unchanged)
+  - [x] P2: status derived from stage; explorations media capped
+        (FORGE_KEEP_MEDIA, newest 60); source.txt written atomically;
+        TTS model/voice/fallbacks/completed keys recorded in job state
+  - [x] 57 tests passing (`python -m compileall -q agent_forge` clean;
+        `pytest -q` = 57 passed) incl. new crash-between-release-and-
+        acquire, boot reconciliation, concurrent saves/acquires/ledger,
+        fallback provenance/upgrade/corruption, delivery-resume-no-
+        rebuild, checkpoint-failure-stops-TTS; end-to-end ffmpeg smoke
+        re-verified
 - [ ] **Phase 2 — performance-beat scripting** (audio-only script
       doctor, 55–85-word beats, OpenAI speed param, contextual gaps,
       music modes, `audio_pipeline.py`)

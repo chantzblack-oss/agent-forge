@@ -260,6 +260,19 @@ def _job_checkpoint(job: "_jobs.Job", loop=None):
     return cp
 
 
+def _record_tts(job: "_jobs.Job", r: dict) -> None:
+    """Persist what the render actually used — fallback count and the
+    completed synthesis keys — for quality manifests and retry math."""
+    tts = job.d.setdefault("tts", {})
+    tts["fallback_count"] = r.get("fallback") or 0
+    try:
+        tts["completed_keys"] = sorted(
+            p.stem for p in job.clips_dir.glob("*.mp3"))
+    except OSError:
+        pass
+    job.save()
+
+
 def _load_script(job: "_jobs.Job"):
     p = job.get_path("script")
     if p and p.exists():
@@ -281,6 +294,14 @@ async def _start_job(context, chat: int, kind: str, mode: str, topic: str,
             "Raise MAX_JOBS_PER_DAY in Render env if intentional.")
         return None
     job = _jobs.STORE.create(kind, mode, topic, chat, **extra)
+    # snapshot the TTS configuration now — Phase 3 quality manifests
+    # need to know exactly what voice/model produced each episode
+    job.d["tts"] = {
+        "model": os.environ.get("FORGE_TTS_MODEL", "gpt-4o-mini-tts"),
+        "voice": os.environ.get("FORGE_OPENAI_VOICE", "onyx"),
+        "edge_voice": os.environ.get("FORGE_TTS_VOICE", ""),
+        "fallback_count": 0,
+    }
     if prepare is not None:
         prepare(job)
         job.save()
@@ -295,16 +316,59 @@ async def _start_job(context, chat: int, kind: str, mode: str, topic: str,
     return job
 
 
+async def _deliver_final(context, job: "_jobs.Job"):
+    """Upload an already-finished artifact — the ONLY thing that runs
+    when resuming/retrying a delivery failure. No builder, no TTS, no
+    assembly: the existing file is reused byte-for-byte."""
+    chat = job.chat
+    final = job.get_path("final")
+    title = job.get("title") or job.topic
+    job.set_stage("delivery_pending")
+    job.d["delivery"]["attempts"] = job.d["delivery"].get("attempts", 0) + 1
+    job.save()
+    if final.suffix == ".pdf" or job.kind == "deep":
+        with open(final, "rb") as f:
+            msg = await context.bot.send_document(
+                chat_id=chat, document=f, filename=final.name,
+                caption=f"📜 {title}", **_SEND_KW)
+    else:
+        emoji = "\U0001f399" if job.mode == "audio" else "\U0001f3ac"
+        msg = await _deliver_video(context, chat, final,
+                                   f"{emoji} {title}")
+    # message id committed BEFORE the job is considered done
+    job.d["delivery"]["message_id"] = getattr(msg, "message_id", None)
+    job.d.pop("resume_stage", None)
+    job.set_stage("delivered")
+
+
+async def _release_and_continue(context, job: "_jobs.Job"):
+    """Free the active slot and hand it to the next queued job. Used by
+    every exit path — success, failure, and each resume early-return —
+    so releasing a dead job can never strand the queue."""
+    nxt = _jobs.STORE.release(job)
+    if nxt:
+        njob = _jobs.STORE.load(nxt)
+        if njob and _jobs.STORE.acquire(njob):
+            await context.bot.send_message(
+                njob.chat, f"▶️ Starting the queued job: "
+                           f"{njob.topic[:120]}")
+            asyncio.create_task(_execute_job(context, njob))
+
+
 async def _execute_job(context, job: "_jobs.Job"):
     """Run one persisted job from whatever stage its state says, deliver,
-    then start the next queued job. Failures are counted per stage:
-    waiting_retry (with clips/doc kept), needs_attention after
-    MAX_STAGE_FAILURES."""
+    then start the next queued job. Failures are counted per stage and
+    the FAILED stage is persisted as resume_stage: a delivery failure
+    resumes by re-uploading the finished file, never by rebuilding."""
     chat = job.chat
     say = _progress_sender(context, chat)
     loop = asyncio.get_running_loop()
     try:
-        if job.kind in _FORMATS:
+        final = job.get_path("final")
+        if job.get("resume_stage") == "delivery_pending" and final \
+                and final.exists():
+            await _deliver_final(context, job)
+        elif job.kind in _FORMATS:
             await _run_format_job(context, job, say, loop)
         elif job.kind == "deep":
             await _run_deep_job(context, job, say)
@@ -324,7 +388,7 @@ async def _execute_job(context, job: "_jobs.Job"):
         else:
             detail = f"{type(e).__name__}: {str(e)[:300]}"
         if n >= _jobs.MAX_STAGE_FAILURES:
-            job.set_stage("needs_attention")
+            job.set_stage("needs_attention", resume_stage=stage)
             doc = job.get_path("document")
             extra = ""
             if doc and doc.exists():
@@ -335,20 +399,13 @@ async def _execute_job(context, job: "_jobs.Job"):
                       f"{stage}: {detail}{extra}\nIt's retained — /retry "
                       "when you want another attempt.")
         else:
-            job.set_stage("waiting_retry")
+            job.set_stage("waiting_retry", resume_stage=stage)
             await context.bot.send_message(
                 chat, f"⚠️ “{job.topic[:80]}” failed at stage {stage} "
                       f"({n}/{_jobs.MAX_STAGE_FAILURES}): {detail}\n"
                       "Everything already built is saved — send /retry.")
     finally:
-        nxt = _jobs.STORE.release(job)
-        if nxt:
-            njob = _jobs.STORE.load(nxt)
-            if njob and _jobs.STORE.acquire(njob):
-                await context.bot.send_message(
-                    njob.chat, f"▶️ Starting the queued job: "
-                               f"{njob.topic[:120]}")
-                asyncio.create_task(_execute_job(context, njob))
+        await _release_and_continue(context, job)
 
 
 async def _run_format_job(context, job: "_jobs.Job", say, loop):
@@ -359,27 +416,46 @@ async def _run_format_job(context, job: "_jobs.Job", say, loop):
     cp = _job_checkpoint(job)
 
     async def _send_doc_early(doc_path):
-        send_path = doc_path
+        # observed, recorded delivery — never fire-and-forget: a restart
+        # checks doc_sent and re-sends an unconfirmed PDF
         try:
-            from .docrender import md_to_pdf
-            send_path = await _run_blocking(
-                md_to_pdf, doc_path, cfg["doc_subtitle"])
-        except Exception:
-            log.exception("pdf render failed; sending raw md")
-        with open(send_path, "rb") as f:
-            await context.bot.send_document(
-                chat_id=chat, document=f, filename=send_path.name,
-                caption=cfg["doc_caption"], **_SEND_KW)
-        job.d["doc_sent"] = True
-        job.save()
+            send_path = doc_path
+            try:
+                from .docrender import md_to_pdf
+                send_path = await _run_blocking(
+                    md_to_pdf, doc_path, cfg["doc_subtitle"])
+            except Exception:
+                log.exception("pdf render failed; sending raw md")
+            with open(send_path, "rb") as f:
+                msg = await context.bot.send_document(
+                    chat_id=chat, document=f, filename=send_path.name,
+                    caption=cfg["doc_caption"], **_SEND_KW)
+            job.d["doc_sent"] = True
+            job.d["doc_message_id"] = getattr(msg, "message_id", None)
+            job.save()
+        except Exception as e:
+            job.warn(f"cheat-sheet delivery failed: {e}")
+            try:
+                await context.bot.send_message(
+                    chat, "⚠️ The document PDF failed to upload — it's "
+                          "saved and will retry on the next resume; the "
+                          "episode continues.")
+            except Exception:
+                pass
 
     def _on_doc(doc_path):
+        # the DURABLE part must not be swallowed: if the document can't
+        # be checkpointed, no paid script/TTS work may follow
         job.set_path("document", doc_path)
         job.set_stage("document_ready")
         asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
 
     doc = job.get_path("document")
     scenes = _load_script(job)
+    if doc is not None and doc.exists() and not job.get("doc_sent"):
+        # a restart landed after the document checkpoint but before its
+        # PDF reached Telegram — send it now, before the episode
+        await _send_doc_early(doc)
     if doc is None or not doc.exists():
         job.set_stage("researching")
         r = await _run_blocking(
@@ -393,6 +469,7 @@ async def _run_format_job(context, job: "_jobs.Job", say, loop):
                                     scenes))
     title = r.get("title") or job.topic
     job.d["title"] = title
+    _record_tts(job, r)
     path = r.get("path") or r.get("video")
     job.set_path("final", path)
     job.set_stage("delivery_pending")
@@ -496,9 +573,14 @@ async def _narrate_message(update, context, target, doc: Path | None):
         return
     def _persist_source(job):
         # the source lives INSIDE the job dir — a temp-dir source would
-        # be gone after a restart, stranding the job
+        # be gone after a restart, stranding the job. Written atomically:
+        # a crash mid-write must not leave a truncated source.
         if pdf_text is not None:
-            job.path("source.txt").write_text(pdf_text, encoding="utf-8")
+            import os as _os
+            target = job.path("source.txt")
+            tmp = target.with_name(target.name + ".tmp")
+            tmp.write_text(pdf_text, encoding="utf-8")
+            _os.replace(tmp, target)
         else:
             job.set_path("document", doc)
 
@@ -783,6 +865,7 @@ async def _run_narrate_job(context, job: "_jobs.Job", say):
             checkpoint=_job_checkpoint(job), clips_dir=job.clips_dir,
             scenes=scenes))
     job.d["title"] = r.get("title") or job.topic
+    _record_tts(job, r)
     job.set_path("final", r["path"])
     job.set_stage("delivery_pending")
     tag = f" ({r.get('minutes', '?')} min)" if r.get("minutes") else ""
@@ -885,8 +968,11 @@ async def cmd_retry(update, context):
         await update.message.reply_text(
             "Nothing is waiting for a retry — all jobs delivered.")
         return
-    # a deliberate retry earns a fresh failure budget at the stuck stage
-    job.d.setdefault("stage_failures", {})[job.stage] = 0
+    # a deliberate retry earns a fresh failure budget at the stage that
+    # actually FAILED (persisted as resume_stage) — not at the retained
+    # bookkeeping stage
+    failed = job.get("resume_stage") or job.stage
+    job.d.setdefault("stage_failures", {})[failed] = 0
     job.d["status"] = "running"
     job.save()
     if not _jobs.STORE.acquire(job):
@@ -1088,9 +1174,10 @@ async def _post_init(app: Application) -> None:
     app._forge_loop = asyncio.get_running_loop()
     asyncio.get_event_loop().run_in_executor(None, _selfcheck)
     try:
+        _jobs.STORE.reconcile()   # repair pointer/queue after any crash
         _jobs.STORE.sweep()
     except Exception:
-        log.exception("retention sweep failed")
+        log.exception("boot reconcile/sweep failed")
     # A restart (deploy, OOM, crash) kills any in-flight job — announce
     # it, then RESUME the job from its persisted state.
     resumed = False
@@ -1158,12 +1245,12 @@ async def _resume_job(app: Application):
     chat = job.chat
     if not chat:
         job.set_stage("needs_attention")
-        _jobs.STORE.release(job)
+        await _release_and_continue(app, job)
         return
     job.d["resume_count"] = job.get("resume_count", 0) + 1
     job.save()
     if job.stage == "delivered":
-        _jobs.STORE.release(job)
+        await _release_and_continue(app, job)
         return
     if job.get("resume_count") > 4:
         job.set_stage("needs_attention")
@@ -1171,7 +1258,7 @@ async def _resume_job(app: Application):
             chat, f"🛑 “{job.topic[:80]}” has been interrupted "
                   f"{job.get('resume_count')} times — retaining it "
                   "instead of looping. /retry to attempt it again.")
-        _jobs.STORE.release(job)
+        await _release_and_continue(app, job)
         return
     # never resume a malformed doc (e.g. the model asked a question back
     # instead of researching) — that renders garbage on a loop
@@ -1189,11 +1276,15 @@ async def _resume_job(app: Application):
                 chat, f"⚡ A restart killed “{job.topic[:80]}”, and its "
                       "research looks malformed — retained, not resumed. "
                       "Send the request again.")
-            _jobs.STORE.release(job)
+            await _release_and_continue(app, job)
             return
-    if job.stage == "delivery_pending" and job.get_path("final") \
-            and job.get_path("final").exists():
+    final = job.get_path("final")
+    at_delivery = (job.stage == "delivery_pending"
+                   or job.get("resume_stage") == "delivery_pending")
+    if at_delivery and final and final.exists():
         note = "uploading the finished episode"
+        job.d["resume_stage"] = "delivery_pending"
+        job.save()
     elif doc and doc.exists():
         note = "the research is already done"
     else:
@@ -1201,33 +1292,8 @@ async def _resume_job(app: Application):
     await app.bot.send_message(
         chat, f"♻️ Restart killed “{job.topic[:80]}” at stage "
               f"{job.stage} — resuming ({note}).")
-    # delivery_pending with a finished artifact: upload it, don't rebuild
-    if job.stage == "delivery_pending":
-        final = job.get_path("final")
-        if final and final.exists():
-            try:
-                if final.suffix == ".pdf" or job.kind == "deep":
-                    with open(final, "rb") as f:
-                        msg = await app.bot.send_document(
-                            chat_id=chat, document=f, filename=final.name,
-                            caption=f"📜 {job.get('title') or job.topic}",
-                            **_SEND_KW)
-                else:
-                    emoji = "\U0001f399" if job.mode == "audio" else "\U0001f3ac"
-                    msg = await _deliver_video(
-                        app, chat, final,
-                        f"{emoji} {job.get('title') or job.topic}")
-                job.d["delivery"]["message_id"] = getattr(
-                    msg, "message_id", None)
-                job.set_stage("delivered")
-                nxt = _jobs.STORE.release(job)
-                if nxt:
-                    njob = _jobs.STORE.load(nxt)
-                    if njob and _jobs.STORE.acquire(njob):
-                        asyncio.create_task(_execute_job(app, njob))
-                return
-            except Exception:
-                log.exception("resume delivery failed; falling through")
+    # _execute_job handles the delivery_pending fast path (upload only,
+    # no rebuild) via resume_stage, and always continues the queue
     await _execute_job(app, job)
 
 

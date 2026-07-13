@@ -27,9 +27,36 @@ the execution pack (kept in the session/upload, not in the repo).
   - [x] `/diag` reports presence/length only — no key material
   - [x] `/test` copy is truthful (no LLM spend, ~1¢ TTS)
   - [x] auth + diag-secrecy tests added (`tests/test_worker_auth.py`)
-- [ ] **Phase 1 — durable, resumable jobs** (`job_state.py`, staged
-      runner on the explorations volume, single-heavy-job queue,
-      never-silently-omit narration, retention cleanup)
+- [x] **Phase 1 — durable, resumable jobs** (completed 2026-07-13)
+  - [x] `job_state.py`: schema-v2 state under `explorations/.jobs/<id>/`,
+        atomic writes (tmp+fsync+replace), stage history, per-stage
+        failure counts, legacy-payload detection, retention sweep,
+        volume-backed daily spend ledger
+  - [x] `pending_job.json` demoted to an atomic pointer; legacy payloads
+        never guessed (owner notified — a podcast can't become a video)
+  - [x] synthesis-keyed TTS clip cache (`clips/`, `.part.mp3` rename
+        discipline) — restarts/retries never repurchase finished audio
+  - [x] `NarrationIncomplete`: a podcast refuses to assemble with
+        missing segments (the None-filter silent-omission bug is dead)
+  - [x] stage-driven runner `_execute_job` + `_run_format_job`/
+        `_run_deep_job`/`_run_narrate_job`; document checkpointed before
+        early PDF send; script checkpointed before any TTS
+  - [x] one-heavy-job queue with positions; queued jobs start on
+        release AND on boot; auto-feed skips while a job is active
+  - [x] `/retry` (fresh failure budget at the stuck stage);
+        needs_attention after 3 failures at a stage; resume-loop cap (4)
+  - [x] uploaded-PDF audiobooks persist their source in the job dir
+  - [x] restock/daily loops start from `_post_init` on EVERY boot
+        (previously only after a resume — clean boots had no auto-feed)
+  - [x] tests: `test_job_state` `test_job_queue` `test_job_resume`
+        `test_audio_assembly` (39 total passing) + end-to-end sandbox
+        smoke with real ffmpeg: crash mid-TTS kept 3/4 clips, retry
+        bought exactly the 1 missing clip, episode delivered
+  - Deviations: `_make_lesson`/`_make_show` kept as thin wrappers over
+    the runner (compatibility with routing call sites); full
+    stage-granular canary fields land with Phase 3; delivery failures
+    release the queue slot but retain the job (retry re-assembles from
+    cached clips at ~$0)
 - [ ] **Phase 2 — performance-beat scripting** (audio-only script
       doctor, 55–85-word beats, OpenAI speed param, contextual gaps,
       music modes, `audio_pipeline.py`)

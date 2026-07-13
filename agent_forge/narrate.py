@@ -55,9 +55,14 @@ def pdf_to_text(pdf_path: str | Path) -> str:
 
 def build_narration(doc_path: str | Path, on_progress=None,
                     text: str | None = None,
-                    out_path: str | Path | None = None) -> dict:
+                    out_path: str | Path | None = None,
+                    checkpoint=None, clips_dir=None,
+                    scenes: list[dict] | None = None) -> dict:
     """Convert a document to a narrated m4a next to it. Pass `text` to
-    narrate extracted content (e.g. from a PDF) instead of reading md."""
+    narrate extracted content (e.g. from a PDF) instead of reading md.
+    `checkpoint`/`clips_dir`/`scenes` wire this into the durable job
+    runner: the script is saved before TTS, clips are reusable across
+    restarts, and a checkpointed script skips re-adaptation entirely."""
     say = on_progress or (lambda _m: None)
     doc_path = Path(doc_path)
     doc = text if text is not None else doc_path.read_text(encoding="utf-8")
@@ -68,27 +73,33 @@ def build_narration(doc_path: str | Path, on_progress=None,
     title = (m.group(1).strip() if m
              else doc.splitlines()[0].strip()[:80] or doc_path.stem)
 
-    say("adapting the document for narration…")
-    provider = get_provider("anthropic")
-    raw = provider.complete(
-        system=_NARRATION_SYSTEM, user=doc[:34000],
-        model=WRITER_MODEL, max_tokens=16000,
-    )
-    scenes = _video._parse_scenes(raw)
-    if not scenes:
-        raw2 = provider.complete(
-            system=_NARRATION_SYSTEM,
-            user=(doc[:34000] + "\n\nYour previous output could not be "
-                  "parsed as JSON. Output ONLY the raw JSON array."),
+    if scenes is None:
+        say("adapting the document for narration…")
+        provider = get_provider("anthropic")
+        raw = provider.complete(
+            system=_NARRATION_SYSTEM, user=doc[:34000],
             model=WRITER_MODEL, max_tokens=16000,
         )
-        scenes = _video._parse_scenes(raw2)
+        scenes = _video._parse_scenes(raw)
+        if not scenes:
+            raw2 = provider.complete(
+                system=_NARRATION_SYSTEM,
+                user=(doc[:34000] + "\n\nYour previous output could not be "
+                      "parsed as JSON. Output ONLY the raw JSON array."),
+                model=WRITER_MODEL, max_tokens=16000,
+            )
+            scenes = _video._parse_scenes(raw2)
     if not scenes:
         raise RuntimeError("narration adaptation returned no segments")
+    if checkpoint is not None:
+        try:
+            checkpoint("script", scenes)
+        except Exception:
+            pass
 
     out = Path(out_path) if out_path else doc_path.with_suffix(".m4a")
     r = _video.render_podcast(
-        scenes, out, on_progress=say,
+        scenes, out, on_progress=say, clips_dir=clips_dir,
         voice_direction=(
             "You are a superb audiobook narrator — warm, intelligent, "
             "unhurried but never sleepy. Real inflection: lift slightly "

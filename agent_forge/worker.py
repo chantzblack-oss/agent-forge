@@ -52,66 +52,42 @@ from . import deep as _deep
 from . import narrate as _narrate
 from . import taste as _taste
 
+from . import job_state as _jobs
+
 # last delivered sim dossier per chat — enables "branch A/B" continuations
 _LAST_SIM: dict[int, str] = {}
-
-# The in-flight job, persisted to disk so a restart (deploy/OOM) can
-# resume the render instead of silently orphaning it.
-_PENDING = None
-
-
-def _pending_path():
-    return _explorer.EXPLORATIONS_DIR / "pending_job.json"
-
-
-def _pending_write(kind: str, topic: str, chat: int, doc: str | None = None):
-    import json
-    try:
-        _explorer.EXPLORATIONS_DIR.mkdir(exist_ok=True)
-        _pending_path().write_text(json.dumps(
-            {"kind": kind, "topic": topic, "chat": chat, "doc": doc}))
-    except Exception:
-        log.warning("pending-job write failed")
-
-
-def _pending_clear():
-    try:
-        _pending_path().unlink(missing_ok=True)
-    except Exception:
-        pass
 
 log = logging.getLogger("agent_forge.worker")
 
 # Hard daily cap on expensive jobs (lessons/surprises/auto-feed items).
 # Each job is roughly $1.50-2.50 of API spend; this is the in-app circuit
 # breaker so no bug can ever drain an account. Override with MAX_JOBS_PER_DAY.
+# The ledger lives on the persistent volume, so a deploy can't reset it.
 _MAX_JOBS_PER_DAY = int(os.environ.get("MAX_JOBS_PER_DAY", "6"))
-_jobs_today: list[float] = []
 
 
 def _job_allowed() -> bool:
-    import time as _t
-    cutoff = _t.time() - 86400
-    _jobs_today[:] = [t for t in _jobs_today if t > cutoff]
-    if len(_jobs_today) >= _MAX_JOBS_PER_DAY:
+    if _jobs.STORE.ledger_count_24h() >= _MAX_JOBS_PER_DAY:
         return False
-    _jobs_today.append(_t.time())
+    _jobs.STORE.ledger_add("job")
     return True
 
 
 def _jobs_left() -> bool:
     """Peek at the cap without consuming a slot (the real consumption
     happens inside the job pipeline)."""
-    import time as _t
-    cutoff = _t.time() - 86400
-    _jobs_today[:] = [t for t in _jobs_today if t > cutoff]
-    return len(_jobs_today) < _MAX_JOBS_PER_DAY
+    return _jobs.STORE.ledger_count_24h() < _MAX_JOBS_PER_DAY
 
 _ALLOWED = {int(x) for x in os.environ.get("TELEGRAM_ALLOWED_USERS", "").replace(" ", "").split(",") if x}
 
 
 def _ok(update: Update) -> bool:
-    return not _ALLOWED or (update.effective_user and update.effective_user.id in _ALLOWED)
+    """Authorization: fail CLOSED. An empty allowlist admits nobody unless
+    FORGE_ALLOW_PUBLIC=1 explicitly opts into public mode (local dev)."""
+    if _ALLOWED:
+        return bool(update.effective_user
+                    and update.effective_user.id in _ALLOWED)
+    return os.environ.get("FORGE_ALLOW_PUBLIC") == "1"
 
 
 async def _run_blocking(fn, *a, **k):
@@ -150,17 +126,19 @@ _SEND_KW = dict(read_timeout=300, write_timeout=300,
 async def _deliver_video(context, chat_id, path: Path, caption: str, doc: Path | None = None):
     # Uploads from the host can be slow; the library's default ~20s write
     # timeout kills them. Long timeouts + one retry.
+    # Returns the sent Telegram message (so jobs can commit its id).
     is_audio = str(path).endswith((".m4a", ".mp3"))
+    msg = None
     for attempt in (1, 2):
         try:
             with open(path, "rb") as f:
                 if is_audio:
-                    await context.bot.send_audio(
+                    msg = await context.bot.send_audio(
                         chat_id=chat_id, audio=f, caption=caption[:1024],
                         title=caption.lstrip("🎙🎓🥊🔮🕯✨️ ")[:64],
                         performer="Agent Forge", **_SEND_KW)
                 else:
-                    await context.bot.send_video(
+                    msg = await context.bot.send_video(
                         chat_id=chat_id, video=f, caption=caption[:1024],
                         supports_streaming=True, **_SEND_KW)
             break
@@ -174,6 +152,7 @@ async def _deliver_video(context, chat_id, path: Path, caption: str, doc: Path |
             await context.bot.send_document(
                 chat_id=chat_id, document=f, filename=doc.name,
                 caption="cheat-sheet", **_SEND_KW)
+    return msg
 
 
 # ── commands ─────────────────────────────────────────────
@@ -203,139 +182,266 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "its own episode.\n"
         "• /taste <note> — feedback that becomes a standing rule for "
         "every future script.\n"
+        "• /retry — re-run the last failed job (everything already "
+        "built is reused, you only pay for the missing part).\n"
         "• /feed and /play <n> — your library.\n\n"
         "Give me a few minutes per video — it’s researched, written, "
         "narrated and rendered."
     )
 
 
-async def _make_lesson(update, context, topic: str, audio: bool = False):
+# ── the durable job runner ─────────────────────────────────
+#
+# Every heavy request becomes a persisted job (see job_state.py). The
+# runner is stage-driven: whatever already exists on disk (document,
+# script, TTS clips) is REUSED, never repurchased — a restart or /retry
+# resumes exactly where the money stopped.
+
+# Per-format configuration: how to build from scratch, how to build from
+# an existing document, and how to dress the deliverables.
+_FORMATS = {
+    "lesson": dict(
+        opening="Building your lesson on",
+        builder=lambda topic, say, on_doc, audio, cp, clips:
+            _lesson.build_lesson(topic, say, on_doc, audio=audio,
+                                 checkpoint=cp, clips_dir=clips),
+        from_doc=lambda doc, say, audio, cp, clips, scenes:
+            _video.build_video(doc, say, _lesson._LESSON_VIDEO_SYSTEM,
+                               "THE LESSON", audio=audio, checkpoint=cp,
+                               clips_dir=clips, scenes=scenes),
+        doc_subtitle="Agent Forge lesson",
+        doc_caption="cheat-sheet (episode rendering…)",
+        emoji="\U0001f393"),
+    "debate": dict(
+        opening="Setting up the debate",
+        builder=lambda topic, say, on_doc, audio, cp, clips:
+            _debate.build_debate(topic, say, on_doc, audio=audio,
+                                 checkpoint=cp, clips_dir=clips),
+        from_doc=lambda doc, say, audio, cp, clips, scenes:
+            _debate.video_from_brief(doc, say, audio=audio, checkpoint=cp,
+                                     clips_dir=clips, scenes=scenes),
+        doc_subtitle="Agent Forge debate brief",
+        doc_caption="debate brief (the hosts are warming up…)",
+        emoji="\U0001f94a"),
+    "sim": dict(
+        opening="Running the simulation",
+        builder=lambda topic, say, on_doc, audio, cp, clips:
+            _sim.build_sim(topic, say, on_doc, audio=audio,
+                           checkpoint=cp, clips_dir=clips),
+        from_doc=lambda doc, say, audio, cp, clips, scenes:
+            _sim.video_from_dossier(doc, say, audio=audio, checkpoint=cp,
+                                    clips_dir=clips, scenes=scenes),
+        doc_subtitle="Agent Forge scenario dossier",
+        doc_caption="scenario dossier (playback rendering…)",
+        emoji="\U0001f52e"),
+    "story": dict(
+        opening="Opening the case",
+        builder=lambda topic, say, on_doc, audio, cp, clips:
+            _story.build_story(topic, say, on_doc, audio=audio,
+                               checkpoint=cp, clips_dir=clips),
+        from_doc=lambda doc, say, audio, cp, clips, scenes:
+            _story.video_from_casefile(doc, say, audio=audio, checkpoint=cp,
+                                       clips_dir=clips, scenes=scenes),
+        doc_subtitle="Agent Forge case file",
+        doc_caption="case file (the episode is rendering…)",
+        emoji="\U0001f56f️"),
+}
+
+
+def _job_checkpoint(job: "_jobs.Job", loop=None):
+    """checkpoint(kind, payload) callable handed to builders — persists
+    the script the moment it exists, BEFORE any TTS spend. Thread-safe:
+    builders call it from the executor thread."""
+    def cp(kind, payload):
+        if kind == "script":
+            _jobs.atomic_write_json(job.path("script.json"), payload)
+            job.set_path("script", job.path("script.json"))
+            job.set_stage("script_ready")
+    return cp
+
+
+def _load_script(job: "_jobs.Job"):
+    p = job.get_path("script")
+    if p and p.exists():
+        scenes = _jobs.read_json(p)
+        if isinstance(scenes, list) and scenes:
+            return scenes
+    return None
+
+
+async def _start_job(context, chat: int, kind: str, mode: str, topic: str,
+                     announce: str, prepare=None, **extra):
+    """Create + persist the job, then run it now or queue it. The single
+    entry point for every heavy request. `prepare(job)` runs after
+    creation but BEFORE execution starts (persist sources, etc.)."""
     if not _job_allowed():
         await context.bot.send_message(
-            update.effective_chat.id,
+            chat,
             f"Daily budget guard: {_MAX_JOBS_PER_DAY} jobs/day reached. "
             "Raise MAX_JOBS_PER_DAY in Render env if intentional.")
-        return
-    chat = update.effective_chat.id
-    await context.bot.send_message(chat, f"Building your lesson on: {topic}\n(a few minutes…)")
-    _pending_write("lesson", topic, chat)
+        return None
+    job = _jobs.STORE.create(kind, mode, topic, chat, **extra)
+    if prepare is not None:
+        prepare(job)
+        job.save()
+    if not _jobs.STORE.acquire(job):
+        pos = _jobs.STORE.queue_position(job.id) or "?"
+        await context.bot.send_message(
+            chat, f"⏳ Another episode is in production — queued this one "
+                  f"(position {pos}): {topic[:120]}")
+        return job
+    await context.bot.send_message(chat, announce)
+    asyncio.create_task(_execute_job(context, job))
+    return job
+
+
+async def _execute_job(context, job: "_jobs.Job"):
+    """Run one persisted job from whatever stage its state says, deliver,
+    then start the next queued job. Failures are counted per stage:
+    waiting_retry (with clips/doc kept), needs_attention after
+    MAX_STAGE_FAILURES."""
+    chat = job.chat
+    say = _progress_sender(context, chat)
+    loop = asyncio.get_running_loop()
+    try:
+        if job.kind in _FORMATS:
+            await _run_format_job(context, job, say, loop)
+        elif job.kind == "deep":
+            await _run_deep_job(context, job, say)
+        elif job.kind == "narrate":
+            await _run_narrate_job(context, job, say)
+        else:
+            job.error(f"unknown kind {job.kind!r}")
+            job.set_stage("needs_attention")
+    except Exception as e:
+        stage = job.stage
+        log.exception("job %s failed at %s", job.id, stage)
+        n = job.record_failure(stage, f"{type(e).__name__}: {e}")
+        if isinstance(e, _video.NarrationIncomplete):
+            detail = (f"{len(e.missing)} of {e.total} narration segments "
+                      "failed TTS. Finished clips are saved — /retry only "
+                      "pays for the missing ones.")
+        else:
+            detail = f"{type(e).__name__}: {str(e)[:300]}"
+        if n >= _jobs.MAX_STAGE_FAILURES:
+            job.set_stage("needs_attention")
+            doc = job.get_path("document")
+            extra = ""
+            if doc and doc.exists():
+                extra = ("\nThe research document was already delivered "
+                         "and is safe.")
+            await context.bot.send_message(
+                chat, f"🛑 “{job.topic[:80]}” failed {n}× at stage "
+                      f"{stage}: {detail}{extra}\nIt's retained — /retry "
+                      "when you want another attempt.")
+        else:
+            job.set_stage("waiting_retry")
+            await context.bot.send_message(
+                chat, f"⚠️ “{job.topic[:80]}” failed at stage {stage} "
+                      f"({n}/{_jobs.MAX_STAGE_FAILURES}): {detail}\n"
+                      "Everything already built is saved — send /retry.")
+    finally:
+        nxt = _jobs.STORE.release(job)
+        if nxt:
+            njob = _jobs.STORE.load(nxt)
+            if njob and _jobs.STORE.acquire(njob):
+                await context.bot.send_message(
+                    njob.chat, f"▶️ Starting the queued job: "
+                               f"{njob.topic[:120]}")
+                asyncio.create_task(_execute_job(context, njob))
+
+
+async def _run_format_job(context, job: "_jobs.Job", say, loop):
+    """lesson/debate/sim/story — document, then script, then episode."""
+    cfg = _FORMATS[job.kind]
+    chat = job.chat
+    audio = job.mode == "audio"
+    cp = _job_checkpoint(job)
 
     async def _send_doc_early(doc_path):
-        # The research is the expensive part — deliver it the moment it exists,
-        # so a later video failure never wastes what was already paid for.
-        # Render to a typeset PDF (raw .md shows as unformatted text on phones).
         send_path = doc_path
         try:
             from .docrender import md_to_pdf
-            send_path = await _run_blocking(md_to_pdf, doc_path)
+            send_path = await _run_blocking(
+                md_to_pdf, doc_path, cfg["doc_subtitle"])
         except Exception:
             log.exception("pdf render failed; sending raw md")
         with open(send_path, "rb") as f:
             await context.bot.send_document(
                 chat_id=chat, document=f, filename=send_path.name,
-                caption="cheat-sheet (video rendering…)", **_SEND_KW)
-
-    loop = asyncio.get_event_loop()
+                caption=cfg["doc_caption"], **_SEND_KW)
+        job.d["doc_sent"] = True
+        job.save()
 
     def _on_doc(doc_path):
-        _pending_write("lesson", topic, chat, doc=str(doc_path))
+        job.set_path("document", doc_path)
+        job.set_stage("document_ready")
         asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
 
-    try:
+    doc = job.get_path("document")
+    scenes = _load_script(job)
+    if doc is None or not doc.exists():
+        job.set_stage("researching")
         r = await _run_blocking(
-            lambda *a: _lesson.build_lesson(*a, audio=audio), topic,
-            _progress_sender(context, chat), _on_doc)
-    except Exception as e:  # pragma: no cover
-        log.exception("lesson failed")
-        await context.bot.send_message(
-            chat, f"That one failed: {type(e).__name__}: {e}"
-        )
-        _pending_clear()
-        return
-    _pending_clear()
-    tag = "" if r["voiced"] else " (silent — no TTS on this host)"
-    await _deliver_video(context, chat, r["video"], f"\U0001f393 {r['title']}{tag}")
-
-
-async def _make_show(update, context, topic: str, builder, *,
-                     opening: str, doc_subtitle: str, doc_caption: str,
-                     emoji: str, kind: str = "show", audio: bool = False):
-    if audio:
-        import functools
-        builder = functools.partial(builder, audio=True)
-        emoji = "\U0001f399"
-    """Shared runner for the doc+video formats (debate, simulation): job
-    guard, early PDF delivery of the paper half, then the video."""
-    if not _job_allowed():
-        await context.bot.send_message(
-            update.effective_chat.id,
-            f"Daily budget guard: {_MAX_JOBS_PER_DAY} jobs/day reached. "
-            "Raise MAX_JOBS_PER_DAY in Render env if intentional.")
-        return
-    chat = update.effective_chat.id
-    await context.bot.send_message(chat, f"{opening}: {topic}\n(a few minutes…)")
-    _pending_write(kind, topic, chat)
-
-    async def _send_doc_early(doc_path):
-        # Same doctrine as lessons: the research is the expensive part, so
-        # the paper half ships the moment it exists.
-        send_path = doc_path
-        try:
-            from .docrender import md_to_pdf
-            send_path = await _run_blocking(md_to_pdf, doc_path, doc_subtitle)
-        except Exception:
-            log.exception("pdf render failed; sending raw md")
-        with open(send_path, "rb") as f:
-            await context.bot.send_document(
-                chat_id=chat, document=f, filename=send_path.name,
-                caption=doc_caption, **_SEND_KW)
-
-    loop = asyncio.get_event_loop()
-
-    def _on_doc(doc_path):
-        _pending_write(kind, topic, chat, doc=str(doc_path))
-        asyncio.run_coroutine_threadsafe(_send_doc_early(doc_path), loop)
-
-    try:
-        r = await _run_blocking(builder, topic,
-                                _progress_sender(context, chat), _on_doc)
-    except Exception as e:  # pragma: no cover
-        log.exception("%s failed", opening)
-        await context.bot.send_message(
-            chat, f"That one failed: {type(e).__name__}: {e}")
-        _pending_clear()
-        return
-    _pending_clear()
-    tag = "" if r["voiced"] else " (silent — no TTS on this host)"
-    await _deliver_video(context, chat, r["path"], f"{emoji} {r['title']}{tag}")
+            lambda: cfg["builder"](job.topic, say, _on_doc, audio, cp,
+                                   job.clips_dir))
+    else:
+        # research already paid for — never repeat it
+        job.set_stage("script_ready" if scenes else "script_generating")
+        r = await _run_blocking(
+            lambda: cfg["from_doc"](doc, say, audio, cp, job.clips_dir,
+                                    scenes))
+    title = r.get("title") or job.topic
+    job.d["title"] = title
+    path = r.get("path") or r.get("video")
+    job.set_path("final", path)
+    job.set_stage("delivery_pending")
+    emoji = "\U0001f399" if audio else cfg["emoji"]
+    tag = "" if r.get("voiced", True) else " (silent — no TTS on this host)"
+    job.d["delivery"]["attempts"] = job.d["delivery"].get("attempts", 0) + 1
+    job.save()
+    msg = await _deliver_video(context, chat, Path(path),
+                               f"{emoji} {title}{tag}")
+    job.d["delivery"]["message_id"] = getattr(msg, "message_id", None)
+    job.set_stage("delivered")
     if r.get("quality"):
         await context.bot.send_message(chat, f"🧪 {r['quality']}")
-    return r
+    if job.kind == "sim" and r.get("doc"):
+        _LAST_SIM[chat] = str(r["doc"])
+        await context.bot.send_message(
+            chat, "🔀 This run followed the mainline. Reply “branch <name "
+                  "or letter>” (from the dossier's branch points) and I'll "
+                  "run that fork as its own episode.")
+
+
+async def _make_lesson(update, context, topic: str, audio: bool = False):
+    chat = update.effective_chat.id
+    await _start_job(
+        context, chat, "lesson", "audio" if audio else "video", topic,
+        f"Building your lesson on: {topic}\n(a few minutes…)")
+
+
+async def _make_show(update, context, topic: str, builder=None, *,
+                     opening: str = "", doc_subtitle: str = "",
+                     doc_caption: str = "", emoji: str = "",
+                     kind: str = "show", audio: bool = False):
+    """Compatibility wrapper: routes the doc+episode formats through the
+    durable job runner (config now lives in _FORMATS)."""
+    chat = update.effective_chat.id
+    cfg = _FORMATS.get(kind)
+    open_line = (cfg["opening"] if cfg else opening) or "Working on"
+    await _start_job(
+        context, chat, kind, "audio" if audio else "video", topic,
+        f"{open_line}: {topic}\n(a few minutes…)")
 
 
 async def _make_debate(update, context, topic: str, audio: bool = False):
-    await _make_show(
-        update, context, topic, _debate.build_debate,
-        opening="Setting up the debate",
-        doc_subtitle="Agent Forge debate brief",
-        doc_caption="debate brief (the hosts are warming up…)",
-        emoji="\U0001f94a", kind="debate", audio=audio)
+    await _make_show(update, context, topic, kind="debate", audio=audio)
 
 
 async def _make_sim(update, context, scenario: str, audio: bool = False):
-    r = await _make_show(
-        update, context, scenario, _sim.build_sim,
-        opening="Running the simulation",
-        doc_subtitle="Agent Forge scenario dossier",
-        doc_caption="scenario dossier (playback rendering…)",
-        emoji="\U0001f52e", kind="sim", audio=audio)
-    if r and r.get("doc"):
-        _LAST_SIM[update.effective_chat.id] = str(r["doc"])
-        await context.bot.send_message(
-            update.effective_chat.id,
-            "🔀 This run followed the mainline. Reply “branch <name or "
-            "letter>” (from the dossier's branch points) and I'll run "
-            "that fork as its own episode.")
+    # branch replies are announced by the runner after delivery
+    await _make_show(update, context, scenario, kind="sim", audio=audio)
 
 
 def _find_doc_for(caption: str) -> Path | None:
@@ -388,26 +494,18 @@ async def _narrate_message(update, context, target, doc: Path | None):
             "directly to the PDF you want read (forwarded PDFs "
             "work too).")
         return
-    await context.bot.send_message(
-        chat, "🎧 Adapting the document for narration (5-10 min)…")
-    say = _progress_sender(context, chat)
-    try:
-        r = await _run_blocking(
-            lambda: _narrate.build_narration(
-                doc, say, text=pdf_text, out_path=out_hint))
-    except Exception as e:
-        log.exception("narration failed")
-        await context.bot.send_message(
-            chat, f"Narration failed: {type(e).__name__}: {e}")
-        return
-    tag = (f" ({r.get('minutes', '?')} min)"
-           if r.get("minutes") else "")
-    await _deliver_video(context, chat, r["path"],
-                         f"🎧 {r['title']}{tag}")
-    if r.get("fallback"):
-        await context.bot.send_message(
-            chat, f"⚠️ {r['fallback']} segments used the fallback "
-                  "voice — check OpenAI limits.")
+    def _persist_source(job):
+        # the source lives INSIDE the job dir — a temp-dir source would
+        # be gone after a restart, stranding the job
+        if pdf_text is not None:
+            job.path("source.txt").write_text(pdf_text, encoding="utf-8")
+        else:
+            job.set_path("document", doc)
+
+    await _start_job(
+        context, chat, "narrate", "audio", f"audiobook: {doc.name}",
+        "🎧 Adapting the document for narration (5-10 min)…",
+        prepare=_persist_source, out_hint=out_hint)
 
 
 async def on_document(update, context):
@@ -604,12 +702,7 @@ async def cmd_debate(update, context):
 
 
 async def _make_story(update, context, case: str, audio: bool = False):
-    await _make_show(
-        update, context, case, _story.build_story,
-        opening="Opening the case file",
-        doc_subtitle="Agent Forge case file",
-        doc_caption="case file (the episode is rendering…)",
-        emoji="\U0001f56f️", kind="story", audio=audio)
+    await _make_show(update, context, case, kind="story", audio=audio)
 
 
 async def cmd_story(update, context):
@@ -638,36 +731,78 @@ async def _discover_story(update, context):
     await _make_story(update, context, case)
 
 
-async def _make_deep(update, context, question: str):
-    """Document-only flagship: the definitive dossier, no video."""
-    if not _job_allowed():
-        await context.bot.send_message(
-            update.effective_chat.id,
-            f"Daily budget guard: {_MAX_JOBS_PER_DAY} jobs/day reached.")
-        return
-    chat = update.effective_chat.id
-    await context.bot.send_message(
-        chat, f"Going deep: {question}\n(10-15 minutes — research, "
-              "adversarial review, synthesis, edit…)")
-    try:
-        r = await _run_blocking(_deep.build_deep, question,
-                                _progress_sender(context, chat))
-    except Exception as e:
-        log.exception("deep failed")
-        await context.bot.send_message(
-            chat, f"That one failed: {type(e).__name__}: {e}")
-        return
-    send_path = r["doc"]
+async def _run_deep_job(context, job: "_jobs.Job", say):
+    """Document-only flagship. Stages: researching -> document_ready ->
+    delivery_pending -> delivered. A restart after the document exists
+    only re-renders/re-uploads the PDF — the research is never repeated."""
+    chat = job.chat
+    doc = job.get_path("document")
+    if doc is None or not doc.exists():
+        job.set_stage("researching")
+        r = await _run_blocking(_deep.build_deep, job.topic, say)
+        doc = Path(str(r["doc"]))
+        job.d["title"] = r["title"]
+        job.set_path("document", doc)
+        job.set_stage("document_ready")
+    title = job.get("title") or job.topic
+    send_path = doc
     try:
         from .docrender import md_to_pdf
         send_path = await _run_blocking(
-            md_to_pdf, r["doc"], "Agent Forge deep dossier")
+            md_to_pdf, doc, "Agent Forge deep dossier")
     except Exception:
         log.exception("pdf render failed; sending raw md")
+    job.set_path("final", send_path)
+    job.set_stage("delivery_pending")
     with open(send_path, "rb") as f:
-        await context.bot.send_document(
+        msg = await context.bot.send_document(
             chat_id=chat, document=f, filename=send_path.name,
-            caption=f"📜 {r['title']}", **_SEND_KW)
+            caption=f"📜 {title}", **_SEND_KW)
+    job.d["delivery"]["message_id"] = getattr(msg, "message_id", None)
+    job.set_stage("delivered")
+
+
+async def _run_narrate_job(context, job: "_jobs.Job", say):
+    """Audiobook of a document. The source text is persisted in the job
+    dir, the adapted script checkpoints before TTS, and clips are keyed —
+    a restart resumes from whatever is already on disk."""
+    chat = job.chat
+    src = job.path("source.txt")
+    text = src.read_text(encoding="utf-8") if src.exists() else None
+    doc = job.get_path("document") or src
+    scenes = _load_script(job)
+    if scenes is None:
+        job.set_stage("script_generating")
+    else:
+        job.set_stage("full_tts")
+    out = job.get("out_hint") or str(
+        _explorer.EXPLORATIONS_DIR / (Path(str(doc)).stem + ".m4a"))
+    r = await _run_blocking(
+        lambda: _narrate.build_narration(
+            doc, say, text=text, out_path=out,
+            checkpoint=_job_checkpoint(job), clips_dir=job.clips_dir,
+            scenes=scenes))
+    job.d["title"] = r.get("title") or job.topic
+    job.set_path("final", r["path"])
+    job.set_stage("delivery_pending")
+    tag = f" ({r.get('minutes', '?')} min)" if r.get("minutes") else ""
+    msg = await _deliver_video(context, chat, Path(str(r["path"])),
+                               f"🎧 {job.get('title')}{tag}")
+    job.d["delivery"]["message_id"] = getattr(msg, "message_id", None)
+    job.set_stage("delivered")
+    if r.get("fallback"):
+        await context.bot.send_message(
+            chat, f"⚠️ {r['fallback']} segments used the fallback "
+                  "voice — check OpenAI limits.")
+
+
+async def _make_deep(update, context, question: str):
+    """Document-only flagship: the definitive dossier, no video."""
+    chat = update.effective_chat.id
+    await _start_job(
+        context, chat, "deep", "document", question,
+        f"Going deep: {question}\n(10-15 minutes — research, "
+        "adversarial review, synthesis, edit…)")
 
 
 async def cmd_deep(update, context):
@@ -706,7 +841,8 @@ async def cmd_test(update, context):
         return
     chat = update.effective_chat.id
     await context.bot.send_message(
-        chat, "🔧 Rendering the pipeline check (~2 min, no API spend)…")
+        chat, "🔧 Rendering the pipeline check (~2 min; no LLM spend, "
+              "~1¢ of TTS)…")
     scenes = [
         {"kicker": "check one", "headline": "Voice and captions",
          "narration": "If you can hear this line, narration and the music "
@@ -735,6 +871,34 @@ async def cmd_test(update, context):
     except Exception as e:
         await context.bot.send_message(
             chat, f"Pipeline check FAILED: {type(e).__name__}: {e}")
+
+
+async def cmd_retry(update, context):
+    """Re-run the most recent retained job (waiting_retry /
+    needs_attention). Everything durable — document, script, finished
+    TTS clips — is reused, so a retry only pays for what's missing."""
+    if not _ok(update):
+        return
+    chat = update.effective_chat.id
+    job = _jobs.STORE.latest_retained()
+    if job is None:
+        await update.message.reply_text(
+            "Nothing is waiting for a retry — all jobs delivered.")
+        return
+    # a deliberate retry earns a fresh failure budget at the stuck stage
+    job.d.setdefault("stage_failures", {})[job.stage] = 0
+    job.d["status"] = "running"
+    job.save()
+    if not _jobs.STORE.acquire(job):
+        pos = _jobs.STORE.queue_position(job.id) or "?"
+        await update.message.reply_text(
+            f"⏳ A job is running — queued the retry (position {pos}).")
+        return
+    await context.bot.send_message(
+        chat, f"🔁 Retrying “{job.topic[:100]}” from stage {job.stage} — "
+              "finished work is reused, only the missing part is paid "
+              "for.")
+    asyncio.create_task(_execute_job(context, job))
 
 
 async def cmd_taste(update, context):
@@ -838,9 +1002,9 @@ async def cmd_diag(update, context):
         return
     chat = update.effective_chat.id
     key = os.environ.get("ANTHROPIC_API_KEY", "")
-    head = key[:14] + "…" if key else "(missing)"
     await context.bot.send_message(
-        chat, f"key: {head} len={len(key)}\ntesting a live call…")
+        chat, f"key: {'configured' if key else 'MISSING'} "
+              f"(len={len(key)})\ntesting a live call…")
 
     def _test() -> str:
         try:
@@ -917,91 +1081,154 @@ def _selfcheck() -> None:
 
 
 async def _post_init(app: Application) -> None:
-    """Runs inside the bot's event loop — safe to schedule background tasks."""
+    """Runs inside the bot's event loop — safe to schedule background
+    tasks. The feed loops start HERE, on every boot — clean or resumed
+    (they were previously nested inside the resume path only, so a clean
+    boot never started the auto-feed)."""
     app._forge_loop = asyncio.get_running_loop()
     asyncio.get_event_loop().run_in_executor(None, _selfcheck)
+    try:
+        _jobs.STORE.sweep()
+    except Exception:
+        log.exception("retention sweep failed")
     # A restart (deploy, OOM, crash) kills any in-flight job — announce
     # it, then RESUME the job from its persisted state.
-    if not _pending_path().exists():
+    resumed = False
+    legacy = _jobs.STORE.legacy_payload()
+    if legacy is not None:
+        # pre-schema payload: {kind, topic, chat, doc}. Its audio flag was
+        # never persisted, so the old resume could turn a podcast into a
+        # video. Never guess the mode — tell the owner instead.
+        try:
+            (_explorer.EXPLORATIONS_DIR / "pending_job.json").unlink(
+                missing_ok=True)
+        except OSError:
+            pass
+        chat = legacy.get("chat")
+        if chat:
+            resumed = True
+            await app.bot.send_message(
+                chat, f"⚡ A restart killed “{legacy.get('topic', 'a job')}” "
+                      "from before the durable-jobs upgrade — I can't tell "
+                      "whether it was a podcast or a video, so I won't "
+                      "guess. Send the request again (any finished "
+                      "research PDF you already received is still good).")
+    elif _jobs.STORE.active_id():
+        resumed = True
+        asyncio.create_task(_resume_job(app))
+    elif _jobs.STORE.queued_ids():
+        # a restart landed between one job finishing and the next
+        # starting — don't strand the queue
+        nxt = _jobs.STORE.queued_ids()[0]
+        njob = _jobs.STORE.load(nxt)
+        if njob and _jobs.STORE.acquire(njob):
+            resumed = True
+            await app.bot.send_message(
+                njob.chat, f"▶️ Starting the queued job: "
+                           f"{njob.topic[:120]}")
+            asyncio.create_task(_execute_job(app, njob))
+    if not resumed:
         for uid in _ALLOWED:
             try:
                 await app.bot.send_message(
                     uid, "⚡ Worker restarted (deploy). Ready.")
             except Exception:
                 log.warning("restart notice to %s failed", uid)
-    else:
-        asyncio.create_task(_resume_job(app))
-
-
-async def _resume_job(app: Application):
-    """Pick up the job a restart killed. If the doc (the expensive
-    research half) exists, only the video half re-runs."""
-    import json
-    try:
-        job = json.loads(_pending_path().read_text())
-    except Exception:
-        _pending_clear()
-        return
-    _pending_clear()      # cleared up front so a crash here can't loop
-    chat, kind = job.get("chat"), job.get("kind", "")
-    topic, doc = job.get("topic", ""), job.get("doc")
-    if not chat:
-        return
-    if not doc or not Path(doc).exists():
-        await app.bot.send_message(
-            chat, f"⚡ A restart killed “{topic}” before research "
-                  "finished — send it again.")
-        return
-    # never resume a malformed doc (e.g. the model asked a question back
-    # instead of researching) — that renders garbage on a loop
-    import re as _re
-    try:
-        _txt = Path(doc).read_text(encoding="utf-8")
-    except Exception:
-        _txt = ""
-    if (not _re.search(r"^#\s+.+$", _txt, _re.M)
-            or _txt.count("##") < 3 or len(_txt) < 1200):
-        await app.bot.send_message(
-            chat, f"⚡ A restart killed “{topic or 'a job'}”, and its "
-                  "research looks malformed — not resuming it. Send the "
-                  "request again.")
-        return
-    await app.bot.send_message(
-        chat, f"♻️ Restart killed the render of “{topic}” — resuming it "
-              "now (the research is already done).")
-    say = _progress_sender(app, chat)
-    try:
-        if kind == "lesson":
-            r = await _run_blocking(
-                _video.build_video, doc, say,
-                _lesson._LESSON_VIDEO_SYSTEM, "THE LESSON")
-            title = topic
-        elif kind == "debate":
-            r = await _run_blocking(_debate.video_from_brief, doc, say)
-            title = r["title"]
-        elif kind == "sim":
-            r = await _run_blocking(_sim.video_from_dossier, doc, say)
-            title = r["title"]
-            _LAST_SIM[chat] = str(doc)
-        elif kind == "story":
-            r = await _run_blocking(_story.video_from_casefile, doc, say)
-            title = r["title"]
-        else:
-            return
-        emoji = {"lesson": "\U0001f393", "debate": "\U0001f94a",
-                 "sim": "\U0001f52e", "story": "\U0001f56f️"}.get(
-                     kind, "\U0001f3ac")
-        await _deliver_video(app, chat, r["path"], f"{emoji} {title}")
-    except Exception as e:
-        log.exception("resume failed")
-        await app.bot.send_message(
-            chat, f"Resume failed: {type(e).__name__}: {e} — send the "
-                  "request again.")
     every = int(os.environ.get("RESTOCK_EVERY", "0"))
     if every and _ALLOWED:
         asyncio.create_task(_restock_loop(app))
     if os.environ.get("FORGE_DAILY_HOUR", "").strip() and _ALLOWED:
         asyncio.create_task(_daily_loop(app))
+
+
+async def _resume_job(app: Application):
+    """Stage-driven resume of the persisted active job. Never clears
+    state up front: the job stays on disk until it is delivered or
+    retained as needs_attention. Whatever is already durable (document,
+    script, TTS clips) is reused — only missing work re-runs."""
+    jid = _jobs.STORE.active_id()
+    job = _jobs.STORE.load(jid) if jid else None
+    if job is None:
+        try:
+            (_explorer.EXPLORATIONS_DIR / "pending_job.json").unlink(
+                missing_ok=True)
+        except OSError:
+            pass
+        return
+    chat = job.chat
+    if not chat:
+        job.set_stage("needs_attention")
+        _jobs.STORE.release(job)
+        return
+    job.d["resume_count"] = job.get("resume_count", 0) + 1
+    job.save()
+    if job.stage == "delivered":
+        _jobs.STORE.release(job)
+        return
+    if job.get("resume_count") > 4:
+        job.set_stage("needs_attention")
+        await app.bot.send_message(
+            chat, f"🛑 “{job.topic[:80]}” has been interrupted "
+                  f"{job.get('resume_count')} times — retaining it "
+                  "instead of looping. /retry to attempt it again.")
+        _jobs.STORE.release(job)
+        return
+    # never resume a malformed doc (e.g. the model asked a question back
+    # instead of researching) — that renders garbage on a loop
+    doc = job.get_path("document")
+    if doc and doc.exists():
+        import re as _re
+        try:
+            _txt = doc.read_text(encoding="utf-8")
+        except Exception:
+            _txt = ""
+        if (not _re.search(r"^#\s+.+$", _txt, _re.M)
+                or _txt.count("##") < 3 or len(_txt) < 1200):
+            job.set_stage("needs_attention")
+            await app.bot.send_message(
+                chat, f"⚡ A restart killed “{job.topic[:80]}”, and its "
+                      "research looks malformed — retained, not resumed. "
+                      "Send the request again.")
+            _jobs.STORE.release(job)
+            return
+    if job.stage == "delivery_pending" and job.get_path("final") \
+            and job.get_path("final").exists():
+        note = "uploading the finished episode"
+    elif doc and doc.exists():
+        note = "the research is already done"
+    else:
+        note = "restarting its research"
+    await app.bot.send_message(
+        chat, f"♻️ Restart killed “{job.topic[:80]}” at stage "
+              f"{job.stage} — resuming ({note}).")
+    # delivery_pending with a finished artifact: upload it, don't rebuild
+    if job.stage == "delivery_pending":
+        final = job.get_path("final")
+        if final and final.exists():
+            try:
+                if final.suffix == ".pdf" or job.kind == "deep":
+                    with open(final, "rb") as f:
+                        msg = await app.bot.send_document(
+                            chat_id=chat, document=f, filename=final.name,
+                            caption=f"📜 {job.get('title') or job.topic}",
+                            **_SEND_KW)
+                else:
+                    emoji = "\U0001f399" if job.mode == "audio" else "\U0001f3ac"
+                    msg = await _deliver_video(
+                        app, chat, final,
+                        f"{emoji} {job.get('title') or job.topic}")
+                job.d["delivery"]["message_id"] = getattr(
+                    msg, "message_id", None)
+                job.set_stage("delivered")
+                nxt = _jobs.STORE.release(job)
+                if nxt:
+                    njob = _jobs.STORE.load(nxt)
+                    if njob and _jobs.STORE.acquire(njob):
+                        asyncio.create_task(_execute_job(app, njob))
+                return
+            except Exception:
+                log.exception("resume delivery failed; falling through")
+    await _execute_job(app, job)
 
 
 async def _daily_loop(app: Application):
@@ -1046,7 +1273,12 @@ def _feed_avoid() -> list[str]:
 
 async def _air_slot(app: Application, chat: int) -> bool:
     """One programmed feed slot: the director picks format+topic, then the
-    full pipeline runs exactly as if the viewer had asked."""
+    full pipeline runs exactly as if the viewer had asked. Automatic
+    programming never displaces a manual job — if one is active, skip
+    this slot (the loop's next tick reschedules naturally)."""
+    if _jobs.STORE.active_id():
+        log.info("feed slot skipped: a job is already active")
+        return False
     slot = await _run_blocking(_sources.pick_slot, _feed_avoid())
     if not slot:
         return False
@@ -1111,6 +1343,13 @@ def main() -> None:
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         raise SystemExit("TELEGRAM_BOT_TOKEN not set")
+    if not _ALLOWED and os.environ.get("FORGE_ALLOW_PUBLIC") != "1":
+        raise SystemExit(
+            "TELEGRAM_ALLOWED_USERS is empty — refusing to start a bot "
+            "that anyone on Telegram could use to spend your API credits. "
+            "Set TELEGRAM_ALLOWED_USERS to your numeric Telegram id, or "
+            "set FORGE_ALLOW_PUBLIC=1 to explicitly run open (local dev "
+            "only).")
 
     app = Application.builder().token(token).post_init(_post_init).build()
     app.add_handler(CommandHandler("start", cmd_start))
@@ -1118,6 +1357,7 @@ def main() -> None:
     app.add_handler(CommandHandler("debate", cmd_debate))
     app.add_handler(CommandHandler("simulate", cmd_simulate))
     app.add_handler(CommandHandler("taste", cmd_taste))
+    app.add_handler(CommandHandler("retry", cmd_retry))
     app.add_handler(CommandHandler("story", cmd_story))
     app.add_handler(CommandHandler("tonight", cmd_tonight))
     app.add_handler(CommandHandler("test", cmd_test))

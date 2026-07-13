@@ -140,7 +140,8 @@ _DEBATE_SCRIPT_SYSTEM = (
 
 
 def build_debate(topic: str, on_progress=None, on_doc=None,
-                 audio: bool = False) -> dict:
+                 audio: bool = False, checkpoint=None,
+                 clips_dir=None) -> dict:
     """Research a decision brief, deliver it, then render the two-host
     debate video performed from it."""
     say = on_progress or (lambda _m: None)
@@ -171,11 +172,13 @@ def build_debate(topic: str, on_progress=None, on_doc=None,
             on_doc(doc_path)
         except Exception:
             pass
-    return video_from_brief(doc_path, on_progress=say, audio=audio)
+    return video_from_brief(doc_path, on_progress=say, audio=audio,
+                            checkpoint=checkpoint, clips_dir=clips_dir)
 
 
 def video_from_brief(doc_path: str | Path, on_progress=None,
-                     audio: bool = False) -> dict:
+                     audio: bool = False, checkpoint=None,
+                     clips_dir=None, scenes=None) -> dict:
     """Script and render the debate video from an existing brief — also
     the resume path when a restart killed the render half."""
     say = on_progress or (lambda _m: None)
@@ -187,32 +190,38 @@ def video_from_brief(doc_path: str | Path, on_progress=None,
     title = m.group(1).strip() if m else doc_path.stem
     slug = _slugify(title)
 
-    say("staging the debate…")
-    from . import taste as _taste
-    script_system = (_DEBATE_SCRIPT_SYSTEM + (_video.AUDIO_SCRIPT_ADDENDUM if audio else "") + _taste.context())
-    raw = provider.complete(
-        system=script_system, user=f"The brief:\n\n{brief}",
-        model=WRITER_MODEL, max_tokens=16000,
-    )
-    scenes = _video._parse_scenes(raw)
-    if not scenes:
-        raw2 = provider.complete(
-            system=_DEBATE_SCRIPT_SYSTEM,
-            user=(f"The brief:\n\n{brief}\n\nYour previous output could "
-                  f"not be parsed as JSON. Output ONLY the raw JSON array "
-                  f"— no code fences, no commentary — and keep every svg "
-                  f"on a single line."),
+    if scenes is None:
+        say("staging the debate…")
+        from . import taste as _taste
+        script_system = (_DEBATE_SCRIPT_SYSTEM + (_video.AUDIO_SCRIPT_ADDENDUM if audio else "") + _taste.context())
+        raw = provider.complete(
+            system=script_system, user=f"The brief:\n\n{brief}",
             model=WRITER_MODEL, max_tokens=16000,
         )
-        scenes = _video._parse_scenes(raw2)
-    if not scenes:
-        raise RuntimeError("debate script returned no scenes")
-    say("script-doctor pass…")
-    scenes = _video.polish_scenes(
-        scenes, (_video.AUDIO_POLISH_NOTE if audio else "") + "This is a two-host debate: keep the speakers' characters "
-                "distinct (A warm believer, B dry skeptic), keep the "
-                "rebuttal structure, and make the clash at the cruxes "
-                "sharper.")
+        scenes = _video._parse_scenes(raw)
+        if not scenes:
+            raw2 = provider.complete(
+                system=_DEBATE_SCRIPT_SYSTEM,
+                user=(f"The brief:\n\n{brief}\n\nYour previous output could "
+                      f"not be parsed as JSON. Output ONLY the raw JSON array "
+                      f"— no code fences, no commentary — and keep every svg "
+                      f"on a single line."),
+                model=WRITER_MODEL, max_tokens=16000,
+            )
+            scenes = _video._parse_scenes(raw2)
+        if not scenes:
+            raise RuntimeError("debate script returned no scenes")
+        say("script-doctor pass…")
+        scenes = _video.polish_scenes(
+            scenes, (_video.AUDIO_POLISH_NOTE if audio else "") + "This is a two-host debate: keep the speakers' characters "
+                    "distinct (A warm believer, B dry skeptic), keep the "
+                    "rebuttal structure, and make the clash at the cruxes "
+                    "sharper.")
+    if checkpoint is not None:
+        try:
+            checkpoint("script", scenes)
+        except Exception:
+            pass
 
     vd = ("You are one of two rival podcast hosts mid-argument — "
           "genuinely reacting to what the other just said. Talk TO "
@@ -221,12 +230,13 @@ def video_from_brief(doc_path: str | Path, on_progress=None,
     if audio:
         out = EXPLORATIONS_DIR / f"{slug}.debate.m4a"
         r = _video.render_podcast(scenes, out, on_progress=say,
-                                  voice_direction=vd, mood="warm")
+                                  voice_direction=vd, mood="warm",
+                                  clips_dir=clips_dir)
     else:
         out = EXPLORATIONS_DIR / f"{slug}.debate.mp4"
         r = _video.render_scenes(
             scenes, out, on_progress=say, title=title, badge="THE DEBATE",
-            voice_direction=vd, mood="warm")
+            voice_direction=vd, mood="warm", clips_dir=clips_dir)
     r["title"] = title
     r["doc"] = doc_path
     return r

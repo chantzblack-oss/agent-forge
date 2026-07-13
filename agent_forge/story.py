@@ -196,7 +196,8 @@ def covered_cases() -> list[str]:
 
 
 def build_story(case: str, on_progress=None, on_doc=None,
-                audio: bool = False) -> dict:
+                audio: bool = False, checkpoint=None,
+                clips_dir=None) -> dict:
     """Research the case file, deliver it, then render the episode."""
     say = on_progress or (lambda _m: None)
     provider = get_provider("anthropic")
@@ -229,11 +230,13 @@ def build_story(case: str, on_progress=None, on_doc=None,
             on_doc(doc_path)
         except Exception:
             pass
-    return video_from_casefile(doc_path, on_progress=say, audio=audio)
+    return video_from_casefile(doc_path, on_progress=say, audio=audio,
+                               checkpoint=checkpoint, clips_dir=clips_dir)
 
 
 def video_from_casefile(doc_path: str | Path, on_progress=None,
-                        audio: bool = False) -> dict:
+                        audio: bool = False, checkpoint=None,
+                        clips_dir=None, scenes=None) -> dict:
     """Script and render the episode from an existing case file — also
     the resume path."""
     say = on_progress or (lambda _m: None)
@@ -245,32 +248,38 @@ def video_from_casefile(doc_path: str | Path, on_progress=None,
     title = m.group(1).strip() if m else doc_path.stem
     slug = _slugify(title)
 
-    say("writing the episode…")
-    from . import taste as _taste
-    script_system = (_STORY_SCRIPT_SYSTEM + (_video.AUDIO_SCRIPT_ADDENDUM if audio else "") + _taste.context())
-    raw = provider.complete(
-        system=script_system, user=f"The case file:\n\n{casefile}",
-        model=WRITER_MODEL, max_tokens=16000,
-    )
-    scenes = _video._parse_scenes(raw)
-    if not scenes:
-        raw2 = provider.complete(
-            system=_STORY_SCRIPT_SYSTEM,
-            user=(f"The case file:\n\n{casefile}\n\nYour previous output "
-                  f"could not be parsed as JSON. Output ONLY the raw JSON "
-                  f"array — no code fences, no commentary — and keep "
-                  f"every svg on a single line."),
+    if scenes is None:
+        say("writing the episode…")
+        from . import taste as _taste
+        script_system = (_STORY_SCRIPT_SYSTEM + (_video.AUDIO_SCRIPT_ADDENDUM if audio else "") + _taste.context())
+        raw = provider.complete(
+            system=script_system, user=f"The case file:\n\n{casefile}",
             model=WRITER_MODEL, max_tokens=16000,
         )
-        scenes = _video._parse_scenes(raw2)
-    if not scenes:
-        raise RuntimeError("story script returned no scenes")
-    say("script-doctor pass…")
-    scenes = _video.polish_scenes(
-        scenes, (_video.AUDIO_POLISH_NOTE if audio else "") + "This is a dark-documentary episode: protect the cold "
-                "open, keep the dread building scene over scene, keep "
-                "the respect rule absolute, and make the closing "
-                "question land like a stone in a well.")
+        scenes = _video._parse_scenes(raw)
+        if not scenes:
+            raw2 = provider.complete(
+                system=_STORY_SCRIPT_SYSTEM,
+                user=(f"The case file:\n\n{casefile}\n\nYour previous output "
+                      f"could not be parsed as JSON. Output ONLY the raw JSON "
+                      f"array — no code fences, no commentary — and keep "
+                      f"every svg on a single line."),
+                model=WRITER_MODEL, max_tokens=16000,
+            )
+            scenes = _video._parse_scenes(raw2)
+        if not scenes:
+            raise RuntimeError("story script returned no scenes")
+        say("script-doctor pass…")
+        scenes = _video.polish_scenes(
+            scenes, (_video.AUDIO_POLISH_NOTE if audio else "") + "This is a dark-documentary episode: protect the cold "
+                    "open, keep the dread building scene over scene, keep "
+                    "the respect rule absolute, and make the closing "
+                    "question land like a stone in a well.")
+    if checkpoint is not None:
+        try:
+            checkpoint("script", scenes)
+        except Exception:
+            pass
 
     vd = ("You are a seasoned documentary narrator telling a dark true "
           "story late at night — low, intimate, measured. Controlled "
@@ -281,12 +290,13 @@ def video_from_casefile(doc_path: str | Path, on_progress=None,
     if audio:
         out = EXPLORATIONS_DIR / f"{slug}.case.m4a"
         r = _video.render_podcast(scenes, out, on_progress=say,
-                                  voice_direction=vd, mood="dark")
+                                  voice_direction=vd, mood="dark",
+                                  clips_dir=clips_dir)
     else:
         out = EXPLORATIONS_DIR / f"{slug}.case.mp4"
         r = _video.render_scenes(
             scenes, out, on_progress=say, title=title, badge="CASE FILE",
-            voice_direction=vd, mood="dark")
+            voice_direction=vd, mood="dark", clips_dir=clips_dir)
     r["title"] = title
     r["doc"] = doc_path
     return r

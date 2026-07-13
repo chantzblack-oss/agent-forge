@@ -1048,10 +1048,27 @@ def _clip(ff: str, src: Path, dur: float, out: Path, audio: Path | None) -> None
         shutil.rmtree(src, ignore_errors=True)
 
 
-def _narrate_all(scenes, work: Path, ff: str, say, persona: str):
+def _synthesis_key(text: str, notes: str, spk: str) -> str:
+    """Stable identity of one TTS request: same key -> same audio, so a
+    clip found on disk under this key is safe to reuse after a restart."""
+    import hashlib
+    model = os.environ.get("FORGE_TTS_MODEL", "gpt-4o-mini-tts")
+    voice = _speaker_openai_voice(spk) or \
+        os.environ.get("FORGE_OPENAI_VOICE", "onyx")
+    raw = "\x1f".join((text, notes, spk, model, voice))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
+
+
+def _narrate_all(scenes, work: Path, ff: str, say, persona: str,
+                 clips_dir: Path | None = None):
     """Parallel TTS for every scene. Returns (mp3s, durs, narrated,
-    fallbacks)."""
+    fallbacks). With `clips_dir`, clips persist under synthesis-keyed
+    names and are REUSED on retry/restart — paid audio is never
+    repurchased. Files land via .part + rename, so a crash mid-write
+    can't leave a truncated clip masquerading as a good one."""
     say(f"narrating {len(scenes)} scenes…")
+    if clips_dir is not None:
+        clips_dir.mkdir(parents=True, exist_ok=True)
 
     prevs = [""] + [s.get("narration", "").strip() for s in scenes[:-1]]
 
@@ -1060,7 +1077,6 @@ def _narrate_all(scenes, work: Path, ff: str, say, persona: str):
         text = sc.get("narration", "").strip()
         if not text:
             return None, False
-        mp3 = work / f"s{i:02d}.mp3"
         rate, pitch = _delivery(sc)
         spk = str(sc.get("speaker", "") or "").strip().lower()
         notes = _acting_notes(sc, persona)
@@ -1071,12 +1087,25 @@ def _narrate_all(scenes, work: Path, ff: str, say, persona: str):
             notes += (" You are mid-piece — the line just before this "
                       f"one was: \"…{prev[-140:]}\" Continue from that "
                       "energy, don't restart.")
-        if _openai_tts(text, mp3, notes,
+        if clips_dir is not None:
+            final = clips_dir / f"{_synthesis_key(text, notes, spk)}.mp3"
+            if final.exists() and final.stat().st_size > 1000:
+                return final, False          # restart reuse: $0
+            # keep a real .mp3 tail — writers infer format from extension
+            tmp = final.with_name(final.stem + ".part.mp3")
+        else:
+            final = work / f"s{i:02d}.mp3"
+            tmp = final
+        if _openai_tts(text, tmp, notes,
                        voice=_speaker_openai_voice(spk)):
-            return mp3, False
-        ok = synth(text, mp3, rate=rate, pitch=pitch,
+            if tmp is not final:
+                os.replace(tmp, final)
+            return final, False
+        ok = synth(text, tmp, rate=rate, pitch=pitch,
                    voice=_speaker_edge_voice(spk))
-        return (mp3 if ok else None), ok      # fallback = robotic voice
+        if ok and tmp is not final:
+            os.replace(tmp, final)
+        return (final if ok else None), ok    # fallback = robotic voice
 
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=2) as ex:   # gentle on rate limits
@@ -1097,17 +1126,42 @@ def _narrate_all(scenes, work: Path, ff: str, say, persona: str):
     return mp3s, durs, narrated, fallbacks
 
 
+class NarrationIncomplete(RuntimeError):
+    """Some spoken segments could not be synthesized. An episode with
+    silently missing chapters must never ship — the caller retries or
+    retains the job instead."""
+
+    def __init__(self, missing: list[int], total: int):
+        self.missing = missing
+        self.total = total
+        super().__init__(
+            f"narration incomplete: {len(missing)} of {total} segments "
+            f"failed TTS (segments {missing}); refusing to assemble an "
+            "episode with missing chapters")
+
+
 def render_podcast(scenes: list[dict], out: Path, on_progress=None,
                    voice_direction: str | None = None,
-                   mood: str | None = None) -> dict:
+                   mood: str | None = None,
+                   clips_dir: Path | None = None) -> dict:
     """Assemble the scene list as a PODCAST episode: narration with
     breathing room, music bed ducked underneath — no video render at all.
-    Minutes instead of half-hours."""
+    Minutes instead of half-hours.
+
+    EVERY spoken segment must synthesize (OpenAI, then the Edge
+    fallback); a missing segment raises NarrationIncomplete rather than
+    shipping an episode with silent holes. Pass `clips_dir` to persist
+    clips under synthesis keys so a retry only pays for what's missing."""
     say = on_progress or (lambda _m: None)
     work = Path(tempfile.mkdtemp(prefix="forge_pod_"))
     ff = _ffmpeg()
     mp3s, durs, narrated, fallbacks = _narrate_all(
-        scenes, work, ff, say, voice_direction or "")
+        scenes, work, ff, say, voice_direction or "", clips_dir=clips_dir)
+    spoken = [i for i, sc in enumerate(scenes)
+              if (sc.get("narration") or "").strip()]
+    missing = [i for i in spoken if mp3s[i] is None]
+    if missing:
+        raise NarrationIncomplete(missing, len(spoken))
     voiced = [m for m in mp3s if m is not None]
     if not voiced:
         raise RuntimeError("no narration could be synthesized")
@@ -1168,7 +1222,8 @@ def render_podcast(scenes: list[dict], out: Path, on_progress=None,
 def render_scenes(scenes: list[dict], out: Path, on_progress=None,
                   title: str | None = None, badge: str | None = None,
                   voice_direction: str | None = None,
-                  mood: str | None = None) -> dict:
+                  mood: str | None = None,
+                  clips_dir: Path | None = None) -> dict:
     """Narrate, record and stitch a scene list into an MP4 at `out`.
     With `title`, the video gets show packaging: a branded title card in
     and a library card out (music-only beats, no narration)."""
@@ -1211,7 +1266,7 @@ def render_scenes(scenes: list[dict], out: Path, on_progress=None,
         with ThreadPoolExecutor(max_workers=3) as ex:
             list(ex.map(_fetch_imagery, wanted))
     mp3s, durs, narrated, fallbacks = _narrate_all(
-        scenes, work, ff, say, voice_direction or "")
+        scenes, work, ff, say, voice_direction or "", clips_dir=clips_dir)
     # Phase 2: capture each scene (virtual-time, pixel-perfect) and encode
     # it immediately — frames are freed before the next scene is captured.
     clips: list[Path] = []
@@ -1291,26 +1346,42 @@ def build_video(md_path: str | Path, on_progress=None,
                 badge: str | None = None,
                 voice_direction: str | None = None,
                 mood: str | None = None,
-                audio: bool = False) -> dict:
-    """Compile a dive markdown into a narrated (or silent-captioned) MP4."""
+                audio: bool = False,
+                checkpoint=None,
+                clips_dir: Path | None = None,
+                scenes: list[dict] | None = None) -> dict:
+    """Compile a dive markdown into a narrated (or silent-captioned) MP4.
+
+    `checkpoint(kind, payload)` (optional) is called with
+    ("script", scenes) the moment the script exists — BEFORE any TTS
+    spend — so a durable job can resume from the script instead of
+    re-buying script generation. Pass precomputed `scenes` (e.g. a
+    checkpointed script.json) to skip generation entirely."""
     say = on_progress or (lambda _m: None)
     md_path = Path(md_path)
     essay = re.sub(r"^<!--.*?-->\s*", "", md_path.read_text(encoding="utf-8"), flags=re.S)
 
-    say("writing the script…")
-    base_system = script_system or _SCRIPT_SYSTEM
-    scenes = script_from_essay(
-        essay,
-        script_system=base_system + (AUDIO_SCRIPT_ADDENDUM if audio else ""),
-        polish_note=AUDIO_POLISH_NOTE if audio else "")
+    if scenes is None:
+        say("writing the script…")
+        base_system = script_system or _SCRIPT_SYSTEM
+        scenes = script_from_essay(
+            essay,
+            script_system=base_system + (AUDIO_SCRIPT_ADDENDUM if audio else ""),
+            polish_note=AUDIO_POLISH_NOTE if audio else "")
     if not scenes:
         raise RuntimeError("script generation returned no scenes")
+    if checkpoint is not None:
+        try:
+            checkpoint("script", scenes)
+        except Exception:
+            pass
     m = re.search(r"^#\s+(.+)$", essay, re.M)
     title = m.group(1).strip() if m else None
     if audio:
         return render_podcast(
             scenes, EXPLORATIONS_DIR / (md_path.stem + ".m4a"),
-            on_progress=say, voice_direction=voice_direction, mood=mood)
+            on_progress=say, voice_direction=voice_direction, mood=mood,
+            clips_dir=clips_dir)
     out = EXPLORATIONS_DIR / (md_path.stem + ".mp4")
     return render_scenes(
         scenes, out, on_progress=say,
@@ -1319,7 +1390,7 @@ def build_video(md_path: str | Path, on_progress=None,
         "You are a gifted storyteller sharing something that genuinely "
         "amazes you — natural, warm, alive. Real inflection: lean into "
         "the surprising word, drop for the aside, lift for the reveal.",
-        mood=mood)
+        mood=mood, clips_dir=clips_dir)
 
 
 def _audio_dur(ff: str, mp3: Path) -> float:

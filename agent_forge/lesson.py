@@ -168,7 +168,8 @@ _LESSON_VIDEO_SYSTEM = (
 
 
 def build_lesson(topic: str, on_progress=None, on_doc=None,
-                 audio: bool = False) -> dict:
+                 audio: bool = False, checkpoint=None,
+                 clips_dir=None) -> dict:
     """Research a skill/topic, write a cheat-sheet doc, and render a video."""
     say = on_progress or (lambda _m: None)
 
@@ -208,7 +209,10 @@ def build_lesson(topic: str, on_progress=None, on_doc=None,
             "You are a brilliant friend teaching something you love — "
             "energetic but natural, smiling through the good parts, "
             "dead serious on the warnings. Never lecture-y."),
-        mood="bright", audio=audio
+        mood="bright", audio=audio, checkpoint=checkpoint,
+        clips_dir=clips_dir
     )
     return {"title": title, "doc": doc_path, "video": vid["path"],
-            "voiced": vid["voiced"], "scenes": vid["scenes"]}
+            "voiced": vid["voiced"], "scenes": vid["scenes"],
+            "quality": vid.get("quality"), "minutes": vid.get("minutes"),
+            "fallback": vid.get("fallback")}
